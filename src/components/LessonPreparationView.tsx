@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSlidesPDF, exportSlidesPNGZip, exportSingleSlidePDF, exportSingleSlidePNG } from '../services/exportService';
 
@@ -117,6 +117,17 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
+  const [customBg, setCustomBg] = useState<string | null>(null);
+
+  const handleCustomBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { const d = ev.target?.result as string; if (d) setCustomBg(d); };
+    reader.readAsDataURL(file);
+    // Reset input so same file can be re-selected
+    e.target.value = '';
+  };
 
   // Gerador de Texto Completo do Roteiro do Professor na Íntegra
   const generateTeacherTextContent = (data: EBDLessonPreparation): string => {
@@ -925,8 +936,26 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               {currentProjectorItem.title}
             </div>
 
-            {/* Botões de Exportação PDF e PNG (1 Slide Rápido e Todos os Slides) */}
+            {/* Upload Modelo Próprio + Botões de Exportação */}
             <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Upload do Meu Modelo */}
+              <label
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all"
+                title="Enviar imagem como fundo de todos os slides do projetor"
+              >
+                <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                <span>📁 Meu Modelo</span>
+                <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
+              </label>
+              {customBg && (
+                <button
+                  onClick={() => setCustomBg(null)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
+                  title="Remover modelo personalizado e voltar ao padrão"
+                >
+                  ✕ Remover Modelo
+                </button>
+              )}
               {/* 1 SLIDE PNG (Rápido para testes) */}
               <button
                 onClick={async () => {
@@ -1018,7 +1047,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
           <div
             ref={projectorStageRef}
-            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] bg-white text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4 font-sans"
+            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
+            style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
           >
             {/* Polígonos Azuis 3D no Canto Superior Esquerdo */}
             <div className="absolute top-0 left-0 pointer-events-none z-0">
