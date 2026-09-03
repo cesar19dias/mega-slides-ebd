@@ -149,18 +149,17 @@ function drawEbdHeaderBadge(slide: any, label: string) {
 
   const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
-  // Nome Principal no Topo com 25% de recuo (x: 3.33, y: 0.9, alinhado ao centro da região)
   slide.addText(displayText, {
-    x: 3.33,
-    y: 0.9,
-    w: 9.5,
+    x: 2.66,
+    y: 0.5,
+    w: 10.0,
     h: 1.2,
     align: 'center',
-    valign: 'top',
-    fontSize: 38,
+    valign: 'middle',
+    fontSize: 34,
     bold: true,
     color: 'FFFFFF',
-    fontFace: 'Fredoka',
+    fontFace: 'Arial',
     shrinkText: true
   });
 }
