@@ -1078,7 +1078,22 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 );
               }
 
-              const toCaixaBaixa = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+              const PROPER_NOUNS = [
+                'Deus', 'Jesus', 'Cristo', 'Espírito', 'Santo', 'Senhor', 'Pai', 'Filho',
+                'Paulo', 'Pedro', 'João', 'Ananias', 'Félix', 'Tértulo', 'Festos', 'Agripa',
+                'Sinédrio', 'Jerusalém', 'Israel', 'Evangelho', 'Bíblia', 'Trófimo', 'Ásia',
+                'Roma', 'Lei', 'EBD', 'MegaEBD', 'Igreja'
+              ];
+              const toCaixaBaixa = (text: string) => {
+                if (!text) return '';
+                let res = text.trim();
+                res = res.charAt(0).toUpperCase() + res.slice(1).toLowerCase();
+                PROPER_NOUNS.forEach(noun => {
+                  const regex = new RegExp(`\\b${noun}\\b`, 'gi');
+                  res = res.replace(regex, noun);
+                });
+                return res;
+              };
               const badgeText = currentProjectorItem.badgeText || 'MEGA EBD';
               const subMatch = badgeText.match(/^(SUBTÓPICO\s+[\d|A-Z]+|SUBT\.?)\s*[:\—\-]\s*(.+)$/i);
               const topMatch = badgeText.match(/^(TÓPICO\s+[I|V|X|\d]+)\s*[:\—\-]\s*(.+)$/i);

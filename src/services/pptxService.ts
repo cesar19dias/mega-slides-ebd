@@ -111,18 +111,17 @@ export function exportToPowerPoint(data: PresentationData, theme: ThemeConfig, c
 function toCaixaBaixa(text: string): string {
   if (!text) return '';
   let str = text.trim();
-  if (str === str.toUpperCase()) {
-    str = str.toLowerCase();
-    str = str.charAt(0).toUpperCase() + str.slice(1);
-    const properNouns = [
-      'Paulo', 'Cristo', 'Deus', 'Jesus', 'Pedro', 'João', 'Sinédrio',
-      'Jerusalém', 'Israel', 'Evangelho', 'Trófimo', 'Ásia', 'Lei', 'Subt', 'Subtópico'
-    ];
-    properNouns.forEach(noun => {
-      const regex = new RegExp(`\\b${noun}\\b`, 'gi');
-      str = str.replace(regex, noun);
-    });
-  }
+  str = str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  const properNouns = [
+    'Deus', 'Jesus', 'Cristo', 'Espírito', 'Santo', 'Senhor', 'Pai', 'Filho',
+    'Paulo', 'Pedro', 'João', 'Ananias', 'Félix', 'Tértulo', 'Festos', 'Agripa',
+    'Sinédrio', 'Jerusalém', 'Israel', 'Evangelho', 'Bíblia', 'Trófimo', 'Ásia',
+    'Roma', 'Lei', 'EBD', 'MegaEBD', 'Igreja'
+  ];
+  properNouns.forEach(noun => {
+    const regex = new RegExp(`\\b${noun}\\b`, 'gi');
+    str = str.replace(regex, noun);
+  });
   return str;
 }
 

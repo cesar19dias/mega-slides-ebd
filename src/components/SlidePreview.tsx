@@ -15,23 +15,21 @@ interface SlidePreviewProps {
   onReset: () => void;
 }
 
-// ─── Função Auxiliar para Caixa Baixa (Sentence Case) ─────────────────────────
+const PROPER_NOUNS = [
+  'Deus', 'Jesus', 'Cristo', 'Espírito', 'Santo', 'Senhor', 'Pai', 'Filho',
+  'Paulo', 'Pedro', 'João', 'Ananias', 'Félix', 'Tértulo', 'Festos', 'Agripa',
+  'Sinédrio', 'Jerusalém', 'Israel', 'Evangelho', 'Bíblia', 'Trófimo', 'Ásia',
+  'Roma', 'Lei', 'EBD', 'MegaEBD', 'Igreja'
+];
+
 function toCaixaBaixa(text: string): string {
   if (!text) return '';
   let str = text.trim();
-  // Se o texto fornecido estiver inteiramente em MAIÚSCULAS (ALL CAPS), converte para caixa baixa inteligente
-  if (str === str.toUpperCase()) {
-    str = str.toLowerCase();
-    str = str.charAt(0).toUpperCase() + str.slice(1);
-    const properNouns = [
-      'Paulo', 'Cristo', 'Deus', 'Jesus', 'Pedro', 'João', 'Sinédrio',
-      'Jerusalém', 'Israel', 'Evangelho', 'Trófimo', 'Ásia', 'Lei', 'Subt', 'Subtópico'
-    ];
-    properNouns.forEach(noun => {
-      const regex = new RegExp(`\\b${noun}\\b`, 'gi');
-      str = str.replace(regex, noun);
-    });
-  }
+  str = str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  PROPER_NOUNS.forEach(noun => {
+    const regex = new RegExp(`\\b${noun}\\b`, 'gi');
+    str = str.replace(regex, noun);
+  });
   return str;
 }
 
