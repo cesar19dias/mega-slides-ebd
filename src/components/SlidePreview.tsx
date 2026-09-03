@@ -63,7 +63,7 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
   return (
     <div
       className="w-full flex flex-col items-center justify-center z-20 font-sans font-medium"
-      style={{ paddingLeft: '25%', paddingRight: '5%', paddingTop: '8.5%' }}
+      style={{ paddingLeft: '20%', paddingRight: '5%', paddingTop: '8.5%' }}
     >
       <SmartText
         text={displayText}
@@ -77,14 +77,7 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
   );
 };
 
-// ─── Polígonos decorativos ────────────────────────────────────────────────────
-const TopLeftPolygons = () => (
-  <div className="absolute top-0 left-0 pointer-events-none z-0">
-    <div className="w-72 h-36 bg-gradient-to-r from-[#003882] via-[#0052cc] to-[#0088ff] transform -skew-x-25 -translate-x-16 -translate-y-10 shadow-2xl" />
-    <div className="absolute top-0 left-0 w-56 h-28 bg-[#00a6ff] transform -skew-x-25 -translate-x-12 -translate-y-12 opacity-80" />
-    <div className="absolute top-0 left-0 w-40 h-20 bg-[#00d4ff] transform -skew-x-25 -translate-x-8 -translate-y-8 opacity-60" />
-  </div>
-);
+const TopLeftPolygons = () => null;
 
 const BottomRightPolygonBadge: React.FC<{ current: number; total: number }> = ({ current, total }) => (
   <div className="absolute bottom-0 right-0 z-20 pointer-events-none">
@@ -389,7 +382,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   {currentSlide.keyVerse ? (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
                       <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
-                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={48} minFontSize={18} className="font-black text-amber-600 text-center tracking-wide" />
+                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={48} minFontSize={18} className="font-black text-yellow-400 text-center tracking-wide" />
                     </div>
                   ) : currentSlide.takeaway ? (
                     <div className="w-full flex flex-col justify-center items-center">
@@ -398,7 +391,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   ) : (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
                       {presentation.biblicalText && (
-                        <SmartText text={presentation.biblicalText} maxFontSize={40} minFontSize={18} className="font-extrabold text-amber-600 uppercase tracking-wider text-center" />
+                        <SmartText text={presentation.biblicalText} maxFontSize={40} minFontSize={18} className="font-extrabold text-yellow-400 uppercase tracking-wider text-center" />
                       )}
                       <SmartText
                         text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
@@ -430,7 +423,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       maxFontSize={108}
                       minFontSize={24}
                       maxLines={2}
-                      className={`font-black text-amber-600 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
+                      className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
                       style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                     />
                   )}

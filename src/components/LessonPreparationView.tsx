@@ -1050,12 +1050,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
           >
-            {/* Polígonos Azuis 3D no Canto Superior Esquerdo */}
-            <div className="absolute top-0 left-0 pointer-events-none z-0">
-              <div className="w-72 h-36 bg-gradient-to-r from-[#003882] via-[#0052cc] to-[#0088ff] transform -skew-x-25 -translate-x-16 -translate-y-10 shadow-2xl" />
-              <div className="absolute top-0 left-0 w-56 h-28 bg-[#00a6ff] transform -skew-x-25 -translate-x-12 -translate-y-12 opacity-80" />
-              <div className="absolute top-0 left-0 w-40 h-20 bg-[#00d4ff] transform -skew-x-25 -translate-x-8 -translate-y-8 opacity-60" />
-            </div>
+
 
             {/* Bloco Central do Slide */}
             {(() => {
@@ -1104,7 +1099,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               return (
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
-                  <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold pt-10 pb-2 pl-[25%] pr-6">
+                  <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold pt-10 pb-2 pl-[20%] pr-6">
                     <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
                       {displayText}
                     </span>
@@ -1114,7 +1109,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {currentProjectorItem.type === 'leitura' ? (
                     <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto">
                       {currentProjectorItem.reference && (
-                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-amber-600 tracking-wide font-sans text-center mb-2 w-full">
+                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
                           {currentProjectorItem.reference}
                         </h3>
                       )}
@@ -1170,12 +1165,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       ) : (
                         <>
                           {currentProjectorItem.ideiaText && (
-                            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-amber-600 tracking-wide font-sans text-center mb-2 break-words">
+                            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
                               {currentProjectorItem.ideiaText}
                             </h2>
                           )}
                           {currentProjectorItem.reference && (
-                            <span className="text-base md:text-lg font-extrabold text-amber-600 block tracking-wider uppercase font-sans text-center">
+                            <span className="text-base md:text-lg font-extrabold text-yellow-400 block tracking-wider uppercase font-sans text-center">
                               {currentProjectorItem.reference}
                             </span>
                           )}
@@ -1247,11 +1242,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               data-slide
               style={{ width: '1280px', height: '720px', background: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '12px 32px 24px 32px', position: 'relative', fontFamily: 'Montserrat, sans-serif', overflow: 'hidden' }}
             >
-              {/* Polígonos decorativos */}
-              <div style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 0 }}>
-                <div style={{ width: '288px', height: '144px', background: 'linear-gradient(to right, #003882, #0052cc, #0088ff)', transform: 'skewX(-25deg) translate(-64px, -40px)' }} />
-                <div style={{ position: 'absolute', top: 0, left: 0, width: '224px', height: '112px', background: '#00a6ff', transform: 'skewX(-25deg) translate(-48px, -48px)', opacity: 0.8 }} />
-              </div>
+
 
               {/* Tarja no topo */}
               <div style={{ position: 'relative', zIndex: 10, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '0px', marginBottom: 'auto' }}>

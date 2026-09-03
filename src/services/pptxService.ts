@@ -236,7 +236,7 @@ function buildVerseSlide(slide: any, slideData: Slide, theme: ThemeConfig, isOff
         h: 0.6,
         fontSize: 32,
         bold: true,
-        color: 'D97706',
+        color: 'FACC15',
         fontFace: 'Arial',
         align: 'center'
       });
@@ -270,7 +270,7 @@ function buildReadingSlide(slide: any, slideData: Slide, presentation: Presentat
       h: 0.6,
       fontSize: 32,
       bold: true,
-      color: 'D97706',
+      color: 'FACC15',
       fontFace: 'Arial',
       align: 'center'
     });
@@ -313,7 +313,7 @@ function buildTopicSlide(slide: any, slideData: Slide, theme: ThemeConfig, isOff
         h: 1.2,
         fontSize: 60,
         bold: true,
-        color: 'D97706',
+        color: 'FACC15',
         fontFace: 'Fredoka',
         align: 'center'
       });
