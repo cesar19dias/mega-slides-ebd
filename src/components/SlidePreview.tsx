@@ -291,11 +291,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
             <LayoutTemplate className="w-4 h-4 text-amber-300" /> 📁 Upload do Meu Modelo
             <input type="file" accept="image/*" onChange={handleCustomTemplateUpload} className="hidden" />
           </label>
-          {customTemplateBg && (
-            <button onClick={() => setCustomTemplateBg(null)} className="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 px-2.5 py-1.5 rounded-xl font-bold transition-all text-[11px]">
-              Restaurar Padrão
-            </button>
-          )}
+
           <button onClick={handleRegenerateImage} disabled={isRegeneratingImage} className="bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40 px-3 py-1.5 rounded-xl flex items-center gap-1.5 font-bold transition-all cursor-pointer">
             <RefreshCcw className={`w-3.5 h-3.5 ${isRegeneratingImage ? 'animate-spin' : ''}`} />
             {isRegeneratingImage ? 'Gerando...' : '🔄 Gerar por IA'}
@@ -358,7 +354,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 <img src={currentSlide.imageUrl || BIBLICAL_IMAGE_GALLERY[0].url} alt={currentSlide.title} className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/60 to-transparent" />
                 <TopLeftPolygons />
-                <div className="relative z-10 flex-1 flex items-center justify-center px-[8%] py-[4%]">
+                <div className="relative z-10 flex-1 flex items-center justify-center px-[8%] py-[4%] mt-[10%]">
                   <SmartText
                     text={presentation.title}
                     maxFontSize={52}
@@ -366,9 +362,6 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                     className="font-black text-white uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
                     style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                   />
-                </div>
-                <div className="relative z-10 w-full pb-3">
-                  <EbdHeaderBadge label={presentation.lessonNumber || 'LIÇÃO EBD'} />
                 </div>
               </div>
             )}

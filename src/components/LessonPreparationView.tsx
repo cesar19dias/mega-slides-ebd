@@ -947,15 +947,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>📁 Meu Modelo</span>
                 <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
               </label>
-              {customBg && (
-                <button
-                  onClick={() => setCustomBg(null)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
-                  title="Remover modelo personalizado e voltar ao padrão"
-                >
-                  ✕ Remover Modelo
-                </button>
-              )}
+
               {/* 1 SLIDE PNG (Rápido para testes) */}
               <button
                 onClick={async () => {
@@ -1057,10 +1049,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               // 1. CAPA DA LIÇÃO (SLIDE 1) — SEM QUADRO AZUL
               if (currentProjectorItem.type === 'cover') {
                 return (
-                  <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center my-auto text-center py-8 px-6 space-y-6">
-                    <div className="inline-block bg-[#ff4e00] text-white font-black px-8 py-2.5 rounded-full uppercase tracking-widest text-xs md:text-sm shadow-md font-sans border border-orange-300/40">
-                      {currentProjectorItem.badgeText || 'LIÇÃO EBD'}
-                    </div>
+                  <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center my-auto text-center py-8 px-6 space-y-6 mt-[10%]">
                     <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
                       {currentProjectorItem.title}
                     </h1>
