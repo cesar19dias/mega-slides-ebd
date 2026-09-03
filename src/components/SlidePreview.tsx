@@ -381,7 +381,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 </div>
 
                 {/* Conteúdo perfeitamente centralizado na vertical em toda a tela (FONTES DOBRADAS) */}
-                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto">
+                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
                   {currentSlide.keyVerse ? (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
                       <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
@@ -419,7 +419,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 </div>
 
                 {/* Conteúdo: flex-1 centralizado na vertical (FONTES DOBRADAS) */}
-                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto">
+                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
                   {currentSlide.topicBadge && currentSlide.title && (
                     <SmartText
                       text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}

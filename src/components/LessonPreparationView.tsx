@@ -1110,7 +1110,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                   {/* CONTEÚDO CENTRALIZADO VERTICALMENTE NA TELA (SEM QUADRO AZUL) */}
                   {currentProjectorItem.type === 'leitura' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto">
+                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
                       {currentProjectorItem.reference && (
                         <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
                           {currentProjectorItem.reference}
@@ -1140,13 +1140,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       </div>
                     </div>
                   ) : currentProjectorItem.type === 'conclusao' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto">
+                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]">
                       <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
                         "{currentProjectorItem.projetorText}"
                       </p>
                     </div>
                   ) : currentProjectorItem.type === 'verdades' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto">
+                    <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]">
                       {currentProjectorItem.bulletPoints?.map((point, idx) => (
                         <div key={idx} className="w-full">
                           <div className="flex items-start gap-3 py-2.5">
@@ -1160,7 +1160,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </div>
                   ) : (
                     /* DEMAIS CARDS */
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto">
+                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
                       {currentProjectorItem.type === 'topic_synopsis' ? (
                         <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
                           "{currentProjectorItem.projetorText}"

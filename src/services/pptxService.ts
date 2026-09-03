@@ -218,7 +218,7 @@ function buildVerseSlide(slide: any, slideData: Slide, theme: ThemeConfig, isOff
     // Texto Principal no Centro da Tela (Fonte Dobrada: 44)
     slide.addText(`"${verseText}"`, {
       x: 0.8,
-      y: 1.6,
+      y: 1.95,
       w: 11.8,
       h: verseRef ? 4.5 : 5.2,
       fontSize: 44,
