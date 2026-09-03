@@ -1189,126 +1189,167 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </span>
                   </div>
 
-                  {/* CONTEÚDO CENTRALIZADO VERTICALMENTE NA TELA (SEM QUADRO AZUL) */}
-                  {currentProjectorItem.type === 'leitura' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
-                      {currentProjectorItem.reference && (
-                        <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
-                          {currentProjectorItem.reference}
-                        </h3>
-                      )}
-                      <div className="w-full space-y-4 text-left font-sans">
-                        {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
-                          const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-                          if (match) {
-                            return (
-                              <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
-                                <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
-                                  {match[1]}
-                                </span>
-                                <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
-                                  {match[2]}
-                                </p>
-                              </div>
-                            );
-                          }
-                          return (
-                            <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
-                              {line}
-                            </p>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : currentProjectorItem.type === 'conclusao' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]">
-                      <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
-                        "{currentProjectorItem.projetorText}"
-                      </p>
-                    </div>
-                  ) : currentProjectorItem.type === 'verdades' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]">
-                      {currentProjectorItem.bulletPoints?.map((point, idx) => (
-                        <div key={idx} className="w-full">
-                          <div className="flex items-start gap-3 py-2.5">
-                            <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                            <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
-                              {point}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    /* DEMAIS CARDS */
-                    (() => {
-                      const curSlideImg = projectorSlideImages[projectorIndex];
-                      if (curSlideImg) {
-                        return (
-                          <div className="w-full flex-1 flex items-center justify-between gap-6 px-4 py-2 my-auto mt-[5%]">
-                            <div className="w-[58%] shrink-0 flex flex-col justify-center items-center text-center space-y-3">
-                              {currentProjectorItem.ideiaText && (
-                                <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words">
-                                  {currentProjectorItem.ideiaText}
-                                </h2>
-                              )}
-                              {currentProjectorItem.reference && (
-                                <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full">
-                                  {currentProjectorItem.reference}
-                                </h3>
-                              )}
-                              {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                                <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
-                              )}
-                              {currentProjectorItem.projetorText && (
-                                <p className="text-lg md:text-xl lg:text-2xl font-extrabold leading-relaxed font-sans text-white text-center break-words">
-                                  {currentProjectorItem.projetorText}
-                                </p>
-                              )}
-                            </div>
-                            <div className="w-[38%] shrink-0 flex items-center justify-center">
-                              <img
-                                src={curSlideImg}
-                                alt="Ilustração do Slide"
-                                className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl"
-                              />
-                            </div>
-                          </div>
-                        );
-                      }
-
+                  {/* CONTEÚDO CENTRALIZADO VERTICALMENTE NA TELA */}
+                  {(() => {
+                    const curSlideImg = projectorSlideImages[projectorIndex];
+                    if (curSlideImg) {
                       return (
-                        <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
-                          {currentProjectorItem.type === 'topic_synopsis' ? (
-                            <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
-                              "{currentProjectorItem.projetorText}"
-                            </p>
-                          ) : (
-                            <>
-                              {currentProjectorItem.ideiaText && (
-                                <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
-                                  {currentProjectorItem.ideiaText}
-                                </h2>
-                              )}
-                              {currentProjectorItem.reference && (
-                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
-                                  {currentProjectorItem.reference}
-                                </h3>
-                              )}
-                              {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                                <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                              )}
-                              {currentProjectorItem.projetorText && (
-                                <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
-                                  {currentProjectorItem.projetorText}
-                                </p>
-                              )}
-                            </>
-                          )}
+                        <div className="w-full flex-1 flex items-center justify-between gap-6 px-4 py-2 my-auto mt-[5%]">
+                          {/* Coluna Esquerda: Texto adaptado (58%) */}
+                          <div className="w-[58%] shrink-0 flex flex-col justify-center items-center text-center space-y-3">
+                            {currentProjectorItem.type === 'leitura' ? (
+                              <>
+                                {currentProjectorItem.reference && (
+                                  <h3 className="text-xl md:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full">
+                                    {currentProjectorItem.reference}
+                                  </h3>
+                                )}
+                                <div className="w-full space-y-2 text-left font-sans max-h-[260px] overflow-y-auto pr-1">
+                                  {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
+                                    const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+                                    if (match) {
+                                      return (
+                                        <div key={idx} className="flex items-start gap-2 text-left w-full py-1 border-b border-slate-200/40 last:border-0">
+                                          <span className="shrink-0 font-black text-white text-xl md:text-2xl leading-none mt-0.5">{match[1]}</span>
+                                          <p className="font-bold text-white text-sm md:text-base leading-snug break-words flex-1">{match[2]}</p>
+                                        </div>
+                                      );
+                                    }
+                                    return <p key={idx} className="font-bold text-white text-sm md:text-base leading-snug break-words text-left">{line}</p>;
+                                  })}
+                                </div>
+                              </>
+                            ) : currentProjectorItem.type === 'conclusao' || currentProjectorItem.type === 'topic_synopsis' ? (
+                              <p className="text-lg md:text-xl font-extrabold leading-relaxed text-white text-center font-sans break-words">
+                                "{currentProjectorItem.projetorText}"
+                              </p>
+                            ) : currentProjectorItem.type === 'verdades' ? (
+                              <div className="w-full space-y-2 text-left font-sans">
+                                {currentProjectorItem.bulletPoints?.map((point, idx) => (
+                                  <div key={idx} className="flex items-start gap-2 py-1">
+                                    <span className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black">{idx + 1}</span>
+                                    <p className="text-sm md:text-base font-bold leading-snug text-white font-sans break-words">{point}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <>
+                                {currentProjectorItem.ideiaText && (
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words">
+                                    {currentProjectorItem.ideiaText}
+                                  </h2>
+                                )}
+                                {currentProjectorItem.reference && (
+                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full">
+                                    {currentProjectorItem.reference}
+                                  </h3>
+                                )}
+                                {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                                  <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                                )}
+                                {currentProjectorItem.projetorText && (
+                                  <p className="text-lg md:text-xl lg:text-2xl font-extrabold leading-relaxed font-sans text-white text-center break-words">
+                                    {currentProjectorItem.projetorText}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Coluna Direita: Imagem Ilustrativa (38%) */}
+                          <div className="w-[38%] shrink-0 flex items-center justify-center">
+                            <img
+                              src={curSlideImg}
+                              alt="Ilustração do Slide"
+                              className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl"
+                            />
+                          </div>
                         </div>
                       );
-                    })()
-                  )}
+                    }
+
+                    // SE NÃO HOUVER IMAGEM (100% TEXTO CHEIO NORMAL)
+                    return currentProjectorItem.type === 'leitura' ? (
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
+                        {currentProjectorItem.reference && (
+                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
+                            {currentProjectorItem.reference}
+                          </h3>
+                        )}
+                        <div className="w-full space-y-4 text-left font-sans">
+                          {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
+                            const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+                            if (match) {
+                              return (
+                                <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
+                                  <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
+                                    {match[1]}
+                                  </span>
+                                  <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
+                                    {match[2]}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return (
+                              <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
+                                {line}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : currentProjectorItem.type === 'conclusao' ? (
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]">
+                        <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
+                          "{currentProjectorItem.projetorText}"
+                        </p>
+                      </div>
+                    ) : currentProjectorItem.type === 'verdades' ? (
+                      <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]">
+                        {currentProjectorItem.bulletPoints?.map((point, idx) => (
+                          <div key={idx} className="w-full">
+                            <div className="flex items-start gap-3 py-2.5">
+                              <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
+                              <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
+                                {point}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* DEMAIS CARDS */
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
+                        {currentProjectorItem.type === 'topic_synopsis' ? (
+                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
+                            "{currentProjectorItem.projetorText}"
+                          </p>
+                        ) : (
+                          <>
+                            {currentProjectorItem.ideiaText && (
+                              <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
+                                {currentProjectorItem.ideiaText}
+                              </h2>
+                            )}
+                            {currentProjectorItem.reference && (
+                              <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
+                                {currentProjectorItem.reference}
+                              </h3>
+                            )}
+                            {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                            )}
+                            {currentProjectorItem.projetorText && (
+                              <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
+                                {currentProjectorItem.projetorText}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Spacer inferior para equilibrar o título do topo */}
                   <div className="w-full shrink-0 h-8" />

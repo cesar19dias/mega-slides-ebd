@@ -414,31 +414,61 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 </div>
 
                 {/* Conteúdo perfeitamente centralizado na vertical em toda a tela (FONTES DOBRADAS) */}
-                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
-                  {currentSlide.keyVerse ? (
-                    <div className="w-full space-y-4 flex flex-col justify-center items-center">
-                      <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
-                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 text-center tracking-wide" />
-                    </div>
-                  ) : currentSlide.takeaway ? (
-                    <div className="w-full flex flex-col justify-center items-center">
-                      <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
-                    </div>
-                  ) : (
-                    <div className="w-full space-y-4 flex flex-col justify-center items-center">
-                      {presentation.biblicalText && (
-                        <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
+                {currentSlide.imageUrl ? (
+                  <div className="flex-1 w-full flex items-center justify-between gap-6 px-[4%] my-auto mt-[5%]">
+                    <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center">
+                      {currentSlide.keyVerse ? (
+                        <div className="w-full space-y-3 flex flex-col justify-center items-center">
+                          <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={52} minFontSize={18} className="font-extrabold text-white text-center leading-relaxed w-full" />
+                          <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={44} minFontSize={20} className="font-black text-yellow-400 text-center tracking-wide" />
+                        </div>
+                      ) : currentSlide.takeaway ? (
+                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={52} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                      ) : (
+                        <div className="w-full space-y-3 flex flex-col justify-center items-center">
+                          {presentation.biblicalText && (
+                            <SmartText text={presentation.biblicalText} maxFontSize={44} minFontSize={18} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
+                          )}
+                          <SmartText
+                            text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
+                            maxFontSize={32}
+                            minFontSize={16}
+                            className="font-semibold text-white text-center leading-relaxed w-full"
+                          />
+                        </div>
                       )}
-                      <SmartText
-                        text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
-                        maxFontSize={40}
-                        minFontSize={18}
-                        className="font-semibold text-white text-center leading-relaxed w-full"
-                        style={{ lineHeight: 1.5 }}
-                      />
                     </div>
-                  )}
-                </div>
+                    <div className="w-[38%] shrink-0 flex items-center justify-center">
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title} className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
+                    {currentSlide.keyVerse ? (
+                      <div className="w-full space-y-4 flex flex-col justify-center items-center">
+                        <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
+                        <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 text-center tracking-wide" />
+                      </div>
+                    ) : currentSlide.takeaway ? (
+                      <div className="w-full flex flex-col justify-center items-center">
+                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                      </div>
+                    ) : (
+                      <div className="w-full space-y-4 flex flex-col justify-center items-center">
+                        {presentation.biblicalText && (
+                          <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
+                        )}
+                        <SmartText
+                          text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
+                          maxFontSize={40}
+                          minFontSize={18}
+                          className="font-semibold text-white text-center leading-relaxed w-full"
+                          style={{ lineHeight: 1.5 }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="w-full shrink-0 h-8" />
               </div>
