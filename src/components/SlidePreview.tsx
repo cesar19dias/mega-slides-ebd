@@ -403,7 +403,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       )}
                     </div>
                     <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt="Capa" className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
                     </div>
                   </div>
                 ) : (
@@ -467,7 +467,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       )}
                     </div>
                     <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title} className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
                     </div>
                   </div>
                 ) : (
@@ -545,7 +545,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       )}
                     </div>
                     <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title} className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
                     </div>
                   </div>
                 ) : (
