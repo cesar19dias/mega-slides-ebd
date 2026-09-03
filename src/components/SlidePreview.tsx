@@ -348,21 +348,35 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
             {!customTemplateBg && currentSlide.layout !== 'title' && <TopLeftPolygons />}
             {currentSlide.layout !== 'title' && <BottomRightPolygonBadge current={currentSlideIndex + 1} total={slides.length} />}
 
-            {/* ── CAPA ── */}
+            {/* ── CAPA (SLIDE 1) ── */}
             {currentSlide.layout === 'title' && (
-              <div className="absolute inset-0 flex flex-col justify-between overflow-hidden">
-                <img src={currentSlide.imageUrl || BIBLICAL_IMAGE_GALLERY[0].url} alt={currentSlide.title} className="absolute inset-0 w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/60 to-transparent" />
-                <TopLeftPolygons />
-                <div className="relative z-10 flex-1 flex items-center justify-center px-[8%] py-[4%] mt-[10%]">
+              <div className="relative z-10 h-full w-full flex flex-col justify-between items-center py-2 px-4">
+                {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
+                <div className="w-full shrink-0 pt-1">
+                  <EbdHeaderBadge label={presentation.lessonNumber || 'LIÇÃO 10'} />
+                </div>
+
+                {/* Título Principal e Subtítulo posicionados dentro do quadro azul escuro */}
+                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[8%] py-[4%] mt-12 md:mt-16 space-y-3 my-auto">
                   <SmartText
                     text={presentation.title}
                     maxFontSize={52}
-                    minFontSize={14}
+                    minFontSize={18}
                     className="font-black text-white uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
                     style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                   />
+                  {presentation.subtitle && (
+                    <SmartText
+                      text={presentation.subtitle}
+                      maxFontSize={28}
+                      minFontSize={14}
+                      className="font-bold text-slate-200 text-center mt-2"
+                      style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                    />
+                  )}
                 </div>
+
+                <div className="w-full shrink-0 h-8" />
               </div>
             )}
 

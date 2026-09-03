@@ -1046,18 +1046,31 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
             {/* Bloco Central do Slide */}
             {(() => {
-              // 1. CAPA DA LIÇÃO (SLIDE 1) — SEM QUADRO AZUL
+              // 1. CAPA DA LIÇÃO (SLIDE 1)
               if (currentProjectorItem.type === 'cover') {
+                const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 return (
-                  <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center justify-center my-auto text-center py-8 px-6 space-y-6 mt-[10%]">
-                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
-                      {currentProjectorItem.title}
-                    </h1>
-                    {currentProjectorItem.subtitle && (
-                      <p className="text-lg md:text-2xl font-bold text-slate-600 max-w-3xl font-sans leading-relaxed">
-                        {currentProjectorItem.subtitle}
-                      </p>
-                    )}
+                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
+                    {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
+                    <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                      <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
+                        {coverBadge}
+                      </span>
+                    </div>
+
+                    {/* Título Principal e Subtítulo posicionados dentro do quadro azul escuro */}
+                    <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
+                      <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                        {currentProjectorItem.title}
+                      </h1>
+                      {currentProjectorItem.subtitle && (
+                        <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                          {currentProjectorItem.subtitle}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="w-full shrink-0 h-8" />
                   </div>
                 );
               }
