@@ -105,7 +105,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Estado da Visão do Projetor (Slide atual no projetor)
   const [projectorIndex, setProjectorIndex] = useState(0);
   const [isExporting, setIsExporting] = useState<string | null>(null);
-  const allSlidesRef = useRef<HTMLDivElement>(null);
+
 
   // Estados de Regeneração Seletiva e Notificações
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
