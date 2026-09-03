@@ -447,19 +447,19 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                     <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center">
                       {currentSlide.keyVerse ? (
                         <div className="w-full space-y-3 flex flex-col justify-center items-center">
-                          <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={52} minFontSize={18} className="font-extrabold text-white text-center leading-relaxed w-full" />
-                          <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={44} minFontSize={20} className="font-black text-yellow-400 text-center tracking-wide" />
+                          <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={18} className="font-extrabold text-white text-center leading-relaxed w-full" />
+                          <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={20} className="font-black text-yellow-400 text-center tracking-wide" />
                         </div>
                       ) : currentSlide.takeaway ? (
-                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={52} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
                       ) : (
                         <div className="w-full space-y-3 flex flex-col justify-center items-center">
                           {presentation.biblicalText && (
-                            <SmartText text={presentation.biblicalText} maxFontSize={44} minFontSize={18} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
+                            <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={18} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
                           )}
                           <SmartText
                             text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
-                            maxFontSize={32}
+                            maxFontSize={40}
                             minFontSize={16}
                             className="font-semibold text-white text-center leading-relaxed w-full"
                           />
@@ -517,7 +517,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                         <>
                           <SmartText
                             text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
-                            maxFontSize={80}
+                            maxFontSize={100}
                             minFontSize={20}
                             maxLines={2}
                             className={`font-black text-yellow-400 text-center tracking-wide mb-2 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
@@ -532,16 +532,16 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                             <div key={i} className="flex items-start justify-center gap-3">
                               <span
                                 className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
-                                style={{ width: 'clamp(24px, 4%, 36px)', height: 'clamp(24px, 4%, 36px)', fontSize: 'clamp(12px, 2%, 20px)', marginTop: '0.15em' }}
+                                style={{ width: 'clamp(28px, 5%, 44px)', height: 'clamp(28px, 5%, 44px)', fontSize: 'clamp(14px, 2.5%, 26px)', marginTop: '0.15em' }}
                               >
                                 {i + 1}
                               </span>
-                              <SmartText text={pt} maxFontSize={48} minFontSize={16} className="font-bold text-white text-left leading-relaxed" />
+                              <SmartText text={pt} maxFontSize={60} minFontSize={16} className="font-bold text-white text-left leading-relaxed" />
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={60} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                        <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={72} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
                       )}
                     </div>
                     <div className="w-[38%] shrink-0 flex items-center justify-center">
