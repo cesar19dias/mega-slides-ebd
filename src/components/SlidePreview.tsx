@@ -6,7 +6,7 @@ import { generateAiImage, BIBLICAL_IMAGE_GALLERY } from '../services/imageServic
 import { Download, ChevronLeft, ChevronRight, MessageSquare, RefreshCw, RefreshCcw, Upload, Trash2, Edit3, Image as ImageIcon, Sparkles, X, CheckCircle2, FileImage, LayoutTemplate } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
-import { exportSingleSlidePDF } from '../services/exportService';
+import { exportSingleSlidePDF, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 import { SmartText } from './SmartText';
 
 interface SlidePreviewProps {
@@ -180,28 +180,37 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
   };
 
   const handleDownloadPngAll = async () => {
-    if (!slideStageRef.current) return;
     setIsExportingPng(true);
+    const originalIndex = currentSlideIndex;
     try {
-      await document.fonts.ready;
-      const originalIndex = currentSlideIndex;
-      const sanitizedTitle = presentation.title.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'Slide_EBD';
-      for (let i = 0; i < slides.length; i++) {
-        setCurrentSlideIndex(i);
-        await new Promise(r => setTimeout(r, 450)); // aguarda SmartText
-        if (slideStageRef.current) {
-          const dataUrl = await toPng(slideStageRef.current, { quality: 0.95, pixelRatio: 2 });
-          const link = document.createElement('a');
-          link.download = `${sanitizedTitle}_Slide_${i + 1}.png`;
-          link.href = dataUrl;
-          link.click();
-          await new Promise(r => setTimeout(r, 200));
-        }
-      }
-      setCurrentSlideIndex(originalIndex);
+      await exportAllSlidesPNGZipFromStage(
+        slides.length,
+        (i) => setCurrentSlideIndex(i),
+        () => slideStageRef.current,
+        presentation.title.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'Slide_EBD'
+      );
     } catch (err) {
       console.error('Erro ao exportar PNG:', err);
     } finally {
+      setCurrentSlideIndex(originalIndex);
+      setIsExportingPng(false);
+    }
+  };
+
+  const handleDownloadPdfAll = async () => {
+    setIsExportingPng(true);
+    const originalIndex = currentSlideIndex;
+    try {
+      await exportAllSlidesPDFFromStage(
+        slides.length,
+        (i) => setCurrentSlideIndex(i),
+        () => slideStageRef.current,
+        presentation.title.replace(/[^a-zA-Z0-9-_\s]/g, '').trim() || 'Slide_EBD'
+      );
+    } catch (err) {
+      console.error('Erro ao exportar PDF:', err);
+    } finally {
+      setCurrentSlideIndex(originalIndex);
       setIsExportingPng(false);
     }
   };
@@ -277,7 +286,11 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           </button>
           <button onClick={handleDownloadPngAll} disabled={isExportingPng} className="bg-slate-800 hover:bg-slate-700 text-amber-300 font-bold px-3.5 py-2 rounded-xl border border-amber-500/40 flex items-center gap-1.5 text-xs transition-all cursor-pointer">
             <FileImage className="w-4 h-4 text-amber-400" />
-            {isExportingPng ? 'Baixando...' : 'Baixar Todos (PNG)'}
+            {isExportingPng ? 'Baixando...' : 'Baixar Todos (ZIP)'}
+          </button>
+          <button onClick={handleDownloadPdfAll} disabled={isExportingPng} className="bg-slate-800 hover:bg-slate-700 text-red-300 font-bold px-3.5 py-2 rounded-xl border border-red-500/40 flex items-center gap-1.5 text-xs transition-all cursor-pointer">
+            <FileImage className="w-4 h-4 text-red-400" />
+            {isExportingPng ? 'Baixando...' : 'Baixar Todos (PDF)'}
           </button>
           <button onClick={handleDownload} className="download-pptx-btn bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold px-4 py-2 rounded-xl flex items-center gap-2 text-xs shadow-lg cursor-pointer transition-all hover:scale-105">
             <Download className="w-4 h-4" /> PowerPoint (.pptx)

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import type { EBDLessonPreparation } from '../types';
 import { RefreshCw, Check, ChevronDown, ChevronUp, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportSlidesPDF, exportSlidesPNGZip, exportSingleSlidePDF, exportSingleSlidePNG } from '../services/exportService';
+import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 
 export interface BiblicalVerseSlideData {
   chapterHeader?: string;
@@ -1007,12 +1007,16 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 onClick={async () => {
                   if (isExporting) return;
                   setIsExporting('pdf');
+                  const origIdx = projectorIndex;
                   try {
-                    const container = allSlidesRef.current;
-                    if (!container) return;
-                    const slides = Array.from(container.querySelectorAll('[data-slide]')) as HTMLElement[];
-                    await exportSlidesPDF(slides, lesson.metadata.title || 'mega-ebd');
+                    await exportAllSlidesPDFFromStage(
+                      projectorItems.length,
+                      (i) => setProjectorIndex(i),
+                      () => projectorStageRef.current,
+                      lesson.metadata.title || 'mega-ebd'
+                    );
                   } finally {
+                    setProjectorIndex(origIdx);
                     setIsExporting(null);
                   }
                 }}
@@ -1029,12 +1033,16 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 onClick={async () => {
                   if (isExporting) return;
                   setIsExporting('png');
+                  const origIdx = projectorIndex;
                   try {
-                    const container = allSlidesRef.current;
-                    if (!container) return;
-                    const slides = Array.from(container.querySelectorAll('[data-slide]')) as HTMLElement[];
-                    await exportSlidesPNGZip(slides, lesson.metadata.title || 'mega-ebd');
+                    await exportAllSlidesPNGZipFromStage(
+                      projectorItems.length,
+                      (i) => setProjectorIndex(i),
+                      () => projectorStageRef.current,
+                      lesson.metadata.title || 'mega-ebd'
+                    );
                   } finally {
+                    setProjectorIndex(origIdx);
                     setIsExporting(null);
                   }
                 }}
@@ -1236,124 +1244,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           </div>
         </div>
       )}
-      {/* Container oculto fora da tela com TODOS os slides para captura (export PDF/PNG) */}
-      <div
-        ref={allSlidesRef}
-        style={{ position: 'fixed', top: '-99999px', left: '-99999px', width: '1280px', pointerEvents: 'none', zIndex: -1 }}
-        aria-hidden="true"
-      >
-        {projectorItems.map((item, idx) => {
-          if (item.type === 'cover') {
-            return (
-              <div
-                key={idx}
-                data-slide
-                style={{ width: '1280px', height: '720px', background: '#0d2238', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '48px', position: 'relative', fontFamily: 'Montserrat, sans-serif', overflow: 'hidden' }}
-              >
-                <div style={{ background: '#ff4e00', color: 'white', fontWeight: 900, padding: '12px 36px', borderRadius: '50px', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '20px', marginBottom: '28px' }}>
-                  {item.badgeText || 'LIÇÃO EBD'}
-                </div>
-                <h1 style={{ fontSize: '52px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '-0.02em', lineHeight: 1.15, maxWidth: '1050px', marginBottom: '20px' }}>
-                  {item.title}
-                </h1>
-                {item.subtitle && (
-                  <p style={{ fontSize: '26px', fontWeight: 700, color: '#cbd5e1', maxWidth: '850px', lineHeight: 1.4 }}>
-                    {item.subtitle}
-                  </p>
-                )}
-              </div>
-            );
-          }
-
-          const badge = item.badgeText || 'MEGA EBD';
-          const subM = badge.match(/^(SUBTÓPICO\s+[\d|A-Z]+)\s*[:\—\-]\s*(.+)$/i);
-          const topM = badge.match(/^(TÓPICO\s+[I|V|X|\d]+)\s*[:\—\-]\s*(.+)$/i);
-          let mTitle = badge;
-          let sLabel: string | null = null;
-          if (subM) { sLabel = subM[1].trim().toUpperCase(); mTitle = subM[2].trim(); }
-          else if (topM) { sLabel = topM[1].trim().toUpperCase(); mTitle = topM[2].trim(); }
-          else if (badge.startsWith('SUBTÓPICO') || badge.startsWith('TÓPICO')) { sLabel = badge; }
-          mTitle = mTitle.replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '').trim();
-
-          return (
-            <div
-              key={idx}
-              data-slide
-              style={{ width: '1280px', height: '720px', background: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '12px 32px 24px 32px', position: 'relative', fontFamily: 'Montserrat, sans-serif', overflow: 'hidden' }}
-            >
-
-
-              {/* Tarja no topo */}
-              <div style={{ position: 'relative', zIndex: 10, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '0px', marginBottom: 'auto' }}>
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '4px' }}>
-                  <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#153a5c', border: '4px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '36px', fontWeight: 900, marginRight: '-18px', zIndex: 20, flexShrink: 0 }}>➔</div>
-                  <div style={{ flex: 1, background: '#ff4e00', color: 'white', fontWeight: 900, paddingLeft: '36px', paddingRight: '24px', paddingTop: '10px', paddingBottom: '10px', borderRadius: '0 20px 20px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '20px', fontWeight: 900, color: 'white', whiteSpace: 'normal', wordBreak: 'break-word', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.2 }}>{mTitle}</span>
-                  </div>
-                </div>
-                {sLabel && <div style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', marginBottom: '6px' }}>{sLabel}</div>}
-
-                {/* Card de conteúdo */}
-                {item.type === 'leitura' ? (
-                  <div style={{ background: 'transparent', color: '#ffffff', padding: '32px 40px', borderRadius: '24px', width: '100%', minHeight: '380px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
-                    {item.reference && <div style={{ fontSize: '32px', fontWeight: 900, marginBottom: '16px', color: '#ffffff', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{item.reference}</div>}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', textAlign: 'left' }}>
-                      {(item.projetorText || '').split('\n').filter(l => l.trim()).map((line, vIdx) => {
-                        const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-                        if (match) {
-                          return (
-                            <div key={vIdx} style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', width: '100%', paddingBottom: '12px', borderBottom: vIdx < 2 ? '1px solid #f1f5f9' : 'none' }}>
-                              <span style={{ flexShrink: 0, fontWeight: 900, color: '#ff4e00', fontSize: '48px', lineHeight: 1 }}>
-                                {match[1]}
-                              </span>
-                              <p style={{ fontWeight: 800, color: '#ffffff', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', flex: 1, margin: 0 }}>
-                                {match[2]}
-                              </p>
-                            </div>
-                          );
-                        }
-                        return (
-                          <p key={vIdx} style={{ fontWeight: 800, color: '#ffffff', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', margin: 0 }}>
-                            {line}
-                          </p>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : item.type === 'conclusao' ? (
-                  <div style={{ background: '#091b2c', color: 'white', padding: '28px 32px', borderRadius: '24px', width: '100%', minHeight: '180px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
-                    <p style={{ fontSize: (item.projetorText?.length || 0) > 200 ? '19px' : '23px', fontWeight: 800, lineHeight: 1.45, wordBreak: 'break-word', overflowWrap: 'break-word' }}>"{item.projetorText}"</p>
-                  </div>
-                ) : item.type === 'verdades' ? (
-                  <div style={{ background: '#091b2c', color: 'white', padding: '24px 32px', borderRadius: '24px', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
-                    {item.bulletPoints?.map((pt, bi) => (
-                      <div key={bi} style={{ width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', paddingTop: '8px', paddingBottom: '8px' }}>
-                          <span style={{ flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: '#ff4e00', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '11px', fontWeight: 900, marginTop: '3px' }}>{bi + 1}</span>
-                          <p style={{ fontSize: '18px', fontWeight: 700, lineHeight: 1.4, color: 'white', wordBreak: 'break-word' }}>{pt}</p>
-                        </div>
-                        {bi < (item.bulletPoints?.length ?? 0) - 1 && <div style={{ height: '1px', background: 'rgba(250, 204, 21, 0.6)', width: '100%' }} />}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ background: '#091b2c', color: 'white', padding: '24px 32px', borderRadius: '24px', width: '100%', minHeight: '180px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '12px', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
-                    {item.ideiaText && <h2 style={{ fontSize: '20px', fontWeight: 900, color: '#fcd34d', wordBreak: 'break-word' }}>{item.ideiaText}</h2>}
-                    {item.reference && <span style={{ fontSize: '18px', fontWeight: 800, color: '#fcd34d' }}>{item.reference}</span>}
-                    {item.projetorText && <p style={{ fontSize: (item.projetorText?.length || 0) > 200 ? '18px' : '22px', fontWeight: 800, lineHeight: 1.45, color: 'white', wordBreak: 'break-word' }}>{item.projetorText}</p>}
-                  </div>
-                )}
-              </div>
-
-              {/* Rodapé */}
-              <div style={{ position: 'relative', zIndex: 10, display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
-                <span>MegaEBD • {lesson.metadata.title}</span>
-                <span>{idx + 1} / {projectorItems.length}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 };

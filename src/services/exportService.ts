@@ -73,6 +73,74 @@ export async function exportSlidesPNGZip(
 }
 
 /**
+ * Exporta todos os slides capturando o palco ao vivo a cada índice (Garante 100% de fidelidade ao slide visível)
+ */
+export async function exportAllSlidesPDFFromStage(
+  totalSlides: number,
+  setIndex: (i: number) => void,
+  getStageEl: () => HTMLElement | null,
+  fileName: string = 'mega-ebd-slides'
+): Promise<void> {
+  const stage = getStageEl();
+  if (!stage) return;
+  await document.fonts.ready;
+
+  const pdf = new jsPDF({
+    orientation: 'landscape',
+    unit: 'mm',
+    format: [297, 167.0625],
+  });
+
+  for (let i = 0; i < totalSlides; i++) {
+    setIndex(i);
+    await new Promise(r => setTimeout(r, 250));
+    const currentStage = getStageEl() || stage;
+    const canvas = await captureElement(currentStage);
+    const imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+    if (i > 0) pdf.addPage();
+    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 167.0625);
+  }
+
+  pdf.save(`${fileName}.pdf`);
+}
+
+/**
+ * Exporta todos os slides como ZIP/PNGs capturando o palco ao vivo a cada índice
+ */
+export async function exportAllSlidesPNGZipFromStage(
+  totalSlides: number,
+  setIndex: (i: number) => void,
+  getStageEl: () => HTMLElement | null,
+  fileName: string = 'mega-ebd-slides'
+): Promise<void> {
+  const stage = getStageEl();
+  if (!stage) return;
+  await document.fonts.ready;
+
+  const zip = new JSZip();
+  const folder = zip.folder('slides')!;
+
+  for (let i = 0; i < totalSlides; i++) {
+    setIndex(i);
+    await new Promise(r => setTimeout(r, 250));
+    const currentStage = getStageEl() || stage;
+    const canvas = await captureElement(currentStage);
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    const slideNum = String(i + 1).padStart(2, '0');
+    folder.file(`slide_${slideNum}.png`, base64, { base64: true });
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${fileName}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
  * Exporta apenas 1 slide atual como PDF (16:9) - Mais rápido para testes
  */
 export async function exportSingleSlidePDF(
