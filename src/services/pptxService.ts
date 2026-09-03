@@ -151,7 +151,7 @@ function drawEbdHeaderBadge(slide: any, label: string) {
 
   slide.addText(displayText, {
     x: 2.66,
-    y: 0.5,
+    y: 0.55,
     w: 10.0,
     h: 1.2,
     align: 'center',
