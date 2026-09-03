@@ -452,38 +452,78 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 </div>
 
                 {/* Conteúdo: flex-1 centralizado na vertical (FONTES DOBRADAS) */}
-                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
-                  {currentSlide.topicBadge && currentSlide.title && (
-                    <>
-                      <SmartText
-                        text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
-                        maxFontSize={108}
-                        minFontSize={24}
-                        maxLines={2}
-                        className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
-                      />
-                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
-                    </>
-                  )}
-                  {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
-                    <div className="w-full space-y-4 overflow-hidden">
-                      {currentSlide.bulletPoints.map((pt, i) => (
-                        <div key={i} className="flex items-start justify-center gap-3">
-                          <span
-                            className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
-                            style={{ width: 'clamp(28px, 5%, 44px)', height: 'clamp(28px, 5%, 44px)', fontSize: 'clamp(14px, 2.5%, 26px)', marginTop: '0.15em' }}
-                          >
-                            {i + 1}
-                          </span>
-                          <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-white text-left leading-relaxed" />
+                {currentSlide.imageUrl ? (
+                  <div className="flex-1 w-full flex items-center justify-between gap-6 px-[4%] my-auto mt-[5%]">
+                    <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center">
+                      {currentSlide.topicBadge && currentSlide.title && (
+                        <>
+                          <SmartText
+                            text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
+                            maxFontSize={80}
+                            minFontSize={20}
+                            maxLines={2}
+                            className={`font-black text-yellow-400 text-center tracking-wide mb-2 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
+                            style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                          />
+                          <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                        </>
+                      )}
+                      {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
+                        <div className="w-full space-y-3 overflow-hidden">
+                          {currentSlide.bulletPoints.map((pt, i) => (
+                            <div key={i} className="flex items-start justify-center gap-3">
+                              <span
+                                className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
+                                style={{ width: 'clamp(24px, 4%, 36px)', height: 'clamp(24px, 4%, 36px)', fontSize: 'clamp(12px, 2%, 20px)', marginTop: '0.15em' }}
+                              >
+                                {i + 1}
+                              </span>
+                              <SmartText text={pt} maxFontSize={48} minFontSize={16} className="font-bold text-white text-left leading-relaxed" />
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      ) : (
+                        <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={60} minFontSize={18} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                      )}
                     </div>
-                  ) : (
-                    <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={80} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
-                  )}
-                </div>
+                    <div className="w-[38%] shrink-0 flex items-center justify-center">
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title} className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
+                    {currentSlide.topicBadge && currentSlide.title && (
+                      <>
+                        <SmartText
+                          text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
+                          maxFontSize={108}
+                          minFontSize={24}
+                          maxLines={2}
+                          className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
+                          style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                        />
+                        <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                      </>
+                    )}
+                    {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
+                      <div className="w-full space-y-4 overflow-hidden">
+                        {currentSlide.bulletPoints.map((pt, i) => (
+                          <div key={i} className="flex items-start justify-center gap-3">
+                            <span
+                              className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
+                              style={{ width: 'clamp(28px, 5%, 44px)', height: 'clamp(28px, 5%, 44px)', fontSize: 'clamp(14px, 2.5%, 26px)', marginTop: '0.15em' }}
+                            >
+                              {i + 1}
+                            </span>
+                            <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-white text-left leading-relaxed" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={80} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                    )}
+                  </div>
+                )}
 
                 <div className="w-full shrink-0 h-8" />
               </div>

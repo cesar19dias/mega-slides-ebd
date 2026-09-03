@@ -117,6 +117,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
+  const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>({});
   const [customBg, setCustomBg] = useState<string | null>(() => {
     try {
       return localStorage.getItem('mega_ebd_custom_bg');
@@ -124,6 +125,28 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       return null;
     }
   });
+
+  const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const d = ev.target?.result as string;
+      if (d) {
+        setProjectorSlideImages(prev => ({ ...prev, [projectorIndex]: d }));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleRemoveSlideImage = () => {
+    setProjectorSlideImages(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      return next;
+    });
+  };
 
   const handleCustomBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -950,6 +973,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
             {/* Upload Modelo Próprio + Botões de Exportação */}
             <div className="flex items-center gap-1.5 flex-wrap">
+              {/* Botão de Adicionar/Remover Imagem Apenas Neste Slide */}
+              <label
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-400/40 text-xs font-bold cursor-pointer transition-all shadow-md"
+                title="Adicionar imagem ilustrativa apenas a este slide"
+              >
+                <span>{projectorSlideImages[projectorIndex] ? '📷 Alterar Imagem' : '🖼️ +Imagem neste Slide'}</span>
+                <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
+              </label>
+              {projectorSlideImages[projectorIndex] && (
+                <button
+                  onClick={handleRemoveSlideImage}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
+                  title="Remover imagem deste slide e voltar ao texto 100% cheio"
+                >
+                  ✕ Remover Imagem
+                </button>
+              )}
+
               {/* Upload do Meu Modelo */}
               <label
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all"
@@ -1200,34 +1241,73 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </div>
                   ) : (
                     /* DEMAIS CARDS */
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
-                      {currentProjectorItem.type === 'topic_synopsis' ? (
-                        <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
-                          "{currentProjectorItem.projetorText}"
-                        </p>
-                      ) : (
-                        <>
-                          {currentProjectorItem.ideiaText && (
-                            <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
-                              {currentProjectorItem.ideiaText}
-                            </h2>
-                          )}
-                          {currentProjectorItem.reference && (
-                            <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
-                              {currentProjectorItem.reference}
-                            </h3>
-                          )}
-                          {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                          )}
-                          {currentProjectorItem.projetorText && (
-                            <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
-                              {currentProjectorItem.projetorText}
+                    (() => {
+                      const curSlideImg = projectorSlideImages[projectorIndex];
+                      if (curSlideImg) {
+                        return (
+                          <div className="w-full flex-1 flex items-center justify-between gap-6 px-4 py-2 my-auto mt-[5%]">
+                            <div className="w-[58%] shrink-0 flex flex-col justify-center items-center text-center space-y-3">
+                              {currentProjectorItem.ideiaText && (
+                                <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words">
+                                  {currentProjectorItem.ideiaText}
+                                </h2>
+                              )}
+                              {currentProjectorItem.reference && (
+                                <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full">
+                                  {currentProjectorItem.reference}
+                                </h3>
+                              )}
+                              {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                                <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                              )}
+                              {currentProjectorItem.projetorText && (
+                                <p className="text-lg md:text-xl lg:text-2xl font-extrabold leading-relaxed font-sans text-white text-center break-words">
+                                  {currentProjectorItem.projetorText}
+                                </p>
+                              )}
+                            </div>
+                            <div className="w-[38%] shrink-0 flex items-center justify-center">
+                              <img
+                                src={curSlideImg}
+                                alt="Ilustração do Slide"
+                                className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl"
+                              />
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
+                          {currentProjectorItem.type === 'topic_synopsis' ? (
+                            <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
+                              "{currentProjectorItem.projetorText}"
                             </p>
+                          ) : (
+                            <>
+                              {currentProjectorItem.ideiaText && (
+                                <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
+                                  {currentProjectorItem.ideiaText}
+                                </h2>
+                              )}
+                              {currentProjectorItem.reference && (
+                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
+                                  {currentProjectorItem.reference}
+                                </h3>
+                              )}
+                              {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                                <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                              )}
+                              {currentProjectorItem.projetorText && (
+                                <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
+                                  {currentProjectorItem.projetorText}
+                                </p>
+                              )}
+                            </>
                           )}
-                        </>
-                      )}
-                    </div>
+                        </div>
+                      );
+                    })()
                   )}
 
                   {/* Spacer inferior para equilibrar o título do topo */}
