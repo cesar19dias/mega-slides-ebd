@@ -1064,9 +1064,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         {currentProjectorItem.title}
                       </h1>
                       {currentProjectorItem.subtitle && (
-                        <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
-                          {currentProjectorItem.subtitle}
-                        </p>
+                        <>
+                          <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                          <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                            {currentProjectorItem.subtitle}
+                          </p>
+                        </>
                       )}
                     </div>
 
@@ -1178,6 +1181,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             <span className="text-base md:text-lg font-extrabold text-yellow-400 block tracking-wider uppercase font-sans text-center">
                               {currentProjectorItem.reference}
                             </span>
+                          )}
+                          {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
                           )}
                           {currentProjectorItem.projetorText && (
                             <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">

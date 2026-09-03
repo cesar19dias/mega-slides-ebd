@@ -366,13 +366,16 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                     style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                   />
                   {presentation.subtitle && (
-                    <SmartText
-                      text={presentation.subtitle}
-                      maxFontSize={28}
-                      minFontSize={14}
-                      className="font-bold text-slate-200 text-center mt-2"
-                      style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
-                    />
+                    <>
+                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                      <SmartText
+                        text={presentation.subtitle}
+                        maxFontSize={28}
+                        minFontSize={14}
+                        className="font-bold text-slate-200 text-center mt-2"
+                        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                      />
+                    </>
                   )}
                 </div>
 
@@ -428,14 +431,17 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 {/* Conteúdo: flex-1 centralizado na vertical (FONTES DOBRADAS) */}
                 <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
                   {currentSlide.topicBadge && currentSlide.title && (
-                    <SmartText
-                      text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
-                      maxFontSize={108}
-                      minFontSize={24}
-                      maxLines={2}
-                      className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                      style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
-                    />
+                    <>
+                      <SmartText
+                        text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
+                        maxFontSize={108}
+                        minFontSize={24}
+                        maxLines={2}
+                        className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
+                        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                      />
+                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                    </>
                   )}
                   {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
                     <div className="w-full space-y-4 overflow-hidden">
