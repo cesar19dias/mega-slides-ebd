@@ -1091,15 +1091,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 isSubtopic = true;
               }
 
-              // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2"
-              let cleanTitle = mainTitle.replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '').trim();
+              // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2" e referências do tipo (vv.1,2)
+              let cleanTitle = mainTitle
+                .replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '')
+                .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
+                .trim();
 
               const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
               return (
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
-                  <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[20%] pr-6 my-auto">
+                  <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
                     <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
                       {displayText}
                     </span>
@@ -1235,6 +1238,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           if (subM) { sLabel = subM[1].trim().toUpperCase(); mTitle = subM[2].trim(); }
           else if (topM) { sLabel = topM[1].trim().toUpperCase(); mTitle = topM[2].trim(); }
           else if (badge.startsWith('SUBTÓPICO') || badge.startsWith('TÓPICO')) { sLabel = badge; }
+          mTitle = mTitle.replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '').trim();
 
           return (
             <div

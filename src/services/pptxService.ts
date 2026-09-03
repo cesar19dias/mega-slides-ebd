@@ -144,13 +144,16 @@ function drawEbdHeaderBadge(slide: any, label: string) {
     isSubtopic = true;
   }
 
-  // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2"
-  let cleanTitle = mainTitle.replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '').trim();
+  // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2" e referências do tipo (vv.1,2)
+  let cleanTitle = mainTitle
+    .replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '')
+    .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
+    .trim();
 
   const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
   slide.addText(displayText, {
-    x: 2.66,
+    x: 2.4,
     y: 0.65,
     w: 10.0,
     h: 1.2,

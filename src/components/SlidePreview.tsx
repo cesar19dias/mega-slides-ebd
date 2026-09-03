@@ -53,17 +53,20 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
     isSubtopic = true;
   }
 
-  // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2", "SUBTÓPICO"
-  let cleanTitle = mainTitle.replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '').trim();
+  // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2", "SUBTÓPICO" e referências do tipo (vv.1,2)
+  let cleanTitle = mainTitle
+    .replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '')
+    .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
+    .trim();
 
-  // Subtópicos em caixa baixa (Sentence Case: ex "A conspiração judaica contra Paulo (vv.1,2)")
+  // Subtópicos em caixa baixa (Sentence Case: ex "A conspiração judaica contra Paulo")
   // Tópicos principais em Caixa Alta (UPPERCASE)
   const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
   return (
     <div
       className="w-full flex flex-col items-center justify-center z-20 font-sans font-medium h-20 md:h-24 my-auto"
-      style={{ paddingLeft: '20%', paddingRight: '5%', paddingTop: '6.5%' }}
+      style={{ paddingLeft: '18%', paddingRight: '5%', paddingTop: '6.5%' }}
     >
       <SmartText
         text={displayText}
