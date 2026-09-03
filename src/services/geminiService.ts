@@ -11,7 +11,7 @@ import { runDesignerEngine } from './ebdDesignerEngine';
 const GEMINI_API_KEY_STORAGE_KEY = 'megaebd_gemini_api_key';
 
 export function getStoredApiKey(): string {
-  return localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY) || '';
+  return localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY) || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
 }
 
 export function setStoredApiKey(key: string): void {
