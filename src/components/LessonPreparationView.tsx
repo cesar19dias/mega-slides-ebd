@@ -1060,7 +1060,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                     {/* Título Principal e Subtítulo posicionados dentro do quadro azul escuro */}
                     <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
-                      <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                      <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
                         {currentProjectorItem.title}
                       </h1>
                       {currentProjectorItem.subtitle && (

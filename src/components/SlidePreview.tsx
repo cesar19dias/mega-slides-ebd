@@ -360,7 +360,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                     text={presentation.title}
                     maxFontSize={52}
                     minFontSize={18}
-                    className="font-black text-white uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
+                    className="font-black text-yellow-400 uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
                     style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                   />
                   {presentation.subtitle && (

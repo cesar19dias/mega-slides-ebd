@@ -193,7 +193,7 @@ function buildTitleSlide(slide: any, slideData: Slide, theme: ThemeConfig, prese
     h: 2.5,
     fontSize: 36,
     bold: true,
-    color: 'FFFFFF',
+    color: 'FACC15',
     fontFace: 'Arial',
     align: 'center',
     valign: 'middle'
