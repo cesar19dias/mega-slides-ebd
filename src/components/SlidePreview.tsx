@@ -418,7 +418,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   {currentSlide.keyVerse ? (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
                       <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
-                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={48} minFontSize={18} className="font-black text-yellow-400 text-center tracking-wide" />
+                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 text-center tracking-wide" />
                     </div>
                   ) : currentSlide.takeaway ? (
                     <div className="w-full flex flex-col justify-center items-center">
@@ -427,7 +427,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   ) : (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
                       {presentation.biblicalText && (
-                        <SmartText text={presentation.biblicalText} maxFontSize={40} minFontSize={18} className="font-extrabold text-yellow-400 uppercase tracking-wider text-center" />
+                        <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
                       )}
                       <SmartText
                         text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}

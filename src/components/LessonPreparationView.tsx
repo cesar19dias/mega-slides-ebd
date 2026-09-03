@@ -1213,9 +1213,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </h2>
                           )}
                           {currentProjectorItem.reference && (
-                            <span className="text-base md:text-lg font-extrabold text-yellow-400 block tracking-wider uppercase font-sans text-center">
+                            <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
                               {currentProjectorItem.reference}
-                            </span>
+                            </h3>
                           )}
                           {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
