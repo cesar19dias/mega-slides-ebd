@@ -117,13 +117,25 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
-  const [customBg, setCustomBg] = useState<string | null>(null);
+  const [customBg, setCustomBg] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('mega_ebd_custom_bg');
+    } catch {
+      return null;
+    }
+  });
 
   const handleCustomBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => { const d = ev.target?.result as string; if (d) setCustomBg(d); };
+    reader.onload = ev => {
+      const d = ev.target?.result as string;
+      if (d) {
+        setCustomBg(d);
+        try { localStorage.setItem('mega_ebd_custom_bg', d); } catch {}
+      }
+    };
     reader.readAsDataURL(file);
     // Reset input so same file can be re-selected
     e.target.value = '';

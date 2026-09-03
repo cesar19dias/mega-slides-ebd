@@ -110,7 +110,13 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [customPromptInput, setCustomPromptInput] = useState('');
-  const [customTemplateBg, setCustomTemplateBg] = useState<string | null>(null);
+  const [customTemplateBg, setCustomTemplateBg] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('mega_ebd_custom_bg');
+    } catch {
+      return null;
+    }
+  });
 
   const slideStageRef = useRef<HTMLDivElement>(null);
   const theme = THEMES.find(t => t.id === selectedThemeId) || THEMES[0];
@@ -229,7 +235,13 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => { const d = ev.target?.result as string; if (d) setCustomTemplateBg(d); };
+    reader.onload = ev => {
+      const d = ev.target?.result as string;
+      if (d) {
+        setCustomTemplateBg(d);
+        try { localStorage.setItem('mega_ebd_custom_bg', d); } catch {}
+      }
+    };
     reader.readAsDataURL(file);
   };
 
