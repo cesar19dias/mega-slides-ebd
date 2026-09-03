@@ -379,28 +379,56 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   <EbdHeaderBadge label={presentation.lessonNumber || 'LIÇÃO 10'} />
                 </div>
 
-                {/* Título Principal e Subtítulo posicionados dentro do quadro azul escuro */}
-                <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[8%] py-[4%] mt-12 md:mt-16 space-y-3 my-auto">
-                  <SmartText
-                    text={presentation.title}
-                    maxFontSize={52}
-                    minFontSize={18}
-                    className="font-black text-yellow-400 uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
-                    style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
-                  />
-                  {presentation.subtitle && (
-                    <>
-                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                {currentSlide.imageUrl ? (
+                  <div className="flex-1 w-full flex items-center justify-between gap-6 px-[6%] py-[4%] mt-12 md:mt-16 my-auto">
+                    <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-3">
                       <SmartText
-                        text={presentation.subtitle}
-                        maxFontSize={28}
-                        minFontSize={14}
-                        className="font-bold text-slate-200 text-center mt-2"
+                        text={presentation.title}
+                        maxFontSize={44}
+                        minFontSize={18}
+                        className="font-black text-yellow-400 uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
                         style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
                       />
-                    </>
-                  )}
-                </div>
+                      {presentation.subtitle && (
+                        <>
+                          <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                          <SmartText
+                            text={presentation.subtitle}
+                            maxFontSize={24}
+                            minFontSize={14}
+                            className="font-bold text-slate-200 text-center"
+                            style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div className="w-[38%] shrink-0 flex items-center justify-center">
+                      <img src={currentSlide.imageUrl} alt="Capa" className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[8%] py-[4%] mt-12 md:mt-16 space-y-3 my-auto">
+                    <SmartText
+                      text={presentation.title}
+                      maxFontSize={52}
+                      minFontSize={18}
+                      className="font-black text-yellow-400 uppercase tracking-tight drop-shadow-[0_6px_12px_rgba(0,0,0,0.9)] text-center"
+                      style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                    />
+                    {presentation.subtitle && (
+                      <>
+                        <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                        <SmartText
+                          text={presentation.subtitle}
+                          maxFontSize={28}
+                          minFontSize={14}
+                          className="font-bold text-slate-200 text-center mt-2"
+                          style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                        />
+                      </>
+                    )}
+                  </div>
+                )}
 
                 <div className="w-full shrink-0 h-8" />
               </div>

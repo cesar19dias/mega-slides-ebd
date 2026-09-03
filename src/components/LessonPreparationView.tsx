@@ -1110,6 +1110,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               // 1. CAPA DA LIÇÃO (SLIDE 1)
               if (currentProjectorItem.type === 'cover') {
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
+                const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
                   <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
                     {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
@@ -1119,20 +1120,44 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       </span>
                     </div>
 
-                    {/* Título Principal e Subtítulo posicionados dentro do quadro azul escuro */}
-                    <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
-                      <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
-                        {currentProjectorItem.title}
-                      </h1>
-                      {currentProjectorItem.subtitle && (
-                        <>
-                          <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                          <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
-                            {currentProjectorItem.subtitle}
-                          </p>
-                        </>
-                      )}
-                    </div>
+                    {curSlideImg ? (
+                      <div className="flex-1 w-full flex items-center justify-between gap-6 px-6 py-4 mt-12 md:mt-16 my-auto">
+                        <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-4">
+                          <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                            {currentProjectorItem.title}
+                          </h1>
+                          {currentProjectorItem.subtitle && (
+                            <>
+                              <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                              <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                                {currentProjectorItem.subtitle}
+                              </p>
+                            </>
+                          )}
+                        </div>
+                        <div className="w-[38%] shrink-0 flex items-center justify-center">
+                          <img
+                            src={curSlideImg}
+                            alt="Capa"
+                            className="max-h-[300px] w-full object-cover rounded-2xl border-2 border-white/30 shadow-2xl drop-shadow-xl"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
+                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                          {currentProjectorItem.title}
+                        </h1>
+                        {currentProjectorItem.subtitle && (
+                          <>
+                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                              {currentProjectorItem.subtitle}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     <div className="w-full shrink-0 h-8" />
                   </div>
