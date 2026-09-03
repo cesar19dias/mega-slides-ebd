@@ -70,7 +70,7 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
         maxFontSize={52}
         minFontSize={18}
         maxLines={2}
-        className={`font-medium text-[#091b2c] text-center w-full drop-shadow-sm tracking-wide ${isSubtopic ? 'normal-case' : 'uppercase'}`}
+        className={`font-medium text-white text-center w-full drop-shadow-sm tracking-wide ${isSubtopic ? 'normal-case' : 'uppercase'}`}
         style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, letterSpacing: isSubtopic ? '0.01em' : '0.04em' }}
       />
     </div>
@@ -352,7 +352,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
         {/* ── Conteúdo Oficial do Modelo EBD ── */}
         {(isOfficialEbdTheme || customTemplateBg) ? (
           /* ── Oficial EBD / Modelo Personalizado do Usuário ── */
-          <div className={`absolute inset-0 flex flex-col justify-between overflow-hidden text-[#091b2c] ${customTemplateBg ? 'bg-transparent' : 'bg-white'}`} style={{ padding: '2% 3%' }}>
+          <div className={`absolute inset-0 flex flex-col justify-between overflow-hidden text-white ${customTemplateBg ? 'bg-transparent' : 'bg-white'}`} style={{ padding: '2% 3%' }}>
             {!customTemplateBg && currentSlide.layout !== 'title' && <TopLeftPolygons />}
             {currentSlide.layout !== 'title' && <BottomRightPolygonBadge current={currentSlideIndex + 1} total={slides.length} />}
 
@@ -388,12 +388,12 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto">
                   {currentSlide.keyVerse ? (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
-                      <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-[#091b2c] text-center leading-relaxed w-full" />
+                      <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
                       <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={48} minFontSize={18} className="font-black text-amber-600 text-center tracking-wide" />
                     </div>
                   ) : currentSlide.takeaway ? (
                     <div className="w-full flex flex-col justify-center items-center">
-                      <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-[#091b2c] text-center w-full leading-relaxed" />
+                      <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
                     </div>
                   ) : (
                     <div className="w-full space-y-4 flex flex-col justify-center items-center">
@@ -404,7 +404,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                         text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
                         maxFontSize={40}
                         minFontSize={18}
-                        className="font-semibold text-[#091b2c] text-center leading-relaxed w-full"
+                        className="font-semibold text-white text-center leading-relaxed w-full"
                         style={{ lineHeight: 1.5 }}
                       />
                     </div>
@@ -444,12 +444,12 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                           >
                             {i + 1}
                           </span>
-                          <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-[#091b2c] text-left leading-relaxed" />
+                          <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-white text-left leading-relaxed" />
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={80} minFontSize={20} className="font-extrabold text-[#091b2c] text-center w-full leading-relaxed" />
+                    <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={80} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
                   )}
                 </div>
 

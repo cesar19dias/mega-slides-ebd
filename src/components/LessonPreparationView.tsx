@@ -1066,7 +1066,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <div className="inline-block bg-[#ff4e00] text-white font-black px-8 py-2.5 rounded-full uppercase tracking-widest text-xs md:text-sm shadow-md font-sans border border-orange-300/40">
                       {currentProjectorItem.badgeText || 'LIÇÃO EBD'}
                     </div>
-                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-[#0d2238] uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                    <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-white uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
                       {currentProjectorItem.title}
                     </h1>
                     {currentProjectorItem.subtitle && (
@@ -1105,7 +1105,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
                   <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold pt-10 pb-2 pl-[25%] pr-6">
-                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-[#0d2238] tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
+                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
                       {displayText}
                     </span>
                   </div>
@@ -1124,17 +1124,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           if (match) {
                             return (
                               <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
-                                <span className="shrink-0 font-black text-[#091b2c] text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
+                                <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
                                   {match[1]}
                                 </span>
-                                <p className="font-extrabold text-[#091b2c] text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
+                                <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
                                   {match[2]}
                                 </p>
                               </div>
                             );
                           }
                           return (
-                            <p key={idx} className="font-extrabold text-[#091b2c] text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
+                            <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
                               {line}
                             </p>
                           );
@@ -1143,7 +1143,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </div>
                   ) : currentProjectorItem.type === 'conclusao' ? (
                     <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto">
-                      <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-[#091b2c] text-center font-sans break-words max-w-4xl">
+                      <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
                         "{currentProjectorItem.projetorText}"
                       </p>
                     </div>
@@ -1153,7 +1153,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         <div key={idx} className="w-full">
                           <div className="flex items-start gap-3 py-2.5">
                             <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                            <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-[#091b2c] font-sans text-left break-words">
+                            <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
                               {point}
                             </p>
                           </div>
@@ -1164,7 +1164,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     /* DEMAIS CARDS */
                     <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto">
                       {currentProjectorItem.type === 'topic_synopsis' ? (
-                        <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-[#091b2c] text-center font-sans break-words max-w-4xl">
+                        <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
                           "{currentProjectorItem.projetorText}"
                         </p>
                       ) : (
@@ -1180,7 +1180,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </span>
                           )}
                           {currentProjectorItem.projetorText && (
-                            <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-[#091b2c] text-center max-w-4xl break-words">
+                            <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
                               {currentProjectorItem.projetorText}
                             </p>
                           )}
@@ -1261,12 +1261,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <span style={{ fontSize: '20px', fontWeight: 900, color: 'white', whiteSpace: 'normal', wordBreak: 'break-word', textTransform: 'uppercase', letterSpacing: '0.04em', lineHeight: 1.2 }}>{mTitle}</span>
                   </div>
                 </div>
-                {sLabel && <div style={{ fontSize: '28px', fontWeight: 900, color: '#091b2c', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', marginBottom: '6px' }}>{sLabel}</div>}
+                {sLabel && <div style={{ fontSize: '28px', fontWeight: 900, color: '#ffffff', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'center', marginTop: '2px', marginBottom: '6px' }}>{sLabel}</div>}
 
                 {/* Card de conteúdo */}
                 {item.type === 'leitura' ? (
-                  <div style={{ background: 'white', color: '#091b2c', padding: '32px 40px', borderRadius: '24px', width: '100%', minHeight: '380px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
-                    {item.reference && <div style={{ fontSize: '32px', fontWeight: 900, marginBottom: '16px', color: '#0d2238', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{item.reference}</div>}
+                  <div style={{ background: 'transparent', color: '#ffffff', padding: '32px 40px', borderRadius: '24px', width: '100%', minHeight: '380px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', outline: '3px solid #22d3ee', outlineOffset: '-8px' }}>
+                    {item.reference && <div style={{ fontSize: '32px', fontWeight: 900, marginBottom: '16px', color: '#ffffff', borderBottom: '2px solid #e2e8f0', paddingBottom: '10px' }}>{item.reference}</div>}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', textAlign: 'left' }}>
                       {(item.projetorText || '').split('\n').filter(l => l.trim()).map((line, vIdx) => {
                         const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
@@ -1276,14 +1276,14 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               <span style={{ flexShrink: 0, fontWeight: 900, color: '#ff4e00', fontSize: '48px', lineHeight: 1 }}>
                                 {match[1]}
                               </span>
-                              <p style={{ fontWeight: 800, color: '#091b2c', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', flex: 1, margin: 0 }}>
+                              <p style={{ fontWeight: 800, color: '#ffffff', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', flex: 1, margin: 0 }}>
                                 {match[2]}
                               </p>
                             </div>
                           );
                         }
                         return (
-                          <p key={vIdx} style={{ fontWeight: 800, color: '#091b2c', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', margin: 0 }}>
+                          <p key={vIdx} style={{ fontWeight: 800, color: '#ffffff', fontSize: '28px', lineHeight: 1.4, wordBreak: 'break-word', margin: 0 }}>
                             {line}
                           </p>
                         );
