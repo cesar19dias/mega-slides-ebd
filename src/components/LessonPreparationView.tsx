@@ -3,6 +3,7 @@ import type { EBDLessonPreparation } from '../types';
 import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
+import { SlideCanvasOverlay } from './SlideCanvasOverlay';
 
 export interface BiblicalVerseSlideData {
   chapterHeader?: string;
@@ -1117,6 +1118,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
           >
+            {/* Lousa Interativa (Canvas de Desenho / Anotações) */}
+            <SlideCanvasOverlay slideIndex={projectorIndex} isExporting={!!isExporting} />
+
             {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
             {!isExporting && (
               <>

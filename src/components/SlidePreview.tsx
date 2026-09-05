@@ -8,6 +8,7 @@ import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { exportSingleSlidePDF, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 import { SmartText } from './SmartText';
+import { SlideCanvasOverlay } from './SlideCanvasOverlay';
 
 interface SlidePreviewProps {
   data: PresentationData;
@@ -372,6 +373,9 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
         }`}
       >
+        {/* ── Lousa Interativa (Canvas de Desenho / Anotações) ── */}
+        <SlideCanvasOverlay slideIndex={currentSlideIndex} isExporting={isExportingPng} />
+
         {/* ── Setas Laterais de Navegação no Próprio Slide ── */}
         {!isExportingPng && (
           <>
