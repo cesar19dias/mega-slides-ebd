@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 
@@ -412,6 +412,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   }, [lesson]);
 
   const currentProjectorItem = projectorItems[projectorIndex] || projectorItems[0];
+
+  // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita)
+  useEffect(() => {
+    if (activeTab !== 'projetor') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        setProjectorIndex(prev => Math.max(0, prev - 1));
+      } else if (e.key === 'ArrowRight') {
+        setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, projectorItems.length]);
 
   const toggleTopicExpand = (topicNumber: string) => {
     setExpandedTopics(prev => ({
@@ -1103,6 +1117,28 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
           >
+            {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
+            {!isExporting && (
+              <>
+                <button
+                  onClick={() => setProjectorIndex(prev => Math.max(0, prev - 1))}
+                  disabled={projectorIndex === 0}
+                  title="Slide Anterior (Seta Esquerda)"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
+                >
+                  <ChevronLeft className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
+                </button>
+
+                <button
+                  onClick={() => setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1))}
+                  disabled={projectorIndex === projectorItems.length - 1}
+                  title="Próximo Slide (Seta Direita)"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
+                >
+                  <ChevronRight className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
+                </button>
+              </>
+            )}
 
 
             {/* Bloco Central do Slide */}

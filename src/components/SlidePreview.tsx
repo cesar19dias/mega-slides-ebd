@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { PresentationData, Slide } from '../types';
 import { THEMES } from '../constants/themes';
 import { exportToPowerPoint } from '../services/pptxService';
@@ -218,6 +218,19 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
   const nextSlide = () => { if (currentSlideIndex < slides.length - 1) setCurrentSlideIndex(currentSlideIndex + 1); };
   const prevSlide = () => { if (currentSlideIndex > 0) setCurrentSlideIndex(currentSlideIndex - 1); };
 
+  // Atalhos de Teclado no Slide Preview (Seta Esquerda / Direita)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        prevSlide();
+      } else if (e.key === 'ArrowRight') {
+        nextSlide();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentSlideIndex, slides.length]);
+
   const handleRegenerateImage = async () => {
     setIsRegeneratingImage(true);
     try {
@@ -359,6 +372,28 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
         }`}
       >
+        {/* ── Setas Laterais de Navegação no Próprio Slide ── */}
+        {!isExportingPng && (
+          <>
+            <button
+              onClick={prevSlide}
+              disabled={currentSlideIndex === 0}
+              title="Slide Anterior (Seta Esquerda)"
+              className="absolute left-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
+            >
+              <ChevronLeft className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
+            </button>
+
+            <button
+              onClick={nextSlide}
+              disabled={currentSlideIndex === slides.length - 1}
+              title="Próximo Slide (Seta Direita)"
+              className="absolute right-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
+            >
+              <ChevronRight className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
+            </button>
+          </>
+        )}
         {/* ── Background Imagem se o Usuário Carregar o Próprio Modelo ── */}
         {customTemplateBg && (
           <img src={customTemplateBg} alt="Modelo Personalizado" className="absolute inset-0 w-full h-full object-cover z-0" />
