@@ -130,8 +130,8 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
 3. Garanta que a linguagem seja culta, clara e teologicamente precisa.
 
 --- REGRAS DE CONSTRUÇÃO DO "MAPA DE ENSINO" ---
-- REGRA DE DIVISÃO EM LETRAS a), b), c), d): DESMEMBRE CADA SUBTÓPICO EM IDEIAS SEQUENCIAIS DISTINTAS: a), b), c), d) (Gere obrigatoriamente entre 3 e 4 ideias separadas por subtópico).
-- CADA IDEIA (a, b, c, d) DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS 7 ELEMENTOS CHAVE:
+- REGRA DE DIVISÃO EM LETRAS a), b): DESMEMBRE CADA SUBTÓPICO EM APENAS 2 IDEIAS PRINCIPAIS: a) e b) (Gere obrigatoriamente EXATAMENTE 2 ideias principais por subtópico, focando no essencial com profundidade didática sem fragmentar demais).
+- CADA IDEIA (a, b) DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS 7 ELEMENTOS CHAVE:
   1. IDEIA CENTRAL ("projetor"): Frase curta e marcante para o aluno ler no projetor.
   2. EXPLICAÇÃO DO PROFESSOR ("explicacao"): O conteúdo desenvolvido estritamente a partir do cruzamento das duas transcrições.
   3. CONTEXTO HISTÓRICO/CULTURAL ("contexto"): Apenas quando realmente contribuir para entender o texto bíblico, sem invenções.
@@ -197,7 +197,7 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "ideias": [
             {
               "letra": "a",
-              "titulo": "Primeira Ideia do Mapa de Ensino",
+              "titulo": "Primeira Ideia Principal do Mapa de Ensino",
               "projetor": "Ideia Central para o Projetor (Frase curta que o aluno consegue ler facilmente).",
               "professor": {
                 "explicacao": "Explicação do Professor desenvolvida estritamente a partir do cruzamento das transcrições.",
@@ -214,10 +214,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
             },
             {
               "letra": "b",
-              "titulo": "Segunda Ideia do Mapa de Ensino",
+              "titulo": "Segunda Ideia Principal do Mapa de Ensino",
               "projetor": "Ideia Central b para o Projetor.",
               "professor": {
-                "explicacao": "Explicação do Professor para a segunda ideia...",
+                "explicacao": "Explicação do Professor para a segunda ideia principal...",
                 "contexto": "Contexto histórico/cultural...",
                 "versiculos": [
                   { "reference": "Atos 24.10", "text": "Versículo ARC 1" },
@@ -228,40 +228,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
                 "cuidadoDoutrinario": "🔥 Cuidado Doutrinário: Evitar generalizações doutrinárias sem respaldo no texto bíblico."
               },
               "imagePrompt": "Prompt visual 16:9 para a ideia b."
-            },
-            {
-              "letra": "c",
-              "titulo": "Terceira Ideia do Mapa de Ensino",
-              "projetor": "Ideia Central c para o Projetor.",
-              "professor": {
-                "explicacao": "Explicação do Professor...",
-                "contexto": "Contexto...",
-                "versiculos": [
-                  { "reference": "Atos 24.14", "text": "Versículo ARC 1" },
-                  { "reference": "2 Timóteo 3.12", "text": "Versículo ARC 2" }
-                ],
-                "aplicacao": "Aplicação...",
-                "enfase": "Ênfase...",
-                "cuidadoDoutrinario": "🔥 Cuidado Doutrinário: O que o professor não deve afirmar nesta lição."
-              },
-              "imagePrompt": "Prompt..."
-            },
-            {
-              "letra": "d",
-              "titulo": "Quarta Ideia do Mapa de Ensino",
-              "projetor": "Ideia Central d para o Projetor.",
-              "professor": {
-                "explicacao": "Explicação do Professor...",
-                "contexto": "Contexto...",
-                "versiculos": [
-                  { "reference": "Atos 24.16", "text": "Versículo ARC 1" },
-                  { "reference": "1 Pedro 3.16", "text": "Versículo ARC 2" }
-                ],
-                "aplicacao": "Aplicação...",
-                "enfase": "Ênfase...",
-                "cuidadoDoutrinario": "🔥 Cuidado Doutrinário: Cuidado para não distorcer a aplicação pastoral."
-              },
-              "imagePrompt": "Prompt..."
             }
           ]
         }
