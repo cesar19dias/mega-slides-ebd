@@ -352,7 +352,7 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
 
       {/* ── Painel Flutuante da Lousa Interativa (Oculto em Exportações) ── */}
       {!isExporting && (
-        <div className="absolute top-3 right-3 z-50 flex items-center gap-2 font-['Gotham']">
+        <div className="absolute -top-14 right-1 sm:right-3 z-50 flex items-center gap-2 font-['Gotham']">
           {!isActive ? (
             <button
               onClick={() => setIsActive(true)}

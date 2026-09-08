@@ -366,13 +366,14 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           ESTÁGIO DO SLIDE  (aspect-ratio 16:9 — SmartText em tudo)
           SmartText mede o DOM real e NUNCA comprime horizontalmente.
       ══════════════════════════════════════════════════════════════════════ */}
-      <div
-        ref={slideStageRef}
-        style={customTemplateBg ? { backgroundImage: `url(${customTemplateBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-        className={`slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 relative font-['Gotham'] ${
-          customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
-        }`}
-      >
+      <div className="relative w-full pt-14">
+        <div
+          ref={slideStageRef}
+          style={customTemplateBg ? { backgroundImage: `url(${customTemplateBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+          className={`slide-stage-wrapper rounded-3xl shadow-2xl border border-slate-700/80 relative font-['Gotham'] ${
+            customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
+          }`}
+        >
         {/* ── Lousa Interativa (Canvas de Desenho / Anotações) ── */}
         <SlideCanvasOverlay slideIndex={currentSlideIndex} isExporting={isExportingPng} />
 
@@ -643,6 +644,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
             <SmartText text={currentSlide.subtitle || ''} maxFontSize={22} minFontSize={8} className="font-medium" />
           </div>
         )}
+      </div>
       </div>
 
       {/* ── Miniaturas ── */}
