@@ -366,14 +366,22 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           ESTÁGIO DO SLIDE  (aspect-ratio 16:9 — SmartText em tudo)
           SmartText mede o DOM real e NUNCA comprime horizontalmente.
       ══════════════════════════════════════════════════════════════════════ */}
-      <div className="relative w-full pt-14">
-        <div
-          ref={slideStageRef}
-          style={customTemplateBg ? { backgroundImage: `url(${customTemplateBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-          className={`slide-stage-wrapper rounded-3xl shadow-2xl border border-slate-700/80 relative font-['Gotham'] ${
-            customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
-          }`}
-        >
+      {/* ── Barra Superior da Lousa Interativa (Posicionada acima do slide) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 font-['Gotham'] min-h-[44px] px-1">
+        <div className="flex items-center gap-2 text-xs font-bold text-amber-400/90 bg-amber-500/10 border border-amber-500/30 px-3.5 py-1.5 rounded-xl">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>Lousa Interativa: Rabisque, grife, desenhe setas e emoldure tópicos na aula</span>
+        </div>
+        <div id="lousa-toolbar-container" className="flex items-center gap-2 z-40" />
+      </div>
+
+      <div
+        ref={slideStageRef}
+        style={customTemplateBg ? { backgroundImage: `url(${customTemplateBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        className={`slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 relative font-['Gotham'] ${
+          customTemplateBg ? 'text-white' : 'bg-[#0d2238] text-white'
+        }`}
+      >
         {/* ── Lousa Interativa (Canvas de Desenho / Anotações) ── */}
         <SlideCanvasOverlay slideIndex={currentSlideIndex} isExporting={isExportingPng} />
 
@@ -644,7 +652,6 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
             <SmartText text={currentSlide.subtitle || ''} maxFontSize={22} minFontSize={8} className="font-medium" />
           </div>
         )}
-      </div>
       </div>
 
       {/* ── Miniaturas ── */}
