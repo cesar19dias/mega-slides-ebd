@@ -1,9 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, X, Sparkles, Square } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
-import { SlideCanvasOverlay } from './SlideCanvasOverlay';
+import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
+
+const LOUSA_COLORS = [
+  { name: 'Amarelo Neon', hex: '#facc15' },
+  { name: 'Ciano', hex: '#06b6d4' },
+  { name: 'Vermelho', hex: '#ef4444' },
+  { name: 'Verde Neon', hex: '#22c55e' },
+  { name: 'Branco', hex: '#ffffff' },
+];
+
+const LOUSA_STROKE_SIZES = [
+  { name: 'Fino', val: 4 },
+  { name: 'Médio', val: 8 },
+  { name: 'Grosso', val: 16 },
+];
 
 export interface BiblicalVerseSlideData {
   chapterHeader?: string;
@@ -106,6 +120,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Estado da Visão do Projetor (Slide atual no projetor)
   const [projectorIndex, setProjectorIndex] = useState(0);
   const [isExporting, setIsExporting] = useState<string | null>(null);
+
+  // Estados da Lousa Interativa (Modo Projetor)
+  const [isLousaActive, setIsLousaActive] = useState(false);
+  const [selectedLousaTool, setSelectedLousaTool] = useState<DrawingTool>('pen');
+  const [selectedLousaColor, setSelectedLousaColor] = useState('#facc15');
+  const [lousaStrokeSize, setLousaStrokeSize] = useState(8);
+  const [clearLousaTrigger, setClearLousaTrigger] = useState(0);
 
 
   // Estados de Regeneração Seletiva e Notificações
@@ -1130,8 +1151,138 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 {isExporting === 'png' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
                 <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
               </button>
+
+              {/* ── BOTÃO DA LOUSA INTERATIVA (POSICIONADO ONDE O USUÁRIO CIRCULOU NA TOOLBAR) ── */}
+              <button
+                onClick={() => setIsLousaActive(!isLousaActive)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                  isLousaActive
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
+                    : 'bg-yellow-500 hover:bg-yellow-400 text-slate-950 font-black border-yellow-400'
+                }`}
+                title="Ativar Lousa Interativa para rabiscar, grifar e desenhar no slide"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-current" />
+                <span>{isLousaActive ? '✏️ Lousa Ativa' : '✏️ Lousa Interativa'}</span>
+              </button>
             </div>
           </div>
+
+          {/* ── Painel de Ferramentas da Lousa Interativa ── */}
+          {isLousaActive && !isExporting && (
+            <div className="bg-slate-950/95 border border-purple-500/60 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-['Gotham'] animate-in fade-in duration-200 mb-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/40 text-purple-300 font-black">
+                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>Lousa Ativa (Anotações na Aula)</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => setSelectedLousaTool('pen')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLousaTool === 'pen' ? 'bg-yellow-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Caneta (Desenho Livre)"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Caneta</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedLousaTool('highlighter')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLousaTool === 'highlighter' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Marca-Texto (Grifar trechos de texto)"
+                >
+                  <span>🖍️ Grifar</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedLousaTool('rectangle')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLousaTool === 'rectangle' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Retângulo Vazado (Destacar e emoldurar áreas)"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span>Retângulo</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedLousaTool('arrow')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLousaTool === 'arrow' ? 'bg-emerald-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Seta Estilizada (Apontar para tópicos)"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Seta</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedLousaTool('eraser')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLousaTool === 'eraser' ? 'bg-rose-600 text-white font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Borracha"
+                >
+                  <Eraser className="w-3.5 h-3.5" />
+                  <span>Borracha</span>
+                </button>
+              </div>
+
+              {selectedLousaTool !== 'eraser' && (
+                <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                  {LOUSA_COLORS.map(c => (
+                    <button
+                      key={c.hex}
+                      onClick={() => setSelectedLousaColor(c.hex)}
+                      className={`w-5 h-5 rounded-full transition-transform cursor-pointer border border-white/20 ${
+                        selectedLousaColor === c.hex ? 'scale-125 ring-2 ring-white shadow-lg' : 'hover:scale-110 opacity-80'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+                {LOUSA_STROKE_SIZES.map(s => (
+                  <button
+                    key={s.val}
+                    onClick={() => setLousaStrokeSize(s.val)}
+                    className={`px-2.5 py-1 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
+                      lousaStrokeSize === s.val ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setClearLousaTrigger(prev => prev + 1)}
+                  className="bg-slate-900 hover:bg-red-900/60 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                  title="Limpar todos os desenhos deste slide"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>Limpar Slide</span>
+                </button>
+
+                <button
+                  onClick={() => setIsLousaActive(false)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center gap-1"
+                  title="Concluir e Desativar Lousa"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Desativar</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
           <div
@@ -1140,7 +1291,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
           >
             {/* Lousa Interativa (Canvas de Desenho / Anotações) */}
-            <SlideCanvasOverlay slideIndex={projectorIndex} isExporting={!!isExporting} />
+            <SlideCanvasOverlay
+              slideIndex={projectorIndex}
+              isActive={isLousaActive}
+              selectedTool={selectedLousaTool}
+              selectedColor={selectedLousaColor}
+              strokeSize={lousaStrokeSize}
+              clearTrigger={clearLousaTrigger}
+              isExporting={!!isExporting}
+            />
 
             {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
             {!isExporting && (
