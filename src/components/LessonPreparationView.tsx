@@ -312,7 +312,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Flattened items for Projector Mode
   const projectorItems = React.useMemo(() => {
     const items: Array<{
-      type: 'cover' | 'aureo' | 'pratica' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'conclusao' | 'verdades';
+      type: 'cover' | 'aureo' | 'pratica' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'enfase_palavra' | 'conclusao' | 'verdades';
       title: string;
       subtitle?: string;
       bulletPoints?: string[];
@@ -376,6 +376,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       });
 
       t.subtopicos.forEach((s) => {
+        // 1. Slides das ideias principal do subtópico (Letra a, Letra b...)
         s.ideias.forEach((ideia) => {
           items.push({
             type: 'subtopic',
@@ -386,6 +387,26 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             imagePrompt: ideia.imagePrompt || s.imagePrompt
           });
         });
+
+        // 2. 📌 SLIDE ÚNICO "APRENDA COM A PALAVRA..." LOGO APÓS A ÚLTIMA LETRA DO SUBTÓPICO
+        // Reúne e resume as ênfases das ideias (a e b) em um único slide para a sala de aula
+        const enfases = s.ideias
+          .map(i => i.professor?.enfase?.trim())
+          .filter((e): e is string => Boolean(e));
+
+        if (enfases.length > 0) {
+          const uniqueEnfases = Array.from(new Set(enfases));
+          const combinedEnfase = uniqueEnfases.join('\n\n');
+
+          items.push({
+            type: 'enfase_palavra',
+            title: `${s.number}. ${s.title}`,
+            badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+            ideiaText: 'APRENDA COM A PALAVRA...',
+            projetorText: combinedEnfase,
+            imagePrompt: s.imagePrompt || s.ideias[0]?.imagePrompt
+          });
+        }
       });
     });
 
@@ -1405,8 +1426,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
                             )}
                             {currentProjectorItem.projetorText && (
-                              <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-white text-center max-w-4xl break-words">
-                                {currentProjectorItem.projetorText}
+                              <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-center max-w-4xl break-words ${currentProjectorItem.type === 'enfase_palavra' ? 'italic text-yellow-100' : 'text-white'}`}>
+                                {currentProjectorItem.type === 'enfase_palavra' ? `“${currentProjectorItem.projetorText}”` : currentProjectorItem.projetorText}
                               </p>
                             )}
                           </>

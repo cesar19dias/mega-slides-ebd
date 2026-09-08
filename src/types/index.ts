@@ -8,6 +8,14 @@ export interface TranscriptionSource {
   fileName?: string;
 }
 
+export interface EBDPalavraOriginal {
+  termo: string; // Grafia no alfabeto original (ex: λοιμός ou שָׁלוֹם)
+  transliteracao: string; // Pronúncia/transliteração legível em português (ex: Loimós)
+  idioma: 'Grego' | 'Hebraico';
+  significado: string; // Significado literal e etimológico
+  explicacao: string; // Aplicação exegética e teológica para o ensino do professor
+}
+
 export interface EBDIdeia {
   letra: string; // 'a', 'b', 'c', 'd', etc.
   titulo: string;
@@ -19,6 +27,7 @@ export interface EBDIdeia {
     aplicacao: string; // Aplicação cristã e pentecostal
     enfase: string; // Frase de destaque para o professor enfatizar na aula
     cuidadoDoutrinario?: string; // 🔥 O QUE NÃO PODE SER DITO (Cuidado Doutrinário / Alerta)
+    palavrasOriginais?: EBDPalavraOriginal[]; // 🏛️ EXEGESE BÍBLICA: VOCABULÁRIO NO ORIGINAL (GREGO / HEBRAICO)
   };
   imagePrompt: string; // Prompt de imagem 16:9 contextual para Canva / AI
 }

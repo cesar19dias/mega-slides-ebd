@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Edit3, Eraser, Trash2, X, Sparkles } from 'lucide-react';
+import { Edit3, Eraser, Trash2, X, Sparkles, Square, ArrowRight } from 'lucide-react';
 
-export type DrawingTool = 'pen' | 'highlighter' | 'eraser';
+export type DrawingTool = 'pen' | 'highlighter' | 'rectangle' | 'arrow' | 'eraser';
 
 interface SlideCanvasOverlayProps {
   slideIndex: number;
@@ -29,6 +29,8 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const startPointRef = useRef<{ x: number; y: number } | null>(null);
+  const snapshotRef = useRef<ImageData | null>(null);
 
   const [isActive, setIsActive] = useState(false);
   const [selectedTool, setSelectedTool] = useState<DrawingTool>('pen');
@@ -135,6 +137,58 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
     };
   };
 
+  // Função para desenhar seta estilizada com ponta moderna preenchida
+  const drawStylizedArrow = (
+    ctx: CanvasRenderingContext2D,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+    color: string,
+    width: number
+  ) => {
+    const angle = Math.atan2(toY - fromY, toX - fromX);
+    const distance = Math.hypot(toX - fromX, toY - fromY);
+    if (distance < 3) return;
+
+    // Tamanho proporcional da ponta da seta
+    const headLength = Math.max(width * 2.8, 16);
+    const headAngle = Math.PI / 6; // 30 graus
+
+    // Coordenadas das barbatanas da ponta
+    const x1 = toX - headLength * Math.cos(angle - headAngle);
+    const y1 = toY - headLength * Math.sin(angle - headAngle);
+    const x2 = toX - headLength * Math.cos(angle + headAngle);
+    const y2 = toY - headLength * Math.sin(angle + headAngle);
+
+    // Ponto central de encaixe recortado (design moderno e pontiagudo)
+    const xCenter = toX - headLength * 0.7 * Math.cos(angle);
+    const yCenter = toY - headLength * 0.7 * Math.sin(angle);
+
+    // Desenha a haste da seta
+    ctx.beginPath();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = color;
+    ctx.globalAlpha = 1.0;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(xCenter, yCenter);
+    ctx.stroke();
+
+    // Desenha a ponta estilo flecha/ponteiro preenchida
+    ctx.beginPath();
+    ctx.moveTo(toX, toY);
+    ctx.lineTo(x1, y1);
+    ctx.lineTo(xCenter, yCenter);
+    ctx.lineTo(x2, y2);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 1.0;
+    ctx.fill();
+  };
+
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isActive) return;
     // Evita scroll da tela no tablet/celular enquanto desenha
@@ -146,10 +200,22 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
     if (!coords) return;
 
     isDrawingRef.current = true;
+    startPointRef.current = coords;
     lastPointRef.current = coords;
 
-    // Desenha um ponto inicial
-    drawPoint(coords.x, coords.y);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (selectedTool === 'rectangle' || selectedTool === 'arrow') {
+      // Salva snapshot do canvas antes de arrastar a forma
+      snapshotRef.current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } else {
+      snapshotRef.current = null;
+      // Desenha um ponto inicial
+      drawPoint(coords.x, coords.y);
+    }
   };
 
   const drawPoint = (x: number, y: number) => {
@@ -197,36 +263,72 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.beginPath();
-    ctx.lineCap = selectedTool === 'highlighter' ? 'square' : 'round';
-    ctx.lineJoin = 'round';
+    if (selectedTool === 'rectangle') {
+      if (!snapshotRef.current || !startPointRef.current) return;
+      // Restaura o canvas para o estado antes de arrastar
+      ctx.putImageData(snapshotRef.current, 0, 0);
 
-    if (selectedTool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.lineWidth = strokeSize * 2.5;
-    } else if (selectedTool === 'highlighter') {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.strokeStyle = selectedColor;
-      ctx.globalAlpha = 0.4;
-      ctx.lineWidth = strokeSize * 2.2;
-    } else {
+      const x = Math.min(startPointRef.current.x, coords.x);
+      const y = Math.min(startPointRef.current.y, coords.y);
+      const w = Math.abs(coords.x - startPointRef.current.x);
+      const h = Math.abs(coords.y - startPointRef.current.y);
+
+      ctx.beginPath();
       ctx.globalCompositeOperation = 'source-over';
       ctx.strokeStyle = selectedColor;
       ctx.globalAlpha = 1.0;
       ctx.lineWidth = strokeSize;
+      ctx.lineCap = 'square';
+      ctx.lineJoin = 'miter';
+      ctx.strokeRect(x, y, w, h);
+    } else if (selectedTool === 'arrow') {
+      if (!snapshotRef.current || !startPointRef.current) return;
+      // Restaura o canvas para o estado antes de arrastar
+      ctx.putImageData(snapshotRef.current, 0, 0);
+
+      drawStylizedArrow(
+        ctx,
+        startPointRef.current.x,
+        startPointRef.current.y,
+        coords.x,
+        coords.y,
+        selectedColor,
+        strokeSize
+      );
+    } else {
+      ctx.beginPath();
+      ctx.lineCap = selectedTool === 'highlighter' ? 'square' : 'round';
+      ctx.lineJoin = 'round';
+
+      if (selectedTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.lineWidth = strokeSize * 2.5;
+      } else if (selectedTool === 'highlighter') {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = selectedColor;
+        ctx.globalAlpha = 0.4;
+        ctx.lineWidth = strokeSize * 2.2;
+      } else {
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.strokeStyle = selectedColor;
+        ctx.globalAlpha = 1.0;
+        ctx.lineWidth = strokeSize;
+      }
+
+      ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+      ctx.lineTo(coords.x, coords.y);
+      ctx.stroke();
+
+      lastPointRef.current = coords;
     }
-
-    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-    ctx.lineTo(coords.x, coords.y);
-    ctx.stroke();
-
-    lastPointRef.current = coords;
   };
 
   const stopDrawing = () => {
     if (isDrawingRef.current) {
       isDrawingRef.current = false;
       lastPointRef.current = null;
+      startPointRef.current = null;
+      snapshotRef.current = null;
       saveCurrentSlideCanvas();
     }
   };
@@ -268,7 +370,7 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
                 <span>Lousa Ativa</span>
               </div>
 
-              {/* Ferramentas: Caneta / Marca-Texto / Borracha */}
+              {/* Ferramentas: Caneta / Marca-Texto / Retângulo / Seta / Borracha */}
               <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
                 <button
                   onClick={() => setSelectedTool('pen')}
@@ -290,6 +392,28 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
                 >
                   <span className="text-sm">🖍️</span>
                   <span className="hidden sm:inline">Grifar</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedTool('rectangle')}
+                  className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    selectedTool === 'rectangle' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Retângulo Vazado (Destacar e emoldurar áreas)"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Retângulo</span>
+                </button>
+
+                <button
+                  onClick={() => setSelectedTool('arrow')}
+                  className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                    selectedTool === 'arrow' ? 'bg-emerald-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+                  }`}
+                  title="Seta Estilizada (Apontar para tópicos e itens importantes)"
+                >
+                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Seta</span>
                 </button>
 
                 <button

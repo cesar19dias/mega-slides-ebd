@@ -15,7 +15,7 @@ export async function runDesignerEngine(
   const slides: Slide[] = [];
 
   // 1. Slide 1 — Capa Principal (Layout "title" com Imagem de Fundo/Banner)
-  const coverImagePrompt = `Capa bíblica majestosa sobre o tema: ${lesson.title}. Estilo ${options.stylePreset || 'bíblico clássico'}, alta definição, iluminação dramática.`;
+  const coverImagePrompt = `Cinematic wide-angle 16:9 film still depicting: "${lesson.title} - ${lesson.themeTopic}". 1st-century biblical setting, massive ancient limestone architecture, dramatic Rembrandt chiaroscuro lighting with warm golden hour sunbeams, atmospheric dust particles, authentic textured linen and wool garments, photorealistic, 8k resolution, shot on 35mm lens, depth of field, no modern items, no text, no typography --ar 16:9 --style raw --v 6.0`;
   const coverImageUrl = options.imageProvider === 'ai' 
     ? await generateAiImage(coverImagePrompt, lesson.title)
     : undefined;
@@ -79,8 +79,8 @@ export async function runDesignerEngine(
       const isEven = slideCounter % 2 === 0;
       const layoutType = isEven ? 'image-left' : 'image-right';
 
-      // Gera prompt contextual bíblico/histórico
-      const promptContext = `Cena bíblica histórica realista representando: ${sub.title} no contexto de ${lesson.title}. Detalhes históricos do primeiro século, vestimentas da época, iluminação profissional.`;
+      // Gera prompt contextual bíblico/histórico ultra-elaborado
+      const promptContext = `Cinematic historical 16:9 scene representing "${sub.title}" in the biblical narrative of "${lesson.title}". Authentic 1st-century Mediterranean context, intricately textured garments of linen and wool, expressive human faces filled with emotional intensity and dignity, dramatic Caravaggio lighting, warm natural sunlight streaming through ancient stone pillars, photorealistic 8k, Panavision 35mm lens, no modern objects, no text, no watermarks --ar 16:9 --style raw`;
       
       let imageUrl: string | undefined = undefined;
       if (options.imageProvider === 'ai') {
@@ -117,7 +117,7 @@ export async function runDesignerEngine(
   }
 
   // 5. Slide de Conclusão & Aplicação Prática (Layout "conclusion")
-  const conclusionPrompt = `Ilustração inspiradora de aplicação cristã e fé no cotidiano moderno, iluminação suave e acolhedora.`;
+  const conclusionPrompt = `Cinematic 16:9 inspiring visual of Christian faith and practical discipleship, warm golden light breaking through clouds, solemn and hopeful atmosphere, photorealistic, 8k resolution, award-winning cinematography, no text, no watermarks --ar 16:9 --style raw`;
   let conclusionImageUrl: string | undefined = undefined;
   if (options.imageProvider === 'ai') {
     conclusionImageUrl = await generateAiImage(conclusionPrompt, 'Conclusão');
