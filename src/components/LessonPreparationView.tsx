@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, X, Sparkles, Square } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
@@ -1170,12 +1170,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
           {/* ── Painel de Ferramentas da Lousa Interativa ── */}
           {isLousaActive && !isExporting && (
-            <div className="bg-slate-950/95 border border-purple-500/60 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-['Gotham'] animate-in fade-in duration-200 mb-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/40 text-purple-300 font-black">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span>Lousa Ativa (Anotações na Aula)</span>
-              </div>
-
+            <div className="bg-slate-950/95 border border-purple-500/60 p-2.5 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-['Gotham'] animate-in fade-in duration-200 mb-3">
+              {/* Ferramentas principais: Caneta | Retângulo | Seta | Borracha | Limpar */}
               <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
                 <button
                   onClick={() => setSelectedLousaTool('pen')}
@@ -1186,16 +1182,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 >
                   <Edit3 className="w-3.5 h-3.5" />
                   <span>Caneta</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedLousaTool('highlighter')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'highlighter' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Marca-Texto (Grifar trechos de texto)"
-                >
-                  <span>🖍️ Grifar</span>
                 </button>
 
                 <button
@@ -1230,8 +1216,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <Eraser className="w-3.5 h-3.5" />
                   <span>Borracha</span>
                 </button>
+
+                <div className="h-4 w-px bg-slate-700 my-auto mx-1" />
+
+                <button
+                  onClick={() => setClearLousaTrigger(prev => prev + 1)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold text-red-300 hover:bg-red-900/50 transition-all flex items-center gap-1.5 cursor-pointer"
+                  title="Limpar todos os desenhos deste slide"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>Limpar</span>
+                </button>
               </div>
 
+              {/* Paleta de Cores */}
               {selectedLousaTool !== 'eraser' && (
                 <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
                   {LOUSA_COLORS.map(c => (
@@ -1248,6 +1246,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </div>
               )}
 
+              {/* Espessura do Traço */}
               <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
                 {LOUSA_STROKE_SIZES.map(s => (
                   <button
@@ -1260,26 +1259,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {s.name}
                   </button>
                 ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setClearLousaTrigger(prev => prev + 1)}
-                  className="bg-slate-900 hover:bg-red-900/60 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                  title="Limpar todos os desenhos deste slide"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  <span>Limpar Slide</span>
-                </button>
-
-                <button
-                  onClick={() => setIsLousaActive(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center gap-1"
-                  title="Concluir e Desativar Lousa"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Desativar</span>
-                </button>
               </div>
             </div>
           )}
