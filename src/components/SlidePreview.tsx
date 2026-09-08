@@ -330,8 +330,138 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           <button onClick={handleDownload} className="download-pptx-btn bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold px-4 py-2 rounded-xl flex items-center gap-2 text-xs shadow-lg cursor-pointer transition-all hover:scale-105">
             <Download className="w-4 h-4" /> PowerPoint (.pptx)
           </button>
+
+          {/* ── Botão Lousa Interativa (Posicionado exatamente onde o usuário circulou na toolbar principal) ── */}
+          <button
+            onClick={() => setIsLousaActive(!isLousaActive)}
+            className={`px-4 py-2 rounded-xl flex items-center gap-2 text-xs font-black shadow-lg cursor-pointer transition-all hover:scale-105 border ${
+              isLousaActive
+                ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
+                : 'bg-yellow-500 hover:bg-yellow-400 text-slate-950 border-yellow-400 font-extrabold'
+            }`}
+            title="Ativar Lousa Interativa para rabiscar, grifar e desenhar no slide"
+          >
+            <Edit3 className="w-4 h-4 text-current" />
+            <span>{isLousaActive ? '✏️ Lousa Ativa' : '✏️ Lousa Interativa'}</span>
+          </button>
         </div>
       </div>
+
+      {/* ── Painel de Ferramentas da Lousa Interativa quando Ativada ── */}
+      {isLousaActive && !isExportingPng && (
+        <div className="bg-slate-950/95 border border-purple-500/60 p-3 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-3 text-xs font-['Gotham'] animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/40 text-purple-300 font-black">
+            <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
+            <span>Lousa Ativa (Anotações na Aula)</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setSelectedLousaTool('pen')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedLousaTool === 'pen' ? 'bg-yellow-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+              title="Caneta (Desenho Livre)"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Caneta</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedLousaTool('highlighter')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedLousaTool === 'highlighter' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+              title="Marca-Texto (Grifar trechos de texto)"
+            >
+              <span>🖍️ Grifar</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedLousaTool('rectangle')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedLousaTool === 'rectangle' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+              title="Retângulo Vazado (Destacar e emoldurar áreas)"
+            >
+              <Square className="w-3.5 h-3.5" />
+              <span>Retângulo</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedLousaTool('arrow')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedLousaTool === 'arrow' ? 'bg-emerald-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+              title="Seta Estilizada (Apontar para tópicos)"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Seta</span>
+            </button>
+
+            <button
+              onClick={() => setSelectedLousaTool('eraser')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                selectedLousaTool === 'eraser' ? 'bg-rose-600 text-white font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
+              }`}
+              title="Borracha"
+            >
+              <Eraser className="w-3.5 h-3.5" />
+              <span>Borracha</span>
+            </button>
+          </div>
+
+          {selectedLousaTool !== 'eraser' && (
+            <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+              {LOUSA_COLORS.map(c => (
+                <button
+                  key={c.hex}
+                  onClick={() => setSelectedLousaColor(c.hex)}
+                  className={`w-5.5 h-5.5 rounded-full transition-transform cursor-pointer border border-white/20 ${
+                    selectedLousaColor === c.hex ? 'scale-125 ring-2 ring-white shadow-lg' : 'hover:scale-110 opacity-80'
+                  }`}
+                  style={{ backgroundColor: c.hex }}
+                  title={c.name}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="flex items-center gap-1 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+            {LOUSA_STROKE_SIZES.map(s => (
+              <button
+                key={s.val}
+                onClick={() => setLousaStrokeSize(s.val)}
+                className={`px-2.5 py-1 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
+                  lousaStrokeSize === s.val ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setClearLousaTrigger(prev => prev + 1)}
+              className="bg-slate-900 hover:bg-red-900/60 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+              title="Limpar todos os desenhos deste slide"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+              <span>Limpar Slide</span>
+            </button>
+
+            <button
+              onClick={() => setIsLousaActive(false)}
+              className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center gap-1"
+              title="Concluir e Desativar Lousa"
+            >
+              <X className="w-4 h-4" />
+              <span>Desativar</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Controle de imagens ── */}
       <div className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-3.5 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -380,150 +510,6 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           <button onClick={handleRegenerateImage} disabled={isRegeneratingImage} className="bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl transition-all cursor-pointer">
             Gerar com este Prompt
           </button>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          ESTÁGIO DO SLIDE  (aspect-ratio 16:9 — SmartText em tudo)
-          SmartText mede o DOM real e NUNCA comprime horizontalmente.
-      ══════════════════════════════════════════════════════════════════════ */}
-      {/* ── Lousa Interativa (Painel Superior de Controle - Totalmente Fora do Slide) ── */}
-      {!isExportingPng && (
-        <div className="bg-slate-900/90 border border-slate-700/90 rounded-2xl p-3 shadow-lg flex flex-wrap items-center justify-between gap-3 text-xs font-['Gotham']">
-          {!isLousaActive ? (
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2 text-slate-300">
-                <Sparkles className="w-4 h-4 text-amber-400" />
-                <span className="font-extrabold text-white">Lousa Interativa (Anotações na Aula):</span>
-                <span className="text-slate-400 hidden md:inline">Rabisque, grife textos, desenhe setas e destaque tópicos durante a apresentação.</span>
-              </div>
-              <button
-                onClick={() => setIsLousaActive(true)}
-                className="bg-yellow-500 hover:bg-yellow-400 text-slate-950 px-4 py-2 rounded-xl flex items-center gap-2 font-black shadow-md cursor-pointer transition-all hover:scale-105"
-                title="Ativar Lousa Interativa (Desenhar / Anotar no Slide)"
-              >
-                <Edit3 className="w-4 h-4 text-slate-950" />
-                <span>✏️ Ativar Lousa Interativa</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex flex-wrap items-center justify-between gap-3 w-full animate-in fade-in duration-200">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-purple-900/40 border border-purple-500/40 text-purple-300 text-xs font-black">
-                <Sparkles className="w-4 h-4 text-amber-400 animate-pulse" />
-                <span>Lousa Ativa</span>
-              </div>
-
-              {/* Ferramentas: Caneta / Marca-Texto / Retângulo / Seta / Borracha */}
-              <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => setSelectedLousaTool('pen')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'pen' ? 'bg-yellow-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Caneta (Desenho Livre)"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Caneta</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedLousaTool('highlighter')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'highlighter' ? 'bg-amber-400 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Marca-Texto (Grifar trechos de texto)"
-                >
-                  <span className="text-sm">🖍️</span>
-                  <span className="hidden sm:inline">Grifar</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedLousaTool('rectangle')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'rectangle' ? 'bg-cyan-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Retângulo Vazado (Destacar e emoldurar áreas)"
-                >
-                  <Square className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Retângulo</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedLousaTool('arrow')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'arrow' ? 'bg-emerald-500 text-slate-950 font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Seta Estilizada (Apontar para tópicos)"
-                >
-                  <ArrowRight className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Seta</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedLousaTool('eraser')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                    selectedLousaTool === 'eraser' ? 'bg-rose-600 text-white font-black shadow-md' : 'text-slate-300 hover:bg-slate-800'
-                  }`}
-                  title="Borracha"
-                >
-                  <Eraser className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Borracha</span>
-                </button>
-              </div>
-
-              {/* Paleta de Cores */}
-              {selectedLousaTool !== 'eraser' && (
-                <div className="flex items-center gap-1.5 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                  {LOUSA_COLORS.map(c => (
-                    <button
-                      key={c.hex}
-                      onClick={() => setSelectedLousaColor(c.hex)}
-                      className={`w-5 h-5 rounded-full transition-transform cursor-pointer border border-white/20 ${
-                        selectedLousaColor === c.hex ? 'scale-125 ring-2 ring-white shadow-lg' : 'hover:scale-110 opacity-80'
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                      title={c.name}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Espessura do Traço */}
-              <div className="flex items-center gap-1 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
-                {LOUSA_STROKE_SIZES.map(s => (
-                  <button
-                    key={s.val}
-                    onClick={() => setLousaStrokeSize(s.val)}
-                    className={`px-2.5 py-1 text-xs font-extrabold rounded-md transition-all cursor-pointer ${
-                      lousaStrokeSize === s.val ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setClearLousaTrigger(prev => prev + 1)}
-                  className="bg-slate-950 hover:bg-red-900/60 text-red-300 border border-red-500/40 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                  title="Limpar todos os desenhos deste slide"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  <span>Limpar Slide</span>
-                </button>
-
-                <button
-                  onClick={() => setIsLousaActive(false)}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center gap-1"
-                  title="Concluir e Desativar Lousa"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Desativar</span>
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
