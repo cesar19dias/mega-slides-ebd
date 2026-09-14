@@ -50,20 +50,27 @@ function toCaixaBaixa(text: string): string {
 
 // ─── Header de Título da EBD (Nome Principal no Topo - Centralizado a partir do recuo de 2/8, Fonte Gotham Medium) ──────────────────────────
 const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
-  const subMatch = label.match(/^(SUBTÓPICO\s+[\d|A-Z]+|SUBT\.?)\s*[:\—\-]\s*(.+)$/i);
-  const topMatch = label.match(/^(TÓPICO\s+[I|V|X|\d]+)\s*[:\—\-]\s*(.+)$/i);
+  const subMatch = label.match(/^(SUBTÓPICO\s*([\d|A-Z]+)?|SUBT\.?\s*([\d|A-Z]+)?)\s*[:\—\-]?\s*(.+)$/i);
+  const topMatch = label.match(/^(TÓPICO\s*([I|V|X|\d]+)?)\s*[:\—\-]?\s*(.+)$/i);
 
   let mainTitle = label;
   let isSubtopic = false;
+  let subNum = '';
 
   if (subMatch) {
-    mainTitle = subMatch[2].trim();
+    subNum = subMatch[2] || subMatch[3] || '';
+    mainTitle = subMatch[4].trim();
     isSubtopic = true;
   } else if (topMatch) {
-    mainTitle = topMatch[2].trim();
+    mainTitle = topMatch[3].trim();
     isSubtopic = false;
   } else if (label.toUpperCase().includes('SUBT') || label.toUpperCase().includes('SUBTÓPICO')) {
     isSubtopic = true;
+  }
+
+  if (isSubtopic && !subNum) {
+    const m = label.match(/subtÓpico\s*([\d|A-Z]+)/i) || label.match(/subt\.?\s*([\d|A-Z]+)/i);
+    if (m) subNum = m[1];
   }
 
   // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2", "SUBTÓPICO" e referências do tipo (vv.1,2)
@@ -72,9 +79,11 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
     .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
     .trim();
 
-  // Subtópicos em caixa baixa (Sentence Case: ex "A conspiração judaica contra Paulo")
-  // Tópicos principais em Caixa Alta (UPPERCASE)
-  const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
+  let formattedTitle = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
+
+  if (isSubtopic && subNum && !formattedTitle.startsWith(`${subNum}.`) && !formattedTitle.startsWith(`${subNum} `) && !formattedTitle.startsWith(`${subNum}-`)) {
+    formattedTitle = `${subNum}. ${formattedTitle}`;
+  }
 
   return (
     <div
@@ -82,12 +91,12 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
       style={{ paddingLeft: '18%', paddingRight: '5%', paddingTop: '6.5%' }}
     >
       <SmartText
-        text={displayText}
+        text={formattedTitle}
         maxFontSize={52}
         minFontSize={18}
         maxLines={2}
         className={`font-medium text-white text-center w-full drop-shadow-sm tracking-wide ${isSubtopic ? 'normal-case' : 'uppercase'}`}
-        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, letterSpacing: isSubtopic ? '0.01em' : '0.04em' }}
+        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, letterSpacing: isSubtopic ? '0.01em' : '0.04em', textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
       />
     </div>
   );
@@ -694,7 +703,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                             minFontSize={20}
                             maxLines={2}
                             className={`font-black text-yellow-400 text-center tracking-wide mb-1.5 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                            style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                            style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
                           />
                           <div className="w-4/5 border-b border-slate-200/40 my-1.5 mx-auto" />
                         </>
@@ -731,7 +740,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                           minFontSize={24}
                           maxLines={2}
                           className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                          style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif" }}
+                          style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
                         />
                         <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
                       </>
@@ -805,12 +814,12 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
 
       {/* ── Notas pedagógicas ── */}
       {currentSlide.speakerNotes && (
-        <div className="speaker-notes-card bg-slate-900/90 border border-blue-500/40 p-4 rounded-2xl shadow-lg">
-          <div className="notes-header flex items-center gap-2 text-blue-400 font-extrabold text-xs uppercase mb-2">
-            <MessageSquare className="w-4 h-4" />
+        <div className="speaker-notes-card bg-slate-900/90 border-2 border-blue-500/50 p-5 rounded-2xl shadow-lg space-y-2">
+          <div className="notes-header flex items-center gap-2 text-blue-400 font-black text-sm md:text-base uppercase">
+            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
             <span>Notas Pedagógicas para o Professor (EBD)</span>
           </div>
-          <p className="notes-text text-xs text-slate-300 leading-relaxed">{currentSlide.speakerNotes}</p>
+          <p className="notes-text text-sm md:text-base lg:text-lg text-slate-100 leading-relaxed font-semibold">{currentSlide.speakerNotes}</p>
         </div>
       )}
 

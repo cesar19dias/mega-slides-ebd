@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2 } from 'lucide-react';
 import type { TranscriptionSource, PreparationOptions, DepthControl } from '../types';
 import { extractTextFromPDF } from '../services/pdfService';
 
@@ -33,7 +33,9 @@ export const ContentInput: React.FC<ContentInputProps> = ({
     depth: 'detalhada',
     selectedAiModel: 'gemini-3.6-flash',
     bibleVersion: 'ARC',
-    includePentecostalApplication: true
+    includePentecostalApplication: true,
+    hasContextualBridge: false,
+    previousLessonContext: ''
   });
 
   // Handler para Upload da Revista em PDF
@@ -374,6 +376,45 @@ export const ContentInput: React.FC<ContentInputProps> = ({
               <option value="no">Geral Cristã</option>
             </select>
           </div>
+        </div>
+
+        {/* Ponte Contextual Opcional */}
+        <div className="bg-slate-950/60 border border-slate-700/60 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs md:text-sm font-bold text-white">
+                🔗 Conectar com a Lição Anterior / Recapitulativo de Transição (Ponte Contextual)
+              </span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={options.hasContextualBridge || false}
+                onChange={(e) => setOptions({ ...options, hasContextualBridge: e.target.checked })}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+            </label>
+          </div>
+
+          {options.hasContextualBridge && (
+            <div className="space-y-2 pt-1 animate-fadeIn">
+              <label className="text-[11px] font-semibold text-slate-300 block">
+                Onde parou a Lição Anterior ou Capítulos Saltados:
+              </label>
+              <textarea
+                placeholder="Ex: A Lição 4 parou em Gênesis 15. A Lição 5 inicia em Gênesis 20. Houve o salto dos capítulos 16 a 19 (nascimento de Ismael, confirmação da aliança, destruição de Sodoma)."
+                value={options.previousLessonContext || ''}
+                onChange={(e) => setOptions({ ...options, previousLessonContext: e.target.value })}
+                rows={2}
+                className="text-area-input text-xs font-['Montserrat'] bg-slate-900 border-slate-700 focus:border-emerald-500"
+              />
+              <p className="text-[10px] text-slate-400 italic">
+                💡 A IA usará essas informações para gerar um slide e um bloco exclusivo de transição bíblica na introdução.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

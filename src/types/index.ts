@@ -32,12 +32,27 @@ export interface EBDIdeia {
   imagePrompt: string; // Prompt de imagem 16:9 contextual para Canva / AI
 }
 
+export interface EBDFraseExplicativa {
+  frase: string; // A frase/afirmação relevante extraída do texto do subtópico da lição
+  explicacao: string; // Explicação didática e histórica direta para ministrar essa frase específica
+  exemplo?: string; // 💡 Exemplo prático / Ilustração / Alusão do dia a dia ou analógica para a sala de aula
+}
+
 export interface EBDSubtopicPreparation {
   number: string; // "1", "2", "3"
   title: string;
-  projetor: string;
-  ideias: EBDIdeia[];
-  imagePrompt: string;
+  projetor: string; // O que vai escrito no slide para os alunos (frase central do subtópico)
+  explicacao: string; // Explicação didática do professor (texto corrido)
+  frasesExplicativas?: EBDFraseExplicativa[]; // Explicação frase por frase (constante)
+  exemploAlusao?: string; // 💡 Exemplo / Alusão prática do subtópico para ilustrar na aula
+  contexto?: string; // Mantido como opcional por compatibilidade
+  versiculos?: Array<{ reference: string; text: string }>; // Base Bíblica (ARC)
+  aplicacao?: string; // Aplicação cristã e pentecostal
+  enfase?: string; // Frase de destaque ("Aprenda com a Palavra...")
+  cuidadoDoutrinario?: string; // 🔥 O QUE NÃO PODE SER DITO (Cuidado Doutrinário)
+  palavrasOriginais?: EBDPalavraOriginal[]; // 🏛️ EXEGESE BÍBLICA: GREGO / HEBRAICO
+  imagePrompt: string; // Prompt de imagem 16:9 contextual
+  ideias?: EBDIdeia[]; // Mantido como opcional para compatibilidade com dados legados
 }
 
 export interface EBDTopicPreparation {
@@ -76,6 +91,15 @@ export interface EBDLessonPreparation {
   introducao: {
     text: string;
     projetor: string;
+    ponteContextual?: {
+      enabled: boolean;
+      naLicaoAnterior?: string; // 1- NA LIÇÃO ANTERIOR: resumo bem breve da lição anterior
+      ponteContextual?: string; // 2- PONTE CONTEXTUAL: resumo breve dos capítulos entre a lição anterior e a atual
+      ondeParou?: string;
+      capitulosIntermediarios?: string;
+      ganchoAulaAtual?: string;
+      projetor?: string;
+    };
   };
   topicos: EBDTopicPreparation[];
   conclusao: {
@@ -100,6 +124,8 @@ export interface PreparationOptions {
   selectedAiModel: string;
   bibleVersion: BibleVersion;
   includePentecostalApplication: boolean;
+  hasContextualBridge?: boolean;
+  previousLessonContext?: string;
 }
 
 // Compatibilidade para Slides (Opcional/V3)

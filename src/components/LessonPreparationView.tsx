@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2 } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
@@ -131,7 +131,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   // Estados de Regeneração Seletiva e Notificações
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
-  const [copiedToast, setCopiedToast] = useState<boolean>(false);
+  const [copiedToast, setCopiedToast] = useState<'clean' | 'full' | null>(null);
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({
     'I': true,
     'II': true,
@@ -200,6 +200,16 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     text += `2. VERDADE PRÁTICA\n`;
     text += `"${data.verdadePratica.text}"\n\n`;
 
+    if (data.introducao?.ponteContextual?.enabled) {
+      const bridge = data.introducao.ponteContextual;
+      text += `--- PONTE CONTEXTUAL & TRANSIÇÃO BÍBLICA ---\n`;
+      if (bridge.ondeParou) text += `📌 Onde a lição anterior parou: ${bridge.ondeParou}\n`;
+      if (bridge.capitulosIntermediarios) text += `📜 O que aconteceu no intervalo: ${bridge.capitulosIntermediarios}\n`;
+      if (bridge.ganchoAulaAtual) text += `👉 Transição para hoje: ${bridge.ganchoAulaAtual}\n`;
+      if (bridge.projetor) text += `🖥️ Síntese no Projetor: "${bridge.projetor}"\n`;
+      text += `\n`;
+    }
+
     if (data.biblicalText) {
       text += `3. LEITURA BÍBLICA EM CLASSE\n`;
       text += `${data.biblicalText}\n\n`;
@@ -233,42 +243,75 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       topico.subtopicos.forEach((sub) => {
         text += `--- Subtópico ${sub.number}: ${sub.title} ---\n\n`;
 
-        sub.ideias.forEach((ideia) => {
-          text += `[Ideia ${ideia.letra.toUpperCase()}] ${ideia.titulo}\n`;
-          text += `🖥️ CAMADA 1 - PROJETOR (ALUNOS):\n"${ideia.projetor}"\n\n`;
+        const txtProjetor = (sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
+          ? sub.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
+          : (sub.projetor || '');
 
-          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR:\n${ideia.professor.explicacao}\n\n`;
+        if (txtProjetor) {
+          text += `🖥️ CAMADA 1 - PROJETOR (TEXTO DA REVISTA PARA O QUADRO AZUL):\n"${txtProjetor}"\n\n`;
+        }
 
-          if (ideia.professor.contexto) {
-            text += `🏛️ CONTEXTO HISTÓRICO, CULTURAL E BÍBLICO:\n${ideia.professor.contexto}\n\n`;
-          }
-
-          if (ideia.professor.versiculos && ideia.professor.versiculos.length > 0) {
-            text += `📖 TEXTOS BÍBLICOS RELEVANTES (ARC):\n`;
-            ideia.professor.versiculos.forEach((v) => {
-              text += `  • ${v.reference}: "${v.text}"\n`;
-            });
+        if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
+          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (FRASE A FRASE COM EXEMPLOS):\n`;
+          sub.frasesExplicativas.forEach((f) => {
+            text += `📌 Frase: "${f.frase}"\n👉 Explicação: ${f.explicacao}\n`;
+            if (f.exemplo) {
+              text += `💡 Exemplo/Alusão Prática: "${f.exemplo}"\n`;
+            }
             text += `\n`;
-          }
+          });
+        } else if (sub.explicacao) {
+          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (COM CONTEXTO HISTÓRICO INTEGRADO):\n${sub.explicacao}\n\n`;
+        }
 
-          if (ideia.professor.aplicacao) {
-            text += `🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL:\n${ideia.professor.aplicacao}\n\n`;
-          }
+        if (sub.exemploAlusao) {
+          text += `💡 EXEMPLO / ALUSÃO ILUSTRATIVA:\n"${sub.exemploAlusao}"\n\n`;
+        }
 
-          if (ideia.professor.enfase) {
-            text += `💡 ÊNFASE PARA A SALA:\n"${ideia.professor.enfase}"\n\n`;
-          }
+        if (sub.versiculos && sub.versiculos.length > 0) {
+          text += `📖 TEXTOS BÍBLICOS RELEVANTES (ARC):\n`;
+          sub.versiculos.forEach((v) => {
+            text += `  • ${v.reference}: "${v.text}"\n`;
+          });
+          text += `\n`;
+        }
 
-          if (ideia.professor.cuidadoDoutrinario) {
-            text += `🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO):\n⚠️ ${ideia.professor.cuidadoDoutrinario}\n\n`;
-          }
+        if (sub.aplicacao) {
+          text += `🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL:\n${sub.aplicacao}\n\n`;
+        }
 
-          if (ideia.imagePrompt) {
-            text += `🖼️ PROMPT VISUAL (CANVA / MIDJOURNEY):\n${ideia.imagePrompt}\n\n`;
-          }
+        if (sub.enfase) {
+          text += `💡 ÊNFASE PARA A SALA:\n"${sub.enfase}"\n\n`;
+        }
 
-          text += `........................................................................\n\n`;
-        });
+        if (sub.cuidadoDoutrinario) {
+          text += `🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO):\n⚠️ ${sub.cuidadoDoutrinario}\n\n`;
+        }
+
+        if (sub.palavrasOriginais && sub.palavrasOriginais.length > 0) {
+          text += `🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO:\n`;
+          sub.palavrasOriginais.forEach((p) => {
+            text += `  • ${p.termo} (${p.transliteracao} - ${p.idioma}): ${p.significado}\n    ${p.explicacao}\n`;
+          });
+          text += `\n`;
+        }
+
+        if (sub.imagePrompt) {
+          text += `🖼️ PROMPT VISUAL (CANVA / MIDJOURNEY):\n${sub.imagePrompt}\n\n`;
+        }
+
+        if (sub.ideias && sub.ideias.length > 0) {
+          sub.ideias.forEach((ideia) => {
+            text += `[Ideia ${ideia.letra.toUpperCase()}] ${ideia.titulo}\n`;
+            text += `🖥️ CAMADA 1 - PROJETOR (ALUNOS):\n"${ideia.projetor}"\n\n`;
+            text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA:\n${ideia.professor.explicacao}\n\n`;
+            if (ideia.professor.contexto) {
+              text += `🏛️ CONTEXTO HISTÓRICO:\n${ideia.professor.contexto}\n\n`;
+            }
+          });
+        }
+
+        text += `........................................................................\n\n`;
       });
     });
 
@@ -296,6 +339,134 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return text;
   };
 
+  // Gerador de Texto Limpo do Roteiro (sem prompts de imagem, sem checklist de fontes, sem divisores pesados e sem rótulos de engenharia)
+  const generateCleanTeacherTextContent = (data: EBDLessonPreparation): string => {
+    let text = `ROTEIRO DO PROFESSOR - EBD\n`;
+    text += `${data.metadata.lessonNumber || 'LIÇÃO EBD'}: ${data.metadata.title}\n`;
+    text += `Tema: ${data.metadata.themeTopic}\n\n`;
+
+    text += `1. TEXTO ÁUREO\n`;
+    text += `"${data.textAureo.text}" (${data.textAureo.reference})\n\n`;
+
+    text += `2. VERDADE PRÁTICA\n`;
+    text += `"${data.verdadePratica.text}"\n\n`;
+
+    if (data.introducao?.ponteContextual?.enabled) {
+      const bridge = data.introducao.ponteContextual;
+      text += `TRANSIÇÃO BÍBLICA & CONTEXTO\n`;
+      if (bridge.ondeParou) text += `📌 Na lição anterior: ${bridge.ondeParou}\n`;
+      if (bridge.capitulosIntermediarios) text += `📜 Intervalo bíblico: ${bridge.capitulosIntermediarios}\n`;
+      if (bridge.ganchoAulaAtual) text += `👉 Transição para hoje: ${bridge.ganchoAulaAtual}\n`;
+      if (bridge.projetor) text += `🖥️ Síntese no Projetor: "${bridge.projetor}"\n`;
+      text += `\n`;
+    }
+
+    if (data.biblicalText) {
+      text += `3. LEITURA BÍBLICA EM CLASSE\n`;
+      text += `${data.biblicalText}\n\n`;
+    }
+
+    text += `DESENVOLVIMENTO DIDÁTICO DOS TÓPICOS\n\n`;
+
+    data.topicos.forEach((topico) => {
+      text += `TÓPICO ${topico.number}: ${topico.title.toUpperCase()}\n`;
+      text += `Sinopse: ${topico.sinopse}\n`;
+      if (topico.frasesEnfase && topico.frasesEnfase.length > 0) {
+        text += `Frases de Ênfase:\n`;
+        topico.frasesEnfase.forEach((f) => {
+          text += `  • "${f}"\n`;
+        });
+      }
+      text += `\n`;
+
+      topico.subtopicos.forEach((sub) => {
+        text += `--- Subtópico ${sub.number}: ${sub.title} ---\n\n`;
+
+        const txtProjetor = (sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
+          ? sub.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
+          : (sub.projetor || '');
+
+        if (txtProjetor) {
+          text += `Texto da Revista / Quadro:\n"${txtProjetor}"\n\n`;
+        }
+
+        if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
+          text += `Explicação Didática do Professor:\n`;
+          sub.frasesExplicativas.forEach((f) => {
+            text += `📌 Frase: "${f.frase}"\n👉 Explicação: ${f.explicacao}\n`;
+            if (f.exemplo) {
+              text += `💡 Exemplo: "${f.exemplo}"\n`;
+            }
+            text += `\n`;
+          });
+        } else if (sub.explicacao) {
+          text += `Explicação Didática do Professor:\n${sub.explicacao}\n\n`;
+        }
+
+        if (sub.exemploAlusao) {
+          text += `💡 Exemplo / Ilustração:\n"${sub.exemploAlusao}"\n\n`;
+        }
+
+        if (sub.versiculos && sub.versiculos.length > 0) {
+          text += `📖 Textos Bíblicos Relevantes:\n`;
+          sub.versiculos.forEach((v) => {
+            text += `  • ${v.reference}: "${v.text}"\n`;
+          });
+          text += `\n`;
+        }
+
+        if (sub.aplicacao) {
+          text += `🔥 Aplicação Prática:\n${sub.aplicacao}\n\n`;
+        }
+
+        if (sub.enfase) {
+          text += `💡 Ênfaise para a Sala:\n"${sub.enfase}"\n\n`;
+        }
+
+        if (sub.cuidadoDoutrinario) {
+          text += `⚠️ Cuidado Doutrinário:\n${sub.cuidadoDoutrinario}\n\n`;
+        }
+
+        if (sub.palavrasOriginais && sub.palavrasOriginais.length > 0) {
+          text += `🏛️ Vocabulário Exegético (Grego / Hebraico):\n`;
+          sub.palavrasOriginais.forEach((p) => {
+            text += `  • ${p.termo} (${p.transliteracao} - ${p.idioma}): ${p.significado}\n    ${p.explicacao}\n`;
+          });
+          text += `\n`;
+        }
+
+        if (sub.ideias && sub.ideias.length > 0) {
+          sub.ideias.forEach((ideia) => {
+            text += `[Ideia ${ideia.letra.toUpperCase()}] ${ideia.titulo}\n`;
+            text += `Projetor: "${ideia.projetor}"\n`;
+            text += `Explicação: ${ideia.professor.explicacao}\n`;
+            if (ideia.professor.contexto) {
+              text += `Contexto Histórico: ${ideia.professor.contexto}\n`;
+            }
+            text += `\n`;
+          });
+        }
+      });
+    });
+
+    text += `CONCLUSÃO & APLICAÇÃO FINAL\n`;
+    text += `"${data.conclusao.takeaway}"\n\n`;
+
+    if (data.conclusao.bulletPoints && data.conclusao.bulletPoints.length > 0) {
+      text += `Pontos Principais:\n`;
+      data.conclusao.bulletPoints.forEach((pt) => {
+        text += `  • ${pt}\n`;
+      });
+      text += `\n`;
+    }
+
+    if (data.conclusao.finalPrayer) {
+      text += `🙏 Sugestão de Oração Final:\n"${data.conclusao.finalPrayer}"\n\n`;
+    }
+
+    return text;
+  };
+
   // Funções de Exportação / Baixar / Imprimir / Copiar
   const handlePrintTeacherGuide = () => {
     const allExpanded: Record<string, boolean> = {};
@@ -310,7 +481,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   };
 
   const handleDownloadTeacherTxt = () => {
-    const textContent = generateTeacherTextContent(lesson);
+    const textContent = generateCleanTeacherTextContent(lesson);
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -323,17 +494,24 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     URL.revokeObjectURL(url);
   };
 
+  const handleCopyCleanTeacherGuide = () => {
+    const textContent = generateCleanTeacherTextContent(lesson);
+    navigator.clipboard.writeText(textContent);
+    setCopiedToast('clean');
+    setTimeout(() => setCopiedToast(null), 3000);
+  };
+
   const handleCopyTeacherGuide = () => {
     const textContent = generateTeacherTextContent(lesson);
     navigator.clipboard.writeText(textContent);
-    setCopiedToast(true);
-    setTimeout(() => setCopiedToast(false), 3000);
+    setCopiedToast('full');
+    setTimeout(() => setCopiedToast(null), 3000);
   };
 
   // Flattened items for Projector Mode
   const projectorItems = React.useMemo(() => {
     const items: Array<{
-      type: 'cover' | 'aureo' | 'pratica' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'enfase_palavra' | 'conclusao' | 'verdades';
+      type: 'cover' | 'aureo' | 'pratica' | 'na_licao_anterior' | 'ponte_contextual' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'subtopic_explanation' | 'subtopic_verses' | 'subtopic_aplicacao' | 'enfase_palavra' | 'conclusao' | 'verdades';
       title: string;
       subtitle?: string;
       bulletPoints?: string[];
@@ -344,7 +522,32 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       imagePrompt?: string;
     }> = [];
 
-    // Capa
+    // 1. Transição entre Lições (NA LIÇÃO ANTERIOR = Slide 1, INTERVALO BÍBLICO = Slide 2)
+    if (lesson.introducao?.ponteContextual?.enabled) {
+      const bridge = lesson.introducao.ponteContextual;
+      const textLicaoAnterior = bridge.naLicaoAnterior || bridge.ondeParou;
+      const textPonteContextual = bridge.ponteContextual || bridge.capitulosIntermediarios;
+
+      if (textLicaoAnterior) {
+        items.push({
+          type: 'na_licao_anterior',
+          title: 'NA LIÇÃO ANTERIOR',
+          badgeText: 'NA LIÇÃO ANTERIOR',
+          projetorText: textLicaoAnterior
+        });
+      }
+
+      if (textPonteContextual) {
+        items.push({
+          type: 'ponte_contextual',
+          title: 'INTERVALO BÍBLICO',
+          badgeText: 'INTERVALO BÍBLICO',
+          projetorText: textPonteContextual
+        });
+      }
+    }
+
+    // 3. Capa (Lição 11 / Título)
     items.push({
       type: 'cover',
       title: lesson.metadata.title,
@@ -352,7 +555,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       badgeText: lesson.metadata.lessonNumber || 'LIÇÃO EBD'
     });
 
-    // Texto Áureo
+    // 4. Texto Áureo
     items.push({
       type: 'aureo',
       title: 'TEXTO ÁUREO',
@@ -361,7 +564,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       reference: lesson.textAureo.reference
     });
 
-    // Verdade Prática
+    // 5. Verdade Prática
     if (lesson.verdadePratica?.text) {
       items.push({
         type: 'pratica',
@@ -397,35 +600,95 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       });
 
       t.subtopicos.forEach((s) => {
-        // 1. Slides das ideias principal do subtópico (Letra a, Letra b...)
-        s.ideias.forEach((ideia) => {
+        const numStr = s.number || '1';
+        const numPrefix = `${numStr}. `;
+
+        // 1. SLIDE DO TEXTO OFICIAL DA REVISTA (QUADRO AZUL)
+        let textoQuadroAzul = s.projetor || '';
+        if (!textoQuadroAzul && s.frasesExplicativas && s.frasesExplicativas.length > 0) {
+          textoQuadroAzul = s.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ');
+        }
+        if (!textoQuadroAzul) {
+          textoQuadroAzul = s.explicacao || '';
+        }
+        if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${numStr} `) && !textoQuadroAzul.startsWith(`Subtópico ${numStr}`)) {
+          textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;
+        }
+
+        if (textoQuadroAzul) {
           items.push({
             type: 'subtopic',
             title: `${s.number}. ${s.title}`,
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
-            ideiaText: `${ideia.letra}) ${ideia.titulo}`,
-            projetorText: ideia.projetor,
-            imagePrompt: ideia.imagePrompt || s.imagePrompt
+            ideiaText: `${s.number}. ${s.title}`,
+            projetorText: textoQuadroAzul,
+            imagePrompt: s.imagePrompt
           });
-        });
+        }
 
-        // 2. 📌 SLIDE ÚNICO "APRENDA COM A PALAVRA..." LOGO APÓS A ÚLTIMA LETRA DO SUBTÓPICO
-        // Reúne e resume as ênfases das ideias (a e b) em um único slide para a sala de aula
-        const enfases = s.ideias
-          .map(i => i.professor?.enfase?.trim())
-          .filter((e): e is string => Boolean(e));
+        // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - APENAS REFERÊNCIAS)
+        if (s.versiculos && s.versiculos.length > 0) {
+          const textoReferencias = s.versiculos
+            .map(v => v.reference)
+            .filter(Boolean)
+            .join('\n');
+          if (textoReferencias) {
+            items.push({
+              type: 'subtopic_verses',
+              title: `${s.number}. ${s.title}`,
+              badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+              ideiaText: '📖 VAMOS LER A BÍBLIA',
+              projetorText: textoReferencias,
+              imagePrompt: s.imagePrompt
+            });
+          }
+        }
 
-        if (enfases.length > 0) {
-          const uniqueEnfases = Array.from(new Set(enfases));
-          const combinedEnfase = uniqueEnfases.join('\n\n');
+        // 3. SLIDE DE APLICAÇÃO (QUAL O ENSINAMENTO PRA MINHA VIDA?)
+        if (s.aplicacao) {
+          items.push({
+            type: 'subtopic_aplicacao',
+            title: `${s.number}. ${s.title}`,
+            badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+            ideiaText: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
+            projetorText: s.aplicacao,
+            imagePrompt: s.imagePrompt
+          });
+        }
 
+        // 5. SLIDE DE ÊNFASE / APRENDA COM A PALAVRA (SE HOUVER)
+        if (s.enfase) {
           items.push({
             type: 'enfase_palavra',
             title: `${s.number}. ${s.title}`,
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
             ideiaText: 'APRENDA COM A PALAVRA...',
-            projetorText: combinedEnfase,
-            imagePrompt: s.imagePrompt || s.ideias[0]?.imagePrompt
+            projetorText: s.enfase,
+            imagePrompt: s.imagePrompt
+          });
+        }
+
+        // FALLBACK PARA DADOS LEGADOS COM ARRAY DE IDEIAS
+        if (!textoQuadroAzul && s.ideias && s.ideias.length > 0) {
+          s.ideias.forEach((ideia) => {
+            items.push({
+              type: 'subtopic',
+              title: `${s.number}. ${s.title}`,
+              badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+              ideiaText: `${ideia.letra}) ${ideia.titulo}`,
+              projetorText: ideia.projetor,
+              imagePrompt: ideia.imagePrompt || s.imagePrompt
+            });
+            if (ideia.professor?.explicacao) {
+              items.push({
+                type: 'subtopic_explanation',
+                title: `${s.number}. ${s.title}`,
+                badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+                ideiaText: `EXPLICAÇÃO — IDEIA ${ideia.letra.toUpperCase()}`,
+                projetorText: ideia.professor.explicacao,
+                imagePrompt: ideia.imagePrompt || s.imagePrompt
+              });
+            }
           });
         }
       });
@@ -482,28 +745,37 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     targetType: 'explicacao' | 'aplicacao' | 'projetor',
     topicIdx: number,
     subIdx: number,
-    ideiaIdx: number
+    ideiaIdx?: number
   ) => {
-    const uniqueId = `${topicIdx}-${subIdx}-${ideiaIdx}-${targetType}`;
+    const uniqueId = `${topicIdx}-${subIdx}-${ideiaIdx ?? 'sub'}-${targetType}`;
     setRegeneratingId(uniqueId);
 
     try {
-      const currentIdeia = lesson.topicos[topicIdx].subtopicos[subIdx].ideias[ideiaIdx];
-      const prompt = `Como especialista em EBD, reescreva e aprimore somente o campo ${targetType.toUpperCase()} para a ideia: "${currentIdeia.titulo}".
-Explicação atual: ${currentIdeia.professor.explicacao}.
+      const sub = lesson.topicos[topicIdx].subtopicos[subIdx];
+      const targetTitle = (ideiaIdx !== undefined && sub.ideias?.[ideiaIdx]) 
+        ? sub.ideias[ideiaIdx].titulo 
+        : sub.title;
+      const currentExp = (ideiaIdx !== undefined && sub.ideias?.[ideiaIdx]) 
+        ? sub.ideias[ideiaIdx].professor.explicacao 
+        : sub.explicacao;
+
+      const prompt = `Como especialista em EBD, reescreva e aprimore somente o campo ${targetType.toUpperCase()} para o subtópico: "${targetTitle}".
+Explicação atual: ${currentExp}.
 Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
       const newText = await callGeminiRaw(prompt, 'gemini-2.5-flash');
 
       const updated = { ...lesson };
-      const targetIdeia = updated.topicos[topicIdx].subtopicos[subIdx].ideias[ideiaIdx];
+      const targetSub = updated.topicos[topicIdx].subtopicos[subIdx];
 
-      if (targetType === 'explicacao') {
-        targetIdeia.professor.explicacao = newText.trim();
-      } else if (targetType === 'aplicacao') {
-        targetIdeia.professor.aplicacao = newText.trim();
-      } else if (targetType === 'projetor') {
-        targetIdeia.projetor = newText.trim();
+      if (ideiaIdx !== undefined && targetSub.ideias?.[ideiaIdx]) {
+        if (targetType === 'explicacao') targetSub.ideias[ideiaIdx].professor.explicacao = newText.trim();
+        else if (targetType === 'aplicacao') targetSub.ideias[ideiaIdx].professor.aplicacao = newText.trim();
+        else if (targetType === 'projetor') targetSub.ideias[ideiaIdx].projetor = newText.trim();
+      } else {
+        if (targetType === 'explicacao') targetSub.explicacao = newText.trim();
+        else if (targetType === 'aplicacao') targetSub.aplicacao = newText.trim();
+        else if (targetType === 'projetor') targetSub.projetor = newText.trim();
       }
 
       setLesson(updated);
@@ -555,19 +827,37 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               </button>
 
               <button
-                onClick={handleCopyTeacherGuide}
-                title="Copiar Roteiro Completo para Área de Transferência"
+                onClick={handleCopyCleanTeacherGuide}
+                title="Copiar Roteiro Limpo (somente texto da lição e explicações)"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition-all cursor-pointer"
               >
-                {copiedToast ? (
+                {copiedToast === 'clean' ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Copiado!</span>
+                    <span className="text-emerald-400">Limpo Copiado!</span>
                   </>
                 ) : (
                   <>
                     <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Copiar Roteiro</span>
+                    <span>Copiar Limpo</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={handleCopyTeacherGuide}
+                title="Copiar Roteiro Completo (com Prompts e Metadados)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer"
+              >
+                {copiedToast === 'full' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">Completo Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Copiar Completo</span>
                   </>
                 )}
               </button>
@@ -666,26 +956,76 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </button>
 
                 <button
-                  onClick={handleCopyTeacherGuide}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                  onClick={handleCopyCleanTeacherGuide}
+                  title="Copiar Roteiro Limpo para uso direto na aula"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
                 >
-                  {copiedToast ? (
+                  {copiedToast === 'clean' ? (
                     <>
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      <span className="text-emerald-400">Copiado!</span>
+                      <Check className="w-4 h-4 text-slate-950" />
+                      <span>Copiado Limpo!</span>
                     </>
                   ) : (
                     <>
-                      <Copy className="w-4 h-4 text-cyan-400" />
-                      <span>Copiar Roteiro</span>
+                      <Copy className="w-4 h-4 text-slate-950" />
+                      <span>Copiar Roteiro Limpo</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={handleCopyTeacherGuide}
+                  title="Copiar Roteiro Completo com Prompts e Fontes"
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  {copiedToast === 'full' ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-400" />
+                      <span className="text-emerald-400">Copiado Completo!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-400" />
+                      <span>Copiar Completo</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
+            {/* Transição entre Lições (Se ativada - PRIMEIROS CARDS) */}
+            {lesson.introducao?.ponteContextual?.enabled && (
+              <div className="space-y-4 pt-2">
+                {/* CARD 1: NA LIÇÃO ANTERIOR */}
+                {(lesson.introducao.ponteContextual.naLicaoAnterior || lesson.introducao.ponteContextual.ondeParou) && (
+                  <div className="bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/60 border-2 border-amber-500/40 p-5 rounded-2xl shadow-xl space-y-2">
+                    <div className="flex items-center gap-2 text-amber-400 font-extrabold text-sm md:text-base border-b border-amber-500/20 pb-2">
+                      <Bookmark className="w-5 h-5 text-amber-400" />
+                      <span>NA LIÇÃO ANTERIOR</span>
+                    </div>
+                    <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
+                      {lesson.introducao.ponteContextual.naLicaoAnterior || lesson.introducao.ponteContextual.ondeParou}
+                    </p>
+                  </div>
+                )}
+
+                {/* CARD 2: INTERVALO BÍBLICO */}
+                {(lesson.introducao.ponteContextual.ponteContextual || lesson.introducao.ponteContextual.capitulosIntermediarios) && (
+                  <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-teal-950/80 border-2 border-emerald-500/40 p-5 rounded-2xl shadow-xl space-y-2">
+                    <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-sm md:text-base border-b border-emerald-500/20 pb-2">
+                      <Link2 className="w-5 h-5 text-emerald-400" />
+                      <span>INTERVALO BÍBLICO</span>
+                    </div>
+                    <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
+                      {lesson.introducao.ponteContextual.ponteContextual || lesson.introducao.ponteContextual.capitulosIntermediarios}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Texto Áureo & Verdade Prática */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Texto Áureo */}
               <div className="bg-[#091b2c] border-2 border-[#cbd5e1] p-5 rounded-2xl shadow-lg space-y-2">
                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
@@ -741,7 +1081,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       {topico.title}
                     </h2>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {topico.subtopicos.length} Subtópicos • {topico.subtopicos.reduce((acc, s) => acc + s.ideias.length, 0)} Ideias do Mapa de Ensino
+                      {topico.subtopicos.length} Subtópicos Oficiais (Mapa de Ensino)
                     </p>
                   </div>
                 </div>
@@ -757,21 +1097,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {/* Sinopse & Frases de Ênfase do Tópico */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Sinopse para Revisão Rápida */}
-                    <div className="md:col-span-2 bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-                      <span className="text-xs font-black text-blue-400 uppercase tracking-wider block">
+                    <div className="md:col-span-2 bg-slate-950/90 p-5 rounded-2xl border border-blue-500/40 space-y-2.5 shadow-md">
+                      <span className="text-sm md:text-base font-black text-blue-400 uppercase tracking-wider block">
                         📌 SINOPSE DO TÓPICO (REVISÃO RÁPIDA)
                       </span>
-                      <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-medium">
+                      <p className="text-base md:text-lg lg:text-xl text-slate-100 leading-relaxed font-semibold">
                         {topico.sinopse}
                       </p>
                     </div>
 
                     {/* Frases para Ênfase */}
-                    <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
-                      <span className="text-xs font-black text-amber-400 uppercase tracking-wider block">
+                    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2.5">
+                      <span className="text-sm md:text-base font-black text-amber-400 uppercase tracking-wider block">
                         🗣️ FRASES DE ÊNFASE PARA AULA
                       </span>
-                      <ul className="space-y-1.5 text-xs text-slate-300 font-semibold">
+                      <ul className="space-y-2 text-xs md:text-sm text-slate-200 font-semibold">
                         {topico.frasesEnfase.map((frase, fIdx) => (
                           <li key={fIdx} className="flex items-start gap-1.5">
                             <span className="text-amber-400 font-bold">•</span>
@@ -782,180 +1122,258 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </div>
                   </div>
 
-                  {/* SUBTÓPICOS COM IDEIAS a), b), c) */}
-                  {topico.subtopicos.map((subtopico, subIdx) => (
-                    <div key={subtopico.number} className="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-5 space-y-5">
-                      <div className="flex items-center gap-2 text-amber-300 font-black text-base md:text-lg border-b border-slate-800 pb-3">
-                        <span className="bg-amber-500/20 text-amber-300 px-2.5 py-1 rounded-lg text-xs font-black">
-                          SUBTÓPICO {subtopico.number}
-                        </span>
-                        <span>{subtopico.title}</span>
-                      </div>
+                  {/* SUBTÓPICOS COM EXPLICAÇÃO ÚNICA & CONTEXTO HISTÓRICO INTEGRADO */}
+                  {topico.subtopicos.map((subtopico, subIdx) => {
+                    const sectionId = `${topicIdx}-${subIdx}`;
+                    const hasDirectContent = Boolean(subtopico.explicacao || subtopico.projetor);
 
-                      {/* IDEIAS a), b), c) DO SUBTÓPICO */}
-                      {subtopico.ideias.map((ideia, ideiaIdx) => {
-                        const sectionId = `${topicIdx}-${subIdx}-${ideiaIdx}`;
+                    return (
+                      <div key={subtopico.number} className="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-5 space-y-5">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                          <div className="flex items-center gap-3 text-amber-300 font-black text-lg md:text-2xl">
+                            <span className="bg-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-black tracking-wider">
+                              SUBTÓPICO {subtopico.number}
+                            </span>
+                            <span>{subtopico.title}</span>
+                          </div>
+                        </div>
 
-                        return (
-                          <div key={ideia.letra} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
-                            {/* Título da Ideia a), b), c) */}
-                            <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-2">
-                              <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-md">
-                                  {ideia.letra})
-                                </span>
-                                <h3 className="font-extrabold text-white text-sm md:text-base">
-                                  {ideia.titulo}
-                                </h3>
-                              </div>
+                        {/* CAMADA 1 — PROJETOR (TEXTO OFICIAL DA LIÇÃO PARA ALUNOS - QUADRO AZUL) */}
+                        {(() => {
+                          let textoQuadroAzul = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
+                            ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
+                            : '';
 
-                              <span className="text-[10px] font-bold text-slate-400 bg-slate-800 px-2.5 py-1 rounded-md">
-                                Ideia {ideia.letra.toUpperCase()}
-                              </span>
-                            </div>
+                          let explicacaoLimpa = (subtopico.explicacao || '')
+                            .replace(/^📌\s*["'“]?/gm, '')
+                            .replace(/["'”]?\s*\n👉.*$/gm, '')
+                            .replace(/^👉.*$/gm, '')
+                            .trim();
 
-                            {/* CAMADA 1 — PROJETOR (ALUNOS) */}
-                            <div className="bg-gradient-to-r from-indigo-950/60 to-purple-950/60 border border-purple-500/30 p-3.5 rounded-xl space-y-1">
-                              <div className="flex items-center justify-between text-purple-300 font-extrabold text-[11px] uppercase">
-                                <span className="flex items-center gap-1.5">
-                                  <Monitor className="w-3.5 h-3.5 text-purple-400" />
-                                  CAMADA 1 — PROJETOR (CONTEÚDO SÍNTESE PARA ALUNOS)
+                          if (!textoQuadroAzul || (explicacaoLimpa.length > textoQuadroAzul.length)) {
+                            if (explicacaoLimpa.length > (subtopico.projetor || '').length) {
+                              textoQuadroAzul = explicacaoLimpa;
+                            }
+                          }
+
+                          if (!textoQuadroAzul) {
+                            textoQuadroAzul = subtopico.projetor || subtopico.explicacao || '';
+                          }
+                          
+                          const numPrefix = `${subtopico.number}. `;
+                          if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${subtopico.number} `) && !textoQuadroAzul.startsWith(`Subtópico ${subtopico.number}`)) {
+                            textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;
+                          }
+
+                          if (!textoQuadroAzul) return null;
+
+                          return (
+                            <div className="bg-gradient-to-r from-blue-950/90 via-indigo-950/90 to-blue-950/90 border-2 border-blue-400/60 p-6 rounded-2xl space-y-3 shadow-2xl">
+                              <div className="flex items-center justify-between text-blue-300 font-black text-xs md:text-base uppercase tracking-wide">
+                                <span className="flex items-center gap-2">
+                                  <Monitor className="w-5 h-5 text-blue-400" />
+                                  CAMADA 1 — PROJETOR (TEXTO LITERAL DA REVISTA - IPSIS LITTERIS)
                                 </span>
                                 <button
-                                  onClick={() => handleRegenerateSection('projetor', topicIdx, subIdx, ideiaIdx)}
+                                  onClick={() => handleRegenerateSection('projetor', topicIdx, subIdx)}
                                   disabled={regeneratingId === `${sectionId}-projetor`}
-                                  className="hover:text-white transition-colors cursor-pointer"
+                                  className="hover:text-white transition-colors cursor-pointer text-xs md:text-sm font-extrabold"
                                 >
-                                  {regeneratingId === `${sectionId}-projetor` ? 'Encurtando...' : '🔄 Encurtar Texto'}
+                                  {regeneratingId === `${sectionId}-projetor` ? 'Regenerando...' : '🔄 Regenerar Texto da Lição'}
                                 </button>
                               </div>
-                              <p className="text-xs md:text-sm font-bold text-white leading-relaxed">
-                                “{ideia.projetor}”
+                              <p className="text-lg md:text-xl lg:text-2xl font-bold text-white leading-relaxed tracking-wide">
+                                “{textoQuadroAzul}”
                               </p>
                             </div>
+                          );
+                        })()}
 
-                            {/* CAMADA 2 — PROFESSOR (EXPLICADA & DETALHADA) */}
-                            <div className="space-y-4 pt-1">
-                              {/* 1. Explicação Detalhada */}
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-blue-400 font-black text-xs uppercase">
-                                  <span className="flex items-center gap-1.5">
-                                    <FileText className="w-4 h-4" />
-                                    EXPLICAÇÃO DIDÁTICA (DAS TRANSCRIÇÕES)
-                                  </span>
-                                  <button
-                                    onClick={() => handleRegenerateSection('explicacao', topicIdx, subIdx, ideiaIdx)}
-                                    disabled={regeneratingId === `${sectionId}-explicacao`}
-                                    className="hover:text-white transition-colors cursor-pointer text-[11px]"
-                                  >
-                                    {regeneratingId === `${sectionId}-explicacao` ? 'Regenerando...' : '🔄 Regenerar Explicação'}
-                                  </button>
-                                </div>
-                                <p className="text-xs md:text-sm text-slate-200 leading-relaxed font-medium bg-slate-950 p-4 rounded-xl border border-slate-800/80">
-                                  {ideia.professor.explicacao}
-                                </p>
-                              </div>
+                        {/* CAMADA 2 — PROFESSOR (EXPLICAÇÃO CONSTANTE FRASE POR FRASE) */}
+                        <div className="space-y-4 pt-1">
+                          {/* 1. Explicação Didática Frase por Frase */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between text-blue-400 font-black text-base md:text-lg uppercase tracking-wide">
+                              <span className="flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-blue-400" />
+                                EXPLICAÇÃO DIDÁTICA DO PROFESSOR (CONSTANTE FRASE A FRASE)
+                              </span>
+                              <button
+                                onClick={() => handleRegenerateSection('explicacao', topicIdx, subIdx)}
+                                disabled={regeneratingId === `${sectionId}-explicacao`}
+                                className="hover:text-white transition-colors cursor-pointer text-xs md:text-sm font-bold"
+                              >
+                                {regeneratingId === `${sectionId}-explicacao` ? 'Regenerando...' : '🔄 Regenerar Explicação'}
+                              </button>
+                            </div>
 
-                              {/* 2. Contexto Histórico & Cultural */}
-                              {ideia.professor.contexto && (
-                                <div className="space-y-1.5 bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
-                                  <span className="text-amber-400 font-extrabold text-xs uppercase block">
-                                    🏛️ CONTEXTO HISTÓRICO, CULTURAL E BÍBLICO
-                                  </span>
-                                  <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                                    {ideia.professor.contexto}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* 3. Textos Bíblicos Relevantes (ARC) */}
-                              {ideia.professor.versiculos && ideia.professor.versiculos.length > 0 && (
-                                <div className="space-y-2">
-                                  <span className="text-emerald-400 font-extrabold text-xs uppercase block">
-                                    📖 TEXTOS BÍBLICOS RELEVANTES (ARC)
-                                  </span>
-                                  <div className="space-y-2">
-                                    {ideia.professor.versiculos.map((v, vIdx) => (
-                                      <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl">
-                                        <span className="font-extrabold text-amber-300 text-xs block mb-1">
-                                          {v.reference}
+                            {subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0 ? (
+                              <div className="space-y-3">
+                                {subtopico.frasesExplicativas.map((item, fIdx) => (
+                                  <div key={fIdx} className="bg-slate-950 p-5 rounded-xl border border-slate-800/90 space-y-3">
+                                    <div className="flex items-start gap-2 text-amber-300 font-extrabold text-lg md:text-xl lg:text-2xl">
+                                      <span className="text-amber-400 font-black shrink-0">📌 Frase do Texto:</span>
+                                      <span className="italic">“{item.frase}”</span>
+                                    </div>
+                                    <div className="text-lg md:text-xl lg:text-2xl text-slate-100 leading-relaxed font-semibold pl-4 border-l-4 border-blue-500/90">
+                                      <span className="text-blue-400 font-black block mb-1 text-base md:text-lg">👉 Explicação Didática & Histórica:</span>
+                                      {item.explicacao}
+                                    </div>
+                                    {item.exemplo && (
+                                      <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-xl space-y-1.5 mt-3">
+                                        <span className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                          <span>💡 EXEMPLO / ALUSÃO PRÁTICA PARA A AULA:</span>
                                         </span>
-                                        <p className="text-xs text-slate-200 leading-relaxed font-medium italic">
-                                          “{v.text}”
+                                        <p className="text-base md:text-lg lg:text-xl text-amber-100 font-semibold leading-relaxed italic">
+                                          "{item.exemplo}"
                                         </p>
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
-                                </div>
-                              )}
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-lg md:text-xl lg:text-2xl text-slate-100 leading-relaxed font-semibold bg-slate-950 p-6 rounded-xl border border-slate-800/80 whitespace-pre-line">
+                                {subtopico.explicacao || 
+                                 (subtopico.ideias && subtopico.ideias.map(i => `${i.professor?.contexto ? `Contexto Histórico: ${i.professor.contexto}\n\n` : ''}${i.professor?.explicacao || ''}`).filter(Boolean).join('\n\n')) || 
+                                 'Clique no botão "🔄 Regenerar Explicação" acima para gerar a explicação didática deste subtópico com o Gemini.'}
+                              </p>
+                            )}
 
-                              {/* 4. Aplicação Prática & Pentecostal */}
-                              {ideia.professor.aplicacao && (
-                                <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl">
-                                  <div className="flex items-center justify-between text-amber-400 font-extrabold text-xs uppercase">
-                                    <span>🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL</span>
-                                    <button
-                                      onClick={() => handleRegenerateSection('aplicacao', topicIdx, subIdx, ideiaIdx)}
-                                      disabled={regeneratingId === `${sectionId}-aplicacao`}
-                                      className="hover:text-white transition-colors cursor-pointer text-[11px]"
-                                    >
-                                      {regeneratingId === `${sectionId}-aplicacao` ? 'Regenerando...' : '🔄 Regenerar Aplicação'}
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                                    {ideia.professor.aplicacao}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* 5. Frase de Ênfase para o Professor */}
-                              {ideia.professor.enfase && (
-                                <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2">
-                                  <span className="text-orange-400 font-black text-sm">💡</span>
-                                  <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{ideia.professor.enfase}"</span>
-                                </div>
-                              )}
-
-                              {/* 6. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
-                              {ideia.professor.cuidadoDoutrinario && (
-                                <div className="bg-gradient-to-r from-red-950/40 via-orange-950/30 to-slate-950 border border-red-500/40 p-4 rounded-xl space-y-1 shadow-lg">
-                                  <span className="text-red-400 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                                    <span>🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO)</span>
-                                  </span>
-                                  <p className="text-xs font-bold text-red-200 leading-relaxed">
-                                    ⚠️ {ideia.professor.cuidadoDoutrinario}
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* 7. 🖼️ PROMPT VISUAL 16:9 PARA CANVA / MIDJOURNEY */}
-                              {ideia.imagePrompt && (
-                                <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-                                  <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
-                                    <span className="flex items-center gap-1.5">
-                                      <span>🖼️ PROMPT VISUAL 16:9 (CANVA / MIDJOURNEY)</span>
-                                    </span>
-                                    <button
-                                      onClick={() => {
-                                        navigator.clipboard.writeText(ideia.imagePrompt);
-                                        alert('Prompt copiado para a área de transferência!');
-                                      }}
-                                      className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                                    >
-                                      📋 Copiar Prompt
-                                    </button>
-                                  </div>
-                                  <p className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80">
-                                    {ideia.imagePrompt}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
+                            {subtopico.exemploAlusao && (
+                              <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-xl space-y-1.5 mt-2">
+                                <span className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                  <span>💡 EXEMPLO / ALUSÃO ILUSTRATIVA PARA A AULA:</span>
+                                </span>
+                                <p className="text-base md:text-lg lg:text-xl text-amber-100 font-semibold leading-relaxed italic">
+                                  "{subtopico.exemploAlusao}"
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+
+                          {/* 2. Textos Bíblicos Relevantes (ARC) */}
+                          {subtopico.versiculos && subtopico.versiculos.length > 0 && (
+                            <div className="space-y-2">
+                              <span className="text-emerald-400 font-extrabold text-xs uppercase block">
+                                📖 TEXTOS BÍBLICOS RELEVANTES (ARC)
+                              </span>
+                              <div className="space-y-2">
+                                {subtopico.versiculos.map((v, vIdx) => (
+                                  <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl">
+                                    <span className="font-extrabold text-amber-300 text-xs block mb-1">
+                                      {v.reference}
+                                    </span>
+                                    <p className="text-xs text-slate-200 leading-relaxed font-medium italic">
+                                      “{v.text}”
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 3. Aplicação Prática & Pentecostal */}
+                          {subtopico.aplicacao && (
+                            <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl">
+                              <div className="flex items-center justify-between text-amber-400 font-extrabold text-xs uppercase">
+                                <span>🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL</span>
+                                <button
+                                  onClick={() => handleRegenerateSection('aplicacao', topicIdx, subIdx)}
+                                  disabled={regeneratingId === `${sectionId}-aplicacao`}
+                                  className="hover:text-white transition-colors cursor-pointer text-[11px]"
+                                >
+                                  {regeneratingId === `${sectionId}-aplicacao` ? 'Regenerando...' : '🔄 Regenerar Aplicação'}
+                                </button>
+                              </div>
+                              <p className="text-xs text-slate-200 leading-relaxed font-semibold">
+                                {subtopico.aplicacao}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 4. Frase de Ênfase para o Professor */}
+                          {subtopico.enfase && (
+                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2">
+                              <span className="text-orange-400 font-black text-sm">💡</span>
+                              <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{subtopico.enfase}"</span>
+                            </div>
+                          )}
+
+                          {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
+                          {subtopico.cuidadoDoutrinario && (
+                            <div className="bg-gradient-to-r from-red-950/40 via-orange-950/30 to-slate-950 border border-red-500/40 p-4 rounded-xl space-y-1 shadow-lg">
+                              <span className="text-red-400 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                <span>🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO)</span>
+                              </span>
+                              <p className="text-xs font-bold text-red-200 leading-relaxed">
+                                ⚠️ {subtopico.cuidadoDoutrinario}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* 6. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO */}
+                          {subtopico.palavrasOriginais && subtopico.palavrasOriginais.length > 0 && (
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                              <span className="text-cyan-400 font-black text-xs uppercase tracking-wider block">
+                                🏛️ EXEGESE BÍBLICA: VOCABULÁRIO NO ORIGINAL ({subtopico.palavrasOriginais[0].idioma})
+                              </span>
+                              <div className="space-y-2">
+                                {subtopico.palavrasOriginais.map((p, pIdx) => (
+                                  <div key={pIdx} className="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-amber-300 mb-1">
+                                      <span className="text-sm font-mono">{p.termo}</span>
+                                      <span className="text-slate-400">({p.transliteracao})</span>
+                                      <span className="bg-cyan-950 text-cyan-400 px-2 py-0.5 rounded text-[10px]">{p.idioma}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-300 font-medium"><strong>Significado:</strong> {p.significado}</p>
+                                    <p className="text-xs text-slate-400 mt-1 italic">{p.explicacao}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 7. 🖼️ PROMPT VISUAL 16:9 PARA CANVA / MIDJOURNEY */}
+                          {subtopico.imagePrompt && (
+                            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                              <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                                <span className="flex items-center gap-1.5">
+                                  <span>🖼️ PROMPT VISUAL 16:9 (CANVA / MIDJOURNEY)</span>
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(subtopico.imagePrompt);
+                                    alert('Prompt copiado para a área de transferência!');
+                                  }}
+                                  className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                                >
+                                  📋 Copiar Prompt
+                                </button>
+                              </div>
+                              <p className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80">
+                                {subtopico.imagePrompt}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* FALLBACK LEGADO: IDEIAS a, b (se o objeto for legado) */}
+                          {!hasDirectContent && subtopico.ideias && subtopico.ideias.length > 0 && (
+                            <div className="space-y-4 pt-2">
+                              {subtopico.ideias.map((ideia) => (
+                                <div key={ideia.letra} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+                                  <div className="font-extrabold text-white text-xs">
+                                    Ideia {ideia.letra.toUpperCase()}: {ideia.titulo}
+                                  </div>
+                                  <p className="text-xs text-slate-300">{ideia.professor.explicacao}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1380,20 +1798,27 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 return res;
               };
               const badgeText = currentProjectorItem.badgeText || 'MEGA EBD';
-              const subMatch = badgeText.match(/^(SUBTÓPICO\s+[\d|A-Z]+|SUBT\.?)\s*[:\—\-]\s*(.+)$/i);
-              const topMatch = badgeText.match(/^(TÓPICO\s+[I|V|X|\d]+)\s*[:\—\-]\s*(.+)$/i);
+              const subMatch = badgeText.match(/^(SUBTÓPICO\s*([\d|A-Z]+)?|SUBT\.?\s*([\d|A-Z]+)?)\s*[:\—\-]?\s*(.+)$/i);
+              const topMatch = badgeText.match(/^(TÓPICO\s*([I|V|X|\d]+)?)\s*[:\—\-]?\s*(.+)$/i);
               
               let mainTitle = badgeText;
               let isSubtopic = false;
+              let subNum = '';
 
               if (subMatch) {
-                mainTitle = subMatch[2].trim();
+                subNum = subMatch[2] || subMatch[3] || '';
+                mainTitle = subMatch[4].trim();
                 isSubtopic = true;
               } else if (topMatch) {
-                mainTitle = topMatch[2].trim();
+                mainTitle = topMatch[3].trim();
                 isSubtopic = false;
               } else if (badgeText.toUpperCase().includes('SUBT') || badgeText.toUpperCase().includes('SUBTÓPICO')) {
                 isSubtopic = true;
+              }
+
+              if (isSubtopic && !subNum) {
+                const m = badgeText.match(/subtÓpico\s*([\d|A-Z]+)/i) || badgeText.match(/subt\.?\s*([\d|A-Z]+)/i);
+                if (m) subNum = m[1];
               }
 
               // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2" e referências do tipo (vv.1,2)
@@ -1402,14 +1827,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
                 .trim();
 
-              const displayText = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
+              let formattedTitle = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
+
+              if (isSubtopic && subNum && !formattedTitle.startsWith(`${subNum}.`) && !formattedTitle.startsWith(`${subNum} `) && !formattedTitle.startsWith(`${subNum}-`)) {
+                formattedTitle = `${subNum}. ${formattedTitle}`;
+              }
 
               return (
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
                   <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
-                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
-                      {displayText}
+                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}>
+                      {formattedTitle}
                     </span>
                   </div>
 
@@ -1456,27 +1885,57 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </div>
                                 ))}
                               </div>
+                            ) : currentProjectorItem.type === 'na_licao_anterior' ? (
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                                <p className="font-sans text-center break-words leading-relaxed text-white font-extrabold text-base md:text-xl lg:text-2xl">
+                                  {currentProjectorItem.projetorText}
+                                </p>
+                              </div>
+                            ) : currentProjectorItem.type === 'ponte_contextual' ? (
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                                <p className={`font-sans text-center break-words leading-relaxed ${
+                                  (currentProjectorItem.projetorText || '').length > 200
+                                    ? 'text-xs md:text-sm lg:text-base text-slate-100 font-bold'
+                                    : 'text-lg md:text-2xl lg:text-3xl text-white font-extrabold'
+                                }`}>
+                                  {currentProjectorItem.projetorText}
+                                </p>
+                              </div>
+                            ) : currentProjectorItem.type === 'subtopic' ? (
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                                <p className={`font-sans text-center break-words leading-relaxed ${
+                                  (currentProjectorItem.projetorText || '').length > 200
+                                    ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
+                                    : 'text-xl md:text-3xl lg:text-4xl text-white font-extrabold'
+                                }`}>
+                                  {currentProjectorItem.projetorText}
+                                </p>
+                              </div>
                             ) : (
-                              <>
+                              <div className="w-full flex-1 flex flex-col items-center justify-start max-h-[280px] overflow-y-auto px-2 my-auto py-1">
                                 {currentProjectorItem.ideiaText && (
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight break-words">
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight break-words shrink-0">
                                     {currentProjectorItem.ideiaText}
                                   </h2>
                                 )}
                                 {currentProjectorItem.reference && (
-                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight w-full">
+                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight w-full shrink-0">
                                     {currentProjectorItem.reference}
                                   </h3>
                                 )}
                                 {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                                  <div className="w-4/5 border-b border-slate-200/40 my-1.5 mx-auto" />
+                                  <div className="w-4/5 border-b border-slate-200/40 my-1.5 mx-auto shrink-0" />
                                 )}
                                 {currentProjectorItem.projetorText && (
-                                  <p className="text-lg md:text-2xl lg:text-3xl font-extrabold leading-snug font-sans text-white text-center break-words">
+                                  <p className={`font-sans text-center break-words leading-relaxed ${
+                                    currentProjectorItem.projetorText.length > 200
+                                      ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
+                                      : 'text-xl md:text-3xl lg:text-4xl text-white font-extrabold'
+                                  }`}>
                                     {currentProjectorItem.projetorText}
                                   </p>
                                 )}
-                              </>
+                              </div>
                             )}
                           </div>
 
@@ -1543,32 +2002,88 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       </div>
                     ) : (
                       /* DEMAIS CARDS */
-                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-4 my-auto mt-[5%]">
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
                         {currentProjectorItem.type === 'topic_synopsis' ? (
-                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
+                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl m-auto">
                             "{currentProjectorItem.projetorText}"
                           </p>
+                        ) : currentProjectorItem.type === 'na_licao_anterior' ? (
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                            <p className="font-sans text-center max-w-4xl mx-auto break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
+                              {currentProjectorItem.projetorText}
+                            </p>
+                          </div>
+                        ) : currentProjectorItem.type === 'ponte_contextual' ? (
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
+                              (currentProjectorItem.projetorText || '').length > 200
+                                ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
+                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                            }`}>
+                              {currentProjectorItem.projetorText}
+                            </p>
+                          </div>
+                        ) : currentProjectorItem.type === 'subtopic_verses' ? (
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0">
+                              📖 VAMOS LER A BÍBLIA
+                            </h2>
+                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
+                            <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed">
+                              {currentProjectorItem.projetorText}
+                            </p>
+                          </div>
+                        ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0">
+                              QUAL O ENSINAMENTO PRA MINHA VIDA?
+                            </h2>
+                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
+                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
+                              (currentProjectorItem.projetorText || '').length > 180
+                                ? 'text-base md:text-xl lg:text-2xl text-slate-100 font-extrabold'
+                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                            }`}>
+                              {currentProjectorItem.projetorText}
+                            </p>
+                          </div>
+                        ) : currentProjectorItem.type === 'subtopic' ? (
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
+                              (currentProjectorItem.projetorText || '').length > 200
+                                ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
+                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                            }`}>
+                              {currentProjectorItem.projetorText}
+                            </p>
+                          </div>
                         ) : (
-                          <>
+                          <div className="w-full max-h-[340px] overflow-y-auto px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                             {currentProjectorItem.ideiaText && (
-                              <h2 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 break-words">
+                              <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0">
                                 {currentProjectorItem.ideiaText}
                               </h2>
                             )}
                             {currentProjectorItem.reference && (
-                              <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
+                              <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0">
                                 {currentProjectorItem.reference}
                               </h3>
                             )}
                             {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
                             )}
                             {currentProjectorItem.projetorText && (
-                              <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed font-sans text-center max-w-4xl break-words ${currentProjectorItem.type === 'enfase_palavra' ? 'italic text-yellow-100' : 'text-white'}`}>
+                              <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed whitespace-pre-line ${
+                                currentProjectorItem.type === 'enfase_palavra'
+                                  ? 'italic text-yellow-100 text-lg md:text-2xl font-extrabold'
+                                  : (currentProjectorItem.projetorText.length > 200
+                                      ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
+                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold')
+                              }`}>
                                 {currentProjectorItem.type === 'enfase_palavra' ? `“${currentProjectorItem.projetorText}”` : currentProjectorItem.projetorText}
                               </p>
                             )}
-                          </>
+                          </div>
                         )}
                       </div>
                     );
