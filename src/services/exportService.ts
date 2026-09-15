@@ -275,31 +275,96 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
       }
 
       topico.subtopicos.forEach((sub) => {
-        checkPageBreak(8);
+        checkPageBreak(25);
+
+        // Cabeçalho do Subtópico
         pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(10);
+        pdf.setFontSize(8.5);
+        pdf.setTextColor(217, 119, 6);
+        pdf.text(`SUBTÓPICO ${sub.number}`, margin, yPos);
+        yPos += 4;
+
+        pdf.setFontSize(10.5);
         pdf.setTextColor(15, 23, 42);
-        pdf.text(`Subtópico ${sub.number}: ${sub.title}`, margin, yPos);
+        pdf.text(sub.title, margin, yPos);
+        yPos += 3;
+
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setLineWidth(0.3);
+        pdf.line(margin, yPos, margin + contentWidth, yPos);
         yPos += 5;
 
-        let explicacaoTexto = '';
+        // Camada 2 — Explicação Didática do Professor (Frase a Frase)
         if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
-          explicacaoTexto = sub.frasesExplicativas
-            .map(f => `• ${f.frase}\n  ${f.explicacao}${f.exemplo ? `\n  💡 Exemplo: ${f.exemplo}` : ''}`)
-            .join('\n\n');
+          checkPageBreak(12);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8.5);
+          pdf.setTextColor(2, 132, 199);
+          pdf.text('EXPLICAÇÃO DIDÁTICA DO PROFESSOR (CONSTANTE FRASE A FRASE)', margin, yPos);
+          yPos += 5;
+
+          sub.frasesExplicativas.forEach((f) => {
+            // Frase do Texto
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8.5);
+            pdf.setTextColor(217, 119, 6);
+            pdf.text('📌 Frase do Texto:', margin, yPos);
+
+            pdf.setFont('helvetica', 'italic');
+            pdf.setFontSize(9);
+            pdf.setTextColor(30, 41, 59);
+            const fraseLines = pdf.splitTextToSize(`“${f.frase}”`, contentWidth - 32);
+            pdf.text(fraseLines, margin + 30, yPos);
+            const fraseHeight = Math.max(4, fraseLines.length * 4);
+            yPos += fraseHeight + 2;
+
+            // Explicação Didática & Histórica com linha azul vertical
+            pdf.setFont('helvetica', 'bold');
+            pdf.setFontSize(8);
+            pdf.setTextColor(2, 132, 199);
+            pdf.text('👉 Explicação Didática & Histórica:', margin + 3, yPos);
+            yPos += 4;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8.5);
+            pdf.setTextColor(51, 65, 85);
+            const expLines = pdf.splitTextToSize(f.explicacao, contentWidth - 7);
+            const expHeight = expLines.length * 3.8;
+
+            checkPageBreak(expHeight + 4);
+
+            // Linha vertical azul de destaque
+            pdf.setDrawColor(2, 132, 199);
+            pdf.setLineWidth(0.8);
+            pdf.line(margin + 2, yPos - 1, margin + 2, yPos + expHeight - 2);
+
+            pdf.text(expLines, margin + 6, yPos + 2);
+            yPos += expHeight + 4;
+
+            // Exemplo / Alusão Prática
+            if (f.exemplo) {
+              const exLines = pdf.splitTextToSize(`💡 EXEMPLO: "${f.exemplo}"`, contentWidth - 8);
+              const exHeight = exLines.length * 3.6 + 4;
+              checkPageBreak(exHeight + 2);
+
+              pdf.setFillColor(254, 243, 199);
+              pdf.setDrawColor(252, 211, 77);
+              pdf.setLineWidth(0.3);
+              pdf.roundedRect(margin + 3, yPos, contentWidth - 6, exHeight, 1.5, 1.5, 'FD');
+
+              pdf.setFont('helvetica', 'bold');
+              pdf.setFontSize(8);
+              pdf.setTextColor(146, 64, 14);
+              pdf.text(exLines, margin + 6, yPos + 4);
+
+              yPos += exHeight + 4;
+            }
+          });
         } else if (sub.explicacao) {
-          explicacaoTexto = sub.explicacao;
+          addParagraph(sub.explicacao, 8.5, false, [51, 65, 85]);
         }
 
-        if (explicacaoTexto) {
-          addParagraph(explicacaoTexto, 9, false, [51, 65, 85]);
-        }
-
-        if (sub.aplicacao) {
-          addParagraph(`🌱 Aplicação Prática: ${sub.aplicacao}`, 9, true, [16, 185, 129]);
-        }
-
-        yPos += 2;
+        yPos += 4;
       });
 
       yPos += 3;

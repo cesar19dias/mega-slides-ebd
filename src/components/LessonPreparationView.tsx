@@ -1070,7 +1070,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
           {/* CHECKLIST DE FIDELIDADE DAS FONTES */}
 
-          <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-xs no-print">
             <span className="font-extrabold text-slate-300 flex items-center gap-1.5">
               <Check className="w-4 h-4 text-emerald-400" />
               Checklist de Fidelidade EBD:
@@ -1127,7 +1127,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </div>
 
                     {/* Frases para Ênfase */}
-                    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2.5">
+                    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2.5 no-print">
                       <span className="text-sm md:text-base font-black text-amber-400 uppercase tracking-wider block">
                         🗣️ FRASES DE ÊNFASE PARA AULA
                       </span>
@@ -1145,20 +1145,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {/* SUBTÓPICOS COM EXPLICAÇÃO ÚNICA & CONTEXTO HISTÓRICO INTEGRADO */}
                   {topico.subtopicos.map((subtopico, subIdx) => {
                     const sectionId = `${topicIdx}-${subIdx}`;
-                    const hasDirectContent = Boolean(subtopico.explicacao || subtopico.projetor);
 
                     return (
-                      <div key={subtopico.number} className="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-5 space-y-5">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                          <div className="flex items-center gap-3 text-amber-300 font-black text-lg md:text-2xl">
-                            <span className="bg-amber-500/20 text-amber-300 px-3.5 py-1.5 rounded-xl text-xs md:text-sm font-black tracking-wider">
-                              SUBTÓPICO {subtopico.number}
-                            </span>
-                            <span>{subtopico.title}</span>
-                          </div>
+                      <div key={subtopico.number} className="subtopic-card bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5 shadow-xl transition-all">
+                        {/* Cabeçalho do Subtópico */}
+                        <div className="border-b border-slate-700/60 pb-3">
+                          <span className="text-amber-400 font-bold text-xs uppercase tracking-wider block mb-1">
+                            SUBTÓPICO {subtopico.number}
+                          </span>
+                          <h3 className="text-lg md:text-xl font-extrabold text-white leading-tight">
+                            {subtopico.title}
+                          </h3>
                         </div>
 
-                        {/* CAMADA 1 — PROJETOR (TEXTO OFICIAL DA LIÇÃO PARA ALUNOS - QUADRO AZUL) */}
+                        {/* CAMADA 1 — PROJETOR (TEXTO LITERAL DA REVISTA - IPSIS LITTERIS) */}
                         {(() => {
                           let textoQuadroAzul = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
                             ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
@@ -1188,21 +1188,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           if (!textoQuadroAzul) return null;
 
                           return (
-                            <div className="bg-gradient-to-r from-blue-950/90 via-indigo-950/90 to-blue-950/90 border-2 border-blue-400/60 p-6 rounded-2xl space-y-3 shadow-2xl">
-                              <div className="flex items-center justify-between text-blue-300 font-black text-xs md:text-base uppercase tracking-wide">
+                            <div className="camada-1-box bg-blue-950/40 border border-blue-400/50 rounded-xl p-5 space-y-2.5 shadow-sm no-print">
+                              <div className="flex items-center justify-between text-blue-400 font-extrabold text-xs tracking-wider uppercase">
                                 <span className="flex items-center gap-2">
-                                  <Monitor className="w-5 h-5 text-blue-400" />
+                                  <Monitor className="w-4 h-4 text-blue-400" />
                                   CAMADA 1 — PROJETOR (TEXTO LITERAL DA REVISTA - IPSIS LITTERIS)
                                 </span>
                                 <button
                                   onClick={() => handleRegenerateSection('projetor', topicIdx, subIdx)}
                                   disabled={regeneratingId === `${sectionId}-projetor`}
-                                  className="hover:text-white transition-colors cursor-pointer text-xs md:text-sm font-extrabold"
+                                  className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
                                 >
-                                  {regeneratingId === `${sectionId}-projetor` ? 'Regenerando...' : '🔄 Regenerar Texto da Lição'}
+                                  {regeneratingId === `${sectionId}-projetor` ? 'Regenerando...' : '🔄 Regenerar Texto'}
                                 </button>
                               </div>
-                              <p className="text-lg md:text-xl lg:text-2xl font-bold text-white leading-relaxed tracking-wide">
+                              <p className="text-base md:text-lg font-bold text-slate-100 leading-relaxed">
                                 “{textoQuadroAzul}”
                               </p>
                             </div>
@@ -1211,40 +1211,44 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                         {/* CAMADA 2 — PROFESSOR (EXPLICAÇÃO CONSTANTE FRASE POR FRASE) */}
                         <div className="space-y-4 pt-1">
-                          {/* 1. Explicação Didática Frase por Frase */}
+                          {/* Explicação Didática Frase por Frase */}
                           <div className="space-y-3">
-                            <div className="flex items-center justify-between text-blue-400 font-black text-base md:text-lg uppercase tracking-wide">
+                            <div className="flex items-center justify-between text-blue-400 font-extrabold text-xs md:text-sm uppercase tracking-wider">
                               <span className="flex items-center gap-2">
-                                <FileText className="w-5 h-5 text-blue-400" />
+                                <FileText className="w-4 h-4 text-blue-400" />
                                 EXPLICAÇÃO DIDÁTICA DO PROFESSOR (CONSTANTE FRASE A FRASE)
                               </span>
                               <button
                                 onClick={() => handleRegenerateSection('explicacao', topicIdx, subIdx)}
                                 disabled={regeneratingId === `${sectionId}-explicacao`}
-                                className="hover:text-white transition-colors cursor-pointer text-xs md:text-sm font-bold"
+                                className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
                               >
                                 {regeneratingId === `${sectionId}-explicacao` ? 'Regenerando...' : '🔄 Regenerar Explicação'}
                               </button>
                             </div>
 
                             {subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0 ? (
-                              <div className="space-y-3">
+                              <div className="space-y-4">
                                 {subtopico.frasesExplicativas.map((item, fIdx) => (
-                                  <div key={fIdx} className="bg-slate-950 p-5 rounded-xl border border-slate-800/90 space-y-3">
-                                    <div className="flex items-start gap-2 text-amber-300 font-extrabold text-lg md:text-xl lg:text-2xl">
-                                      <span className="text-amber-400 font-black shrink-0">📌 Frase do Texto:</span>
-                                      <span className="italic">“{item.frase}”</span>
+                                  <div key={fIdx} className="explicacao-item-card bg-slate-950/80 p-5 rounded-xl border border-slate-800 space-y-3 shadow-sm">
+                                    <div className="flex items-start gap-2 text-amber-400 font-extrabold text-base md:text-lg">
+                                      <span className="shrink-0">📌 Frase do Texto:</span>
+                                      <span className="italic text-slate-100 font-semibold">“{item.frase}”</span>
                                     </div>
-                                    <div className="text-lg md:text-xl lg:text-2xl text-slate-100 leading-relaxed font-semibold pl-4 border-l-4 border-blue-500/90">
-                                      <span className="text-blue-400 font-black block mb-1 text-base md:text-lg">👉 Explicação Didática & Histórica:</span>
-                                      {item.explicacao}
+                                    <div className="pl-4 border-l-4 border-blue-500 space-y-1">
+                                      <span className="text-blue-400 font-bold block text-xs md:text-sm uppercase tracking-wider">
+                                        👉 Explicação Didática & Histórica:
+                                      </span>
+                                      <p className="text-sm md:text-base text-slate-200 leading-relaxed font-normal">
+                                        {item.explicacao}
+                                      </p>
                                     </div>
                                     {item.exemplo && (
-                                      <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-xl space-y-1.5 mt-3">
-                                        <span className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                                      <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2.5">
+                                        <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
                                           <span>💡 EXEMPLO / ALUSÃO PRÁTICA PARA A AULA:</span>
                                         </span>
-                                        <p className="text-base md:text-lg lg:text-xl text-amber-100 font-semibold leading-relaxed italic">
+                                        <p className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic">
                                           "{item.exemplo}"
                                         </p>
                                       </div>
@@ -1253,19 +1257,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-lg md:text-xl lg:text-2xl text-slate-100 leading-relaxed font-semibold bg-slate-950 p-6 rounded-xl border border-slate-800/80 whitespace-pre-line">
+                              <p className="text-sm md:text-base text-slate-200 leading-relaxed font-normal bg-slate-950 p-5 rounded-xl border border-slate-800 whitespace-pre-line">
                                 {subtopico.explicacao || 
                                  (subtopico.ideias && subtopico.ideias.map(i => `${i.professor?.contexto ? `Contexto Histórico: ${i.professor.contexto}\n\n` : ''}${i.professor?.explicacao || ''}`).filter(Boolean).join('\n\n')) || 
-                                 'Clique no botão "🔄 Regenerar Explicação" acima para gerar a explicação didática deste subtópico com o Gemini.'}
+                                 'Clique no botão "🔄 Regenerar Explicação" acima para gerar a explicação didática deste subtópico.'}
                               </p>
                             )}
 
                             {subtopico.exemploAlusao && (
-                              <div className="bg-amber-950/40 border border-amber-500/40 p-4 rounded-xl space-y-1.5 mt-2">
-                                <span className="text-amber-300 font-black text-xs md:text-sm uppercase tracking-wide flex items-center gap-1.5">
+                              <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2">
+                                <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
                                   <span>💡 EXEMPLO / ALUSÃO ILUSTRATIVA PARA A AULA:</span>
                                 </span>
-                                <p className="text-base md:text-lg lg:text-xl text-amber-100 font-semibold leading-relaxed italic">
+                                <p className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic">
                                   "{subtopico.exemploAlusao}"
                                 </p>
                               </div>
@@ -1295,7 +1299,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                           {/* 3. Aplicação Prática & Pentecostal */}
                           {subtopico.aplicacao && (
-                            <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl">
+                            <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl no-print">
                               <div className="flex items-center justify-between text-amber-400 font-extrabold text-xs uppercase">
                                 <span>🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL</span>
                                 <button
@@ -1314,7 +1318,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                           {/* 4. Frase de Ênfase para o Professor */}
                           {subtopico.enfase && (
-                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2">
+                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
                               <span className="text-orange-400 font-black text-sm">💡</span>
                               <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{subtopico.enfase}"</span>
                             </div>
@@ -1322,7 +1326,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                           {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
                           {subtopico.cuidadoDoutrinario && (
-                            <div className="bg-gradient-to-r from-red-950/40 via-orange-950/30 to-slate-950 border border-red-500/40 p-4 rounded-xl space-y-1 shadow-lg">
+                            <div className="bg-gradient-to-r from-red-950/40 via-orange-950/30 to-slate-950 border border-red-500/40 p-4 rounded-xl space-y-1 shadow-lg no-print">
                               <span className="text-red-400 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
                                 <span>🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO)</span>
                               </span>
@@ -1334,7 +1338,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                           {/* 6. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO */}
                           {subtopico.palavrasOriginais && subtopico.palavrasOriginais.length > 0 && (
-                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+                            <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2 no-print">
                               <span className="text-cyan-400 font-black text-xs uppercase tracking-wider block">
                                 🏛️ EXEGESE BÍBLICA: VOCABULÁRIO NO ORIGINAL ({subtopico.palavrasOriginais[0].idioma})
                               </span>
@@ -1356,7 +1360,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                           {/* 7. 🖼️ PROMPT VISUAL 16:9 PARA CANVA / MIDJOURNEY */}
                           {subtopico.imagePrompt && (
-                            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+                            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 no-print">
                               <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
                                 <span className="flex items-center gap-1.5">
                                   <span>🖼️ PROMPT VISUAL 16:9 (CANVA / MIDJOURNEY)</span>
@@ -1378,7 +1382,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           )}
 
                           {/* FALLBACK LEGADO: IDEIAS a, b (se o objeto for legado) */}
-                          {!hasDirectContent && subtopico.ideias && subtopico.ideias.length > 0 && (
+                          {!(subtopico.explicacao || subtopico.projetor || (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)) && subtopico.ideias && subtopico.ideias.length > 0 && (
                             <div className="space-y-4 pt-2">
                               {subtopico.ideias.map((ideia) => (
                                 <div key={ideia.letra} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">

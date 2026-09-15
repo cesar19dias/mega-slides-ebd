@@ -341,9 +341,15 @@ body {
 
 /* Estilos de Impressão / Exportação PDF para o Roteiro do Professor */
 @media print {
+  @page {
+    margin: 10mm 12mm;
+    size: A4 portrait;
+  }
+
   body {
     background: #ffffff !important;
     color: #0f172a !important;
+    font-family: system-ui, -apple-system, sans-serif !important;
   }
 
   .no-print, 
@@ -363,7 +369,48 @@ body {
 
   .preparation-view-container {
     max-width: 100% !important;
-    space-y: 1.5rem !important;
+  }
+
+  .subtopic-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    padding: 1.25rem !important;
+    margin-bottom: 1.25rem !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .camada-1-box {
+    background: #f0f9ff !important;
+    border: 1.5px solid #38bdf8 !important;
+    border-radius: 10px !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+    color: #0f172a !important;
+  }
+
+  .camada-1-box * {
+    color: #0f172a !important;
+  }
+
+  .camada-1-box .text-blue-400 {
+    color: #0284c7 !important;
+    font-weight: 800 !important;
+  }
+
+  .explicacao-item-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    padding: 1rem !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .border-l-4.border-blue-500 {
+    border-left: 4px solid #0284c7 !important;
+    padding-left: 1rem !important;
   }
 
   .bg-slate-900, 
@@ -372,6 +419,7 @@ body {
   .bg-slate-900\/80, 
   .bg-slate-900\/60, 
   .bg-slate-950\/60, 
+  .bg-slate-950\/80,
   .bg-\[\#091b2c\] {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
@@ -389,6 +437,7 @@ body {
     color: #0f172a !important;
   }
 
+  .text-slate-100,
   .text-slate-200, 
   .text-slate-300, 
   .text-slate-400 {
@@ -396,39 +445,45 @@ body {
   }
 
   .text-amber-300, 
-  .text-amber-400 {
-    color: #b45309 !important;
+  .text-amber-400,
+  .text-amber-500 {
+    color: #d97706 !important;
     font-weight: 800 !important;
   }
 
-  .text-blue-400 {
-    color: #1d4ed8 !important;
+  .text-blue-400,
+  .text-blue-500 {
+    color: #0284c7 !important;
+    font-weight: 800 !important;
   }
 
   .text-emerald-400 {
     color: #047857 !important;
   }
 
-  .text-purple-300, 
-  .text-purple-400 {
-    color: #6d28d9 !important;
+  .bg-amber-950\/30,
+  .bg-amber-950\/40 {
+    background: #fffbeb !important;
+    border: 1px solid #fcd34d !important;
+    color: #92400e !important;
   }
 
-  .text-red-400, 
-  .text-red-200 {
-    color: #b91c1c !important;
+  .bg-amber-950\/30 * {
+    color: #92400e !important;
   }
 
   .border-slate-700, 
   .border-slate-800, 
+  .border-slate-700\/60,
   .border-slate-700\/80, 
   .border-slate-700\/90 {
-    border-color: #cbd5e1 !important;
+    border-color: #e2e8f0 !important;
   }
 
   .shadow-xl, 
   .shadow-2xl, 
-  .shadow-lg {
+  .shadow-lg,
+  .shadow-sm {
     box-shadow: none !important;
   }
 }
