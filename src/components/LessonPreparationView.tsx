@@ -1013,8 +1013,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               </div>
             </div>
 
-            {/* Transição entre Lições (Se ativada - PRIMEIROS CARDS) */}
-            {lesson.introducao?.ponteContextual?.enabled && (
+            {/* Transição entre Lições (Se ativada ou com conteúdo - PRIMEIROS CARDS) */}
+            {(lesson.introducao?.ponteContextual?.enabled ||
+              lesson.introducao?.ponteContextual?.naLicaoAnterior ||
+              lesson.introducao?.ponteContextual?.ondeParou ||
+              lesson.introducao?.ponteContextual?.ponteContextual ||
+              lesson.introducao?.ponteContextual?.capitulosIntermediarios) && (
               <div className="space-y-4 pt-2">
                 {/* CARD 1: NA LIÇÃO ANTERIOR */}
                 {(lesson.introducao.ponteContextual.naLicaoAnterior || lesson.introducao.ponteContextual.ondeParou) && (

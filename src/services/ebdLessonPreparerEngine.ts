@@ -33,7 +33,13 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
       text: raw.introducao?.text || '',
       projetor: raw.introducao?.projetor || '',
       ponteContextual: raw.introducao?.ponteContextual ? {
-        enabled: Boolean(raw.introducao.ponteContextual.enabled),
+        enabled: raw.introducao.ponteContextual.enabled !== false && Boolean(
+          raw.introducao.ponteContextual.enabled ||
+          raw.introducao.ponteContextual.naLicaoAnterior ||
+          raw.introducao.ponteContextual.ondeParou ||
+          raw.introducao.ponteContextual.ponteContextual ||
+          raw.introducao.ponteContextual.capitulosIntermediarios
+        ),
         naLicaoAnterior: raw.introducao.ponteContextual.naLicaoAnterior || raw.introducao.ponteContextual.ondeParou || '',
         ponteContextual: raw.introducao.ponteContextual.ponteContextual || raw.introducao.ponteContextual.capitulosIntermediarios || '',
         ondeParou: raw.introducao.ponteContextual.ondeParou || raw.introducao.ponteContextual.naLicaoAnterior || '',

@@ -239,6 +239,23 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
     yPos += blockHeight + 3;
   };
 
+  // Transição / Ponte Contextual (Se houver)
+  if (lesson.introducao?.ponteContextual) {
+    const bridge = lesson.introducao.ponteContextual;
+    const textLicaoAnterior = bridge.naLicaoAnterior || bridge.ondeParou;
+    const textIntervalo = bridge.ponteContextual || bridge.capitulosIntermediarios;
+
+    if (textLicaoAnterior) {
+      addSectionTitle('Na Lição Anterior');
+      addParagraph(textLicaoAnterior, 9.5, false, [30, 41, 59]);
+    }
+
+    if (textIntervalo) {
+      addSectionTitle('Intervalo Bíblico');
+      addParagraph(textIntervalo, 9.5, false, [30, 41, 59]);
+    }
+  }
+
   // 1. Texto Áureo
   addSectionTitle('1. Texto Áureo');
   addParagraph(`"${lesson.textAureo.text}"`, 10, true, [15, 23, 42]);
