@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2 } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
+import { QrCodeModal } from './QrCodeModal';
 
 const LOUSA_COLORS = [
   { name: 'Amarelo Neon', hex: '#facc15' },
@@ -132,6 +133,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Estados de Regeneração Seletiva e Notificações
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [copiedToast, setCopiedToast] = useState<'clean' | 'full' | null>(null);
+  const [isQrModalOpen, setIsQrModalOpen] = useState<boolean>(false);
   const [expandedTopics, setExpandedTopics] = useState<Record<string, boolean>>({
     'I': true,
     'II': true,
@@ -818,6 +820,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               </button>
 
               <button
+                onClick={() => setIsQrModalOpen(true)}
+                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/40 shadow-md transition-all cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                <span>📱 QR Code Celular</span>
+              </button>
+
+              <button
                 onClick={handleDownloadTeacherTxt}
                 title="Baixar Roteiro em Arquivo de Texto (.txt)"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all cursor-pointer"
@@ -1466,6 +1477,16 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </button>
               )}
 
+              {/* QR Code Celular */}
+              <button
+                onClick={() => setIsQrModalOpen(true)}
+                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                <span>📱 QR Code Celular</span>
+              </button>
+
               {/* Upload do Meu Modelo */}
               <label
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all"
@@ -2103,6 +2124,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           </div>
         </div>
       )}
+
+      {/* Modal do QR Code para Sincronização com o Celular */}
+      <QrCodeModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        lesson={lesson}
+      />
     </div>
   );
 };

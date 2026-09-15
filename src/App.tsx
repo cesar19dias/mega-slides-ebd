@@ -6,6 +6,7 @@ import { ApiKeyModal } from './components/ApiKeyModal';
 import type { EBDLessonPreparation, TranscriptionSource, PreparationOptions } from './types';
 import { runLessonPreparerEngine } from './services/ebdLessonPreparerEngine';
 import { setStoredApiKey, getStoredApiKey } from './services/geminiService';
+import { decodeLessonFromUrl } from './services/shareService';
 import { AlertCircle } from 'lucide-react';
 
 const LESSON_STORAGE_KEY = 'megaebd_lesson_data';
@@ -17,7 +18,11 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   
   const [lessonData, setLessonData] = useState<EBDLessonPreparation | null>(() => {
-    // 🔄 Carrega preparação salva ao iniciar o app
+    // 🔗 Tenta primeiro carregar lição recebida via URL/QR Code
+    const fromUrl = decodeLessonFromUrl();
+    if (fromUrl) return fromUrl;
+
+    // 🔄 Fallback: carrega preparação salva no navegador
     try {
       const saved = localStorage.getItem(LESSON_STORAGE_KEY);
       return saved ? JSON.parse(saved) : null;
@@ -36,6 +41,14 @@ export function App() {
       }
     }
   }, [lessonData]);
+
+  // Carrega lição da URL se a página for aberta via QR Code enquanto já estiver rodando
+  useEffect(() => {
+    const fromUrl = decodeLessonFromUrl();
+    if (fromUrl) {
+      setLessonData(fromUrl);
+    }
+  }, []);
 
   // Carrega a chave do localStorage ao iniciar
   useEffect(() => {
