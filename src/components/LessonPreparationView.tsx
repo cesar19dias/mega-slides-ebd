@@ -1170,11 +1170,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           </h3>
                         </div>
 
-                        {/* CAMADA 1 — PROJETOR (TEXTO LITERAL DA REVISTA - IPSIS LITTERIS) */}
+                        {/* CAMADA 1 — PROJETOR (TEXTO OFICIAL DA LIÇÃO PARA ALUNOS - QUADRO AZUL) */}
                         {(() => {
-                          let textoQuadroAzul = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
+                          let textoQuadroAzul = subtopico.projetor || '';
+
+                          const frasesJoined = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
                             ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
                             : '';
+
+                          if (!textoQuadroAzul || frasesJoined.length > textoQuadroAzul.length) {
+                            textoQuadroAzul = frasesJoined || subtopico.explicacao || '';
+                          }
 
                           let explicacaoLimpa = (subtopico.explicacao || '')
                             .replace(/^📌\s*["'“]?/gm, '')
@@ -1182,16 +1188,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             .replace(/^👉.*$/gm, '')
                             .trim();
 
-                          if (!textoQuadroAzul || (explicacaoLimpa.length > textoQuadroAzul.length)) {
-                            if (explicacaoLimpa.length > (subtopico.projetor || '').length) {
-                              textoQuadroAzul = explicacaoLimpa;
-                            }
+                          if (!textoQuadroAzul && explicacaoLimpa) {
+                            textoQuadroAzul = explicacaoLimpa;
                           }
 
-                          if (!textoQuadroAzul) {
-                            textoQuadroAzul = subtopico.projetor || subtopico.explicacao || '';
-                          }
-                          
                           const numPrefix = `${subtopico.number}. `;
                           if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${subtopico.number} `) && !textoQuadroAzul.startsWith(`Subtópico ${subtopico.number}`)) {
                             textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;

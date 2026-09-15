@@ -69,11 +69,8 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
                   : [];
 
                 let projetor = sub.projetor || sub.textoRevista || '';
-                if (frasesExplicativas.length > 0) {
-                  const textoFrases = frasesExplicativas.map((f: any) => f.frase).filter(Boolean).join(' ');
-                  if (!projetor || textoFrases.length > projetor.length) {
-                    projetor = textoFrases;
-                  }
+                if (!projetor && frasesExplicativas.length > 0) {
+                  projetor = frasesExplicativas.map((f: any) => f.frase).filter(Boolean).join(' ');
                 }
 
                 const numStr = sub.number || `${sIdx + 1}`;
