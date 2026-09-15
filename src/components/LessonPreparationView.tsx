@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { EBDLessonPreparation } from '../types';
 import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
+import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
 import { QrCodeModal } from './QrCodeModal';
 
@@ -811,12 +811,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {activeTab === 'professor' && (
             <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
               <button
+                onClick={() => exportTeacherGuideCleanPDF(lesson)}
+                title="Baixar Roteiro Limpo do Professor em PDF para ler no celular"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-red-600 hover:bg-red-500 text-white border border-red-400/40 shadow-md transition-all cursor-pointer"
+              >
+                <FileDown className="w-3.5 h-3.5 text-white" />
+                <span>📄 Roteiro PDF</span>
+              </button>
+
+              <button
                 onClick={handlePrintTeacherGuide}
                 title="Salvar Roteiro em PDF ou Imprimir"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer"
               >
                 <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>PDF / Imprimir</span>
+                <span>Imprimir</span>
               </button>
 
               <button
