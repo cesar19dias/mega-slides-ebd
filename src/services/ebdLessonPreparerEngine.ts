@@ -92,7 +92,13 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
 
                 let versiculos = Array.isArray(sub.versiculos) ? sub.versiculos : [];
                 let aplicacao = sub.aplicacao || '';
-                let enfase = sub.enfase || '';
+                let enfase = (sub.enfase || '')
+                  .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
+                  .replace(/^["'“]?\s*Ênfase\s*(?:para\s+a\s+sala)?\s*[\:\–\—\-]?\s*/i, '')
+                  .replace(/^["'“]?\s*📌\s*/, '')
+                  .replace(/^["'“]?\s*💡\s*/, '')
+                  .replace(/["'”]?\s*$/, '')
+                  .trim();
                 let cuidadoDoutrinario = sub.cuidadoDoutrinario || '';
                 let palavrasOriginais = Array.isArray(sub.palavrasOriginais)
                   ? sub.palavrasOriginais.map((p: any) => ({
@@ -252,21 +258,21 @@ export async function runLessonPreparerEngine(
 
   const bridgePromptInstruction = options.hasContextualBridge
     ? `
---- 🔗 REQUISITO ESPECIAL: TRANSIÇÃO E PONTE CONTEXTUAL ENTRE LIÇÕES ---
+--- 🔗 REQUISITO ESPECIAL: TRANSIÇÃO E PONTE CONTEXTUAL ENTRE LIÇÕES (DETALHADA & RICA) ---
 O professor ATIVOU a transição da lição anterior para a lição atual.
 Informações fornecidas pelo professor sobre a transição:
 "${options.previousLessonContext || 'Reconstrua o resumo da lição passada e o intervalo de capítulos até a aula de hoje.'}"
 
-Você DEVE obrigatoriamente preencher o objeto "ponteContextual" dentro de "introducao" com DOIS BLOCOS DISTINTOS:
+Você DEVE obrigatoriamente preencher o objeto "ponteContextual" dentro de "introducao" com DOIS BLOCOS DETALHADOS E BEM ESTRUTURADOS:
 
-1. "naLicaoAnterior": Resumo bem breve (2 a 3 frases) do que foi abordado na LIÇÃO ANTERIOR (tema e onde a aula passada encerrou).
-2. "ponteContextual": Resumo breve (2 a 4 frases) dos capítulos e acontecimentos bíblicos que estão ENTRE a lição anterior e a lição atual (os capítulos saltados).
+1. "naLicaoAnterior": Forneça uma síntese explicativa DETALHADA E RICA (de 2 a 3 parágrafos bem desenvolvidos) sobre o que foi ministrado na LIÇÃO ANTERIOR: o tema principal, os personagens, as lições teológicas/espirituais aprendidas, os acontecimentos chave e onde a aula passada encerrou. Evite resumos genéricos ou de 1 frase!
+2. "ponteContextual": Forneça uma explicação bíblica DETALHADA (de 2 a 3 parágrafos bem desenvolvidos) abrangendo os capítulos e eventos bíblicos no INTERVALO entre a lição passada e a aula de hoje: descreva a sequência dos fatos bíblicos, o deslocamento dos personagens, o contexto geopolítico/religioso e a transição até o ponto inicial da lição atual.
 
 Estrutura esperada:
 "ponteContextual": {
   "enabled": true,
-  "naLicaoAnterior": "Resumo bem breve do que foi estudado na lição anterior.",
-  "ponteContextual": "Resumo breve dos capítulos que estão entre a lição anterior e a atual."
+  "naLicaoAnterior": "Explicação detalhada, rica e profunda sobre o término e os ensinamentos da lição anterior...",
+  "ponteContextual": "Explicação detalhada e rica sobre todos os acontecimentos e capítulos bíblicos no intervalo entre as duas lições..."
 }
 `
     : `

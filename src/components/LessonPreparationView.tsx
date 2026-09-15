@@ -660,12 +660,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
         // 5. SLIDE DE ÊNFASE / APRENDA COM A PALAVRA (SE HOUVER)
         if (s.enfase) {
+          const cleanEnfaseText = s.enfase
+            .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
+            .replace(/^["'“]?\s*Ênfase\s*(?:para\s+a\s+sala)?\s*[\:\–\—\-]?\s*/i, '')
+            .replace(/^["'“]?\s*📌\s*/, '')
+            .replace(/^["'“]?\s*💡\s*/, '')
+            .replace(/["'”]?\s*$/, '')
+            .trim();
+
           items.push({
             type: 'enfase_palavra',
             title: `${s.number}. ${s.title}`,
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
             ideiaText: 'APRENDA COM A PALAVRA...',
-            projetorText: s.enfase,
+            projetorText: cleanEnfaseText ? `“${cleanEnfaseText}”` : s.enfase,
             imagePrompt: s.imagePrompt
           });
         }
@@ -1321,12 +1329,22 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           )}
 
                           {/* 4. Frase de Ênfase para o Professor */}
-                          {subtopico.enfase && (
-                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
-                              <span className="text-orange-400 font-black text-sm">💡</span>
-                              <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{subtopico.enfase}"</span>
-                            </div>
-                          )}
+                          {subtopico.enfase && (() => {
+                            const cleanEnfase = subtopico.enfase
+                              .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
+                              .replace(/^["'“]?\s*Ênfase\s*(?:para\s+a\s+sala)?\s*[\:\–\—\-]?\s*/i, '')
+                              .replace(/^["'“]?\s*📌\s*/, '')
+                              .replace(/^["'“]?\s*💡\s*/, '')
+                              .replace(/["'”]?\s*$/, '')
+                              .trim();
+
+                            return (
+                              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
+                                <span className="text-orange-400 font-black text-sm">💡</span>
+                                <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{cleanEnfase}"</span>
+                              </div>
+                            );
+                          })()}
 
                           {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
                           {subtopico.cuidadoDoutrinario && (
