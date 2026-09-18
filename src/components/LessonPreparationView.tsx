@@ -1,10 +1,58 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { EBDLessonPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
 import { QrCodeModal } from './QrCodeModal';
+
+interface EditableTextProps {
+  value: string;
+  onChange: (val: string) => void;
+  isEditMode: boolean;
+  multiline?: boolean;
+  className?: string;
+  placeholder?: string;
+  label?: string;
+}
+
+const EditableText: React.FC<EditableTextProps> = ({
+  value,
+  onChange,
+  isEditMode,
+  multiline = false,
+  className = '',
+  placeholder = 'Clique para editar...',
+  label,
+}) => {
+  if (!isEditMode) {
+    return <span className={className}>{value || placeholder}</span>;
+  }
+
+  return (
+    <div className="w-full space-y-1 my-1">
+      {label && <label className="text-[10px] font-bold uppercase tracking-wider text-amber-400 block">{label}</label>}
+      {multiline ? (
+        <textarea
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={Math.max(2, (value || '').split('\n').length)}
+          className={`w-full bg-slate-950/90 border-2 border-amber-500/60 focus:border-amber-400 text-white rounded-xl p-3 text-sm outline-none transition-all resize-y ${className}`}
+        />
+      ) : (
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className={`w-full bg-slate-950/90 border-2 border-amber-500/60 focus:border-amber-400 text-white rounded-xl px-3 py-2 text-sm outline-none transition-all ${className}`}
+        />
+      )}
+    </div>
+  );
+};
+
 
 const LOUSA_COLORS = [
   { name: 'Amarelo Neon', hex: '#facc15' },
@@ -117,6 +165,279 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 }) => {
   const [lesson, setLesson] = useState<EBDLessonPreparation>(lessonData);
   const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
+  const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    setLesson(lessonData);
+  }, [lessonData]);
+
+  const updateLesson = useCallback((updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => {
+    setLesson(prev => {
+      const next = updater(prev);
+      onUpdateLesson(next);
+      return next;
+    });
+  }, [onUpdateLesson]);
+
+  const updateMetadata = (field: keyof EBDLessonPreparation['metadata'], val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      metadata: { ...prev.metadata, [field]: val }
+    }));
+  };
+
+  const updateTextAureo = (field: keyof EBDLessonPreparation['textAureo'], val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      textAureo: { ...prev.textAureo, [field]: val }
+    }));
+  };
+
+  const updateVerdadePratica = (val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      verdadePratica: { ...prev.verdadePratica, text: val }
+    }));
+  };
+
+  const updatePonteContextualField = (field: string, val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      introducao: {
+        ...prev.introducao,
+        ponteContextual: {
+          ...prev.introducao?.ponteContextual,
+          enabled: true,
+          [field]: val
+        }
+      }
+    }));
+  };
+
+  const updateTopicTitle = (topicIdx: number, val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      topicos[topicIdx] = { ...topicos[topicIdx], title: val };
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateTopicSinopse = (topicIdx: number, val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      topicos[topicIdx] = { ...topicos[topicIdx], sinopse: val };
+      return { ...prev, topicos };
+    });
+  };
+
+  const addTopicFraseEnfase = (topicIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const frases = [...(topicos[topicIdx].frasesEnfase || []), 'Nova frase para ênfase na aula'];
+      topicos[topicIdx] = { ...topicos[topicIdx], frasesEnfase: frases };
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateTopicFraseEnfase = (topicIdx: number, fIdx: number, val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const frases = [...(topicos[topicIdx].frasesEnfase || [])];
+      frases[fIdx] = val;
+      topicos[topicIdx] = { ...topicos[topicIdx], frasesEnfase: frases };
+      return { ...prev, topicos };
+    });
+  };
+
+  const removeTopicFraseEnfase = (topicIdx: number, fIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const frases = (topicos[topicIdx].frasesEnfase || []).filter((_, idx) => idx !== fIdx);
+      topicos[topicIdx] = { ...topicos[topicIdx], frasesEnfase: frases };
+      return { ...prev, topicos };
+    });
+  };
+
+  const addSubtopicToTopic = (topicIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const subList = [...topicos[topicIdx].subtopicos];
+      const newNum = String(subList.length + 1);
+      subList.push({
+        number: newNum,
+        title: 'Novo Subtópico',
+        projetor: 'Frase de destaque para o projetor',
+        explicacao: 'Explicação didática do professor...',
+        imagePrompt: '',
+        frasesExplicativas: [
+          { frase: 'Frase principal do texto', explicacao: 'Explicação detalhada para a classe', exemplo: '' }
+        ],
+        versiculos: []
+      });
+      topicos[topicIdx] = { ...topicos[topicIdx], subtopicos: subList };
+      return { ...prev, topicos };
+    });
+  };
+
+  const removeSubtopicFromTopic = (topicIdx: number, subIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const subList = topicos[topicIdx].subtopicos.filter((_, idx) => idx !== subIdx);
+      topicos[topicIdx] = { ...topicos[topicIdx], subtopicos: subList };
+      return { ...prev, topicos };
+    });
+  };
+
+  const addNewTopic = () => {
+    updateLesson(prev => {
+      const numerals = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+      const nextNum = numerals[prev.topicos.length] || `Tópico ${prev.topicos.length + 1}`;
+      const newTopic: EBDTopicPreparation = {
+        number: nextNum,
+        title: 'Novo Tópico',
+        sinopse: 'Sinopse do novo tópico...',
+        explicacao: '',
+        frasesEnfase: ['Frase de ênfase para os alunos'],
+        imagePrompt: '',
+        subtopicos: [
+          {
+            number: '1',
+            title: 'Subtópico 1',
+            projetor: 'Texto de resumo para o slide',
+            explicacao: 'Explicação didática...',
+            imagePrompt: '',
+            frasesExplicativas: [],
+            versiculos: []
+          }
+        ]
+      };
+      return { ...prev, topicos: [...prev.topicos, newTopic] };
+    });
+  };
+
+  const removeTopic = (topicIdx: number) => {
+    updateLesson(prev => ({
+      ...prev,
+      topicos: prev.topicos.filter((_, idx) => idx !== topicIdx)
+    }));
+  };
+
+  const updateSubtopicField = (topicIdx: number, subIdx: number, field: string, val: any) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const subList = [...topicos[topicIdx].subtopicos];
+      subList[subIdx] = { ...subList[subIdx], [field]: val };
+      topicos[topicIdx] = { ...topicos[topicIdx], subtopicos: subList };
+      return { ...prev, topicos };
+    });
+  };
+
+  const addFraseExplicativa = (topicIdx: number, subIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      const list = [...(sub.frasesExplicativas || [])];
+      list.push({ frase: 'Nova frase extraída da revista', explicacao: 'Explicação didática do professor...', exemplo: '' });
+      sub.frasesExplicativas = list;
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateFraseExplicativa = (topicIdx: number, subIdx: number, fIdx: number, field: 'frase' | 'explicacao' | 'exemplo', val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      const list = [...(sub.frasesExplicativas || [])];
+      list[fIdx] = { ...list[fIdx], [field]: val };
+      sub.frasesExplicativas = list;
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const removeFraseExplicativa = (topicIdx: number, subIdx: number, fIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      sub.frasesExplicativas = (sub.frasesExplicativas || []).filter((_, idx) => idx !== fIdx);
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const addVersiculoSubtopic = (topicIdx: number, subIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      const list = [...(sub.versiculos || [])];
+      list.push({ reference: 'Referência Bíblica (ex: João 3.16)', text: 'Texto do versículo...' });
+      sub.versiculos = list;
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number, field: 'reference' | 'text', val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      const list = [...(sub.versiculos || [])];
+      list[vIdx] = { ...list[vIdx], [field]: val };
+      sub.versiculos = list;
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const removeVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
+      sub.versiculos = (sub.versiculos || []).filter((_, idx) => idx !== vIdx);
+      topicos[topicIdx].subtopicos[subIdx] = sub;
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateConclusaoField = (field: keyof EBDLessonPreparation['conclusao'], val: any) => {
+    updateLesson(prev => ({
+      ...prev,
+      conclusao: { ...prev.conclusao, [field]: val }
+    }));
+  };
+
+  const addConclusaoBullet = () => {
+    updateLesson(prev => ({
+      ...prev,
+      conclusao: {
+        ...prev.conclusao,
+        bulletPoints: [...(prev.conclusao.bulletPoints || []), 'Novo ponto principal da aula']
+      }
+    }));
+  };
+
+  const updateConclusaoBullet = (bIdx: number, val: string) => {
+    updateLesson(prev => {
+      const list = [...(prev.conclusao.bulletPoints || [])];
+      list[bIdx] = val;
+      return {
+        ...prev,
+        conclusao: { ...prev.conclusao, bulletPoints: list }
+      };
+    });
+  };
+
+  const removeConclusaoBullet = (bIdx: number) => {
+    updateLesson(prev => ({
+      ...prev,
+      conclusao: {
+        ...prev.conclusao,
+        bulletPoints: (prev.conclusao.bulletPoints || []).filter((_, idx) => idx !== bIdx)
+      }
+    }));
+  };
+
 
   // Estado da Visão do Projetor (Slide atual no projetor)
   const [projectorIndex, setProjectorIndex] = useState(0);
@@ -522,6 +843,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       ideiaText?: string;
       reference?: string;
       imagePrompt?: string;
+      onUpdateText?: (val: string) => void;
+      onUpdateTitle?: (val: string) => void;
+      onUpdateSubtitle?: (val: string) => void;
+      onUpdateReference?: (val: string) => void;
+      onUpdateBulletPoint?: (idx: number, val: string) => void;
     }> = [];
 
     // 1. Transição entre Lições (NA LIÇÃO ANTERIOR = Slide 1, INTERVALO BÍBLICO = Slide 2)
@@ -535,7 +861,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           type: 'na_licao_anterior',
           title: 'NA LIÇÃO ANTERIOR',
           badgeText: 'NA LIÇÃO ANTERIOR',
-          projetorText: textLicaoAnterior
+          projetorText: textLicaoAnterior,
+          onUpdateText: (val: string) => updatePonteContextualField(bridge.naLicaoAnterior ? 'naLicaoAnterior' : 'ondeParou', val)
         });
       }
 
@@ -544,7 +871,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           type: 'ponte_contextual',
           title: 'INTERVALO BÍBLICO',
           badgeText: 'INTERVALO BÍBLICO',
-          projetorText: textPonteContextual
+          projetorText: textPonteContextual,
+          onUpdateText: (val: string) => updatePonteContextualField(bridge.ponteContextual ? 'ponteContextual' : 'capitulosIntermediarios', val)
         });
       }
     }
@@ -554,7 +882,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       type: 'cover',
       title: lesson.metadata.title,
       subtitle: lesson.metadata.themeTopic,
-      badgeText: lesson.metadata.lessonNumber || 'LIÇÃO EBD'
+      badgeText: lesson.metadata.lessonNumber || 'LIÇÃO EBD',
+      onUpdateTitle: (val: string) => updateMetadata('title', val),
+      onUpdateSubtitle: (val: string) => updateMetadata('themeTopic', val),
+      onUpdateText: (val: string) => updateMetadata('title', val)
     });
 
     // 4. Texto Áureo
@@ -563,7 +894,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       title: 'TEXTO ÁUREO',
       badgeText: 'TEXTO ÁUREO',
       projetorText: `“${lesson.textAureo.text}”`,
-      reference: lesson.textAureo.reference
+      reference: lesson.textAureo.reference,
+      onUpdateText: (val: string) => updateTextAureo('text', val.replace(/^["'“]/, '').replace(/["'”]$/, '')),
+      onUpdateReference: (val: string) => updateTextAureo('reference', val)
     });
 
     // 5. Verdade Prática
@@ -572,7 +905,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         type: 'pratica',
         title: 'VERDADE PRÁTICA',
         badgeText: 'VERDADE PRÁTICA',
-        projetorText: `“${lesson.verdadePratica.text}”`
+        projetorText: `“${lesson.verdadePratica.text}”`,
+        onUpdateText: (val: string) => updateVerdadePratica(val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
       });
     }
 
@@ -585,23 +919,36 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           title: `LEITURA BÍBLICA EM CLASSE (${vIdx + 1}/${verseSlides.length})`,
           badgeText: 'LEITURA BÍBLICA EM CLASSE',
           reference: vSlide.chapterHeader,
-          projetorText: vSlide.verseText
+          projetorText: vSlide.verseText,
+          onUpdateText: (val: string) => {
+            updateLesson(prev => ({ ...prev, biblicalText: val }));
+          },
+          onUpdateReference: (val: string) => {
+            updateLesson(prev => {
+              const text = prev.biblicalText || '';
+              const parts = text.split('—');
+              const body = parts.length > 1 ? parts.slice(1).join('—') : text;
+              return { ...prev, biblicalText: `${val} — ${body}` };
+            });
+          }
         });
       });
     }
 
     // Tópicos, Sinopse do Tópico (Revisão Rápida) e Subtópicos com Ideias a, b, c
-    lesson.topicos.forEach((t) => {
+    lesson.topicos.forEach((t, tIdx) => {
       // 📌 CARD DE SINOPSE / REVISÃO DO TÓPICO (TÍTULO DO TÓPICO VAI NA TARJA LARANJA COMO NO PRINT)
       items.push({
         type: 'topic_synopsis',
         title: `TÓPICO ${t.number}: ${t.title}`,
         badgeText: `TÓPICO ${t.number}: ${t.title.toUpperCase()}`,
         ideiaText: `TÓPICO ${t.number}: ${t.title.toUpperCase()}`,
-        projetorText: t.sinopse
+        projetorText: t.sinopse,
+        onUpdateTitle: (val: string) => updateTopicTitle(tIdx, val.replace(/^TÓPICO\s*[I|V|X|\d]+\s*:\s*/i, '')),
+        onUpdateText: (val: string) => updateTopicSinopse(tIdx, val)
       });
 
-      t.subtopicos.forEach((s) => {
+      t.subtopicos.forEach((s, sIdx) => {
         const numStr = s.number || '1';
         const numPrefix = `${numStr}. `;
 
@@ -624,7 +971,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
             ideiaText: `${s.number}. ${s.title}`,
             projetorText: textoQuadroAzul,
-            imagePrompt: s.imagePrompt
+            imagePrompt: s.imagePrompt,
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'projetor', val)
           });
         }
 
@@ -641,7 +990,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
               badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
               ideiaText: '📖 VAMOS LER A BÍBLIA',
               projetorText: textoReferencias,
-              imagePrompt: s.imagePrompt
+              imagePrompt: s.imagePrompt,
+              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+              onUpdateText: (val: string) => {
+                const refs = val.split('\n').filter(Boolean);
+                const newVerses = refs.map(r => ({ reference: r.trim(), text: '' }));
+                updateSubtopicField(tIdx, sIdx, 'versiculos', newVerses);
+              }
             });
           }
         }
@@ -654,7 +1009,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
             ideiaText: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
             projetorText: s.aplicacao,
-            imagePrompt: s.imagePrompt
+            imagePrompt: s.imagePrompt,
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'aplicacao', val)
           });
         }
 
@@ -674,20 +1031,36 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
             ideiaText: 'APRENDA COM A PALAVRA...',
             projetorText: cleanEnfaseText ? `“${cleanEnfaseText}”` : s.enfase,
-            imagePrompt: s.imagePrompt
+            imagePrompt: s.imagePrompt,
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'enfase', val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
           });
         }
 
         // FALLBACK PARA DADOS LEGADOS COM ARRAY DE IDEIAS
         if (!textoQuadroAzul && s.ideias && s.ideias.length > 0) {
-          s.ideias.forEach((ideia) => {
+          s.ideias.forEach((ideia, iIdx) => {
             items.push({
               type: 'subtopic',
               title: `${s.number}. ${s.title}`,
               badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
               ideiaText: `${ideia.letra}) ${ideia.titulo}`,
               projetorText: ideia.projetor,
-              imagePrompt: ideia.imagePrompt || s.imagePrompt
+              imagePrompt: ideia.imagePrompt || s.imagePrompt,
+              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+              onUpdateText: (val: string) => {
+                updateLesson(prev => {
+                  const topicos = [...prev.topicos];
+                  const sub = { ...topicos[tIdx].subtopicos[sIdx] };
+                  if (sub.ideias && sub.ideias[iIdx]) {
+                    const ideias = [...sub.ideias];
+                    ideias[iIdx] = { ...ideias[iIdx], projetor: val };
+                    sub.ideias = ideias;
+                    topicos[tIdx].subtopicos[sIdx] = sub;
+                  }
+                  return { ...prev, topicos };
+                });
+              }
             });
             if (ideia.professor?.explicacao) {
               items.push({
@@ -696,7 +1069,24 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
                 badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
                 ideiaText: `EXPLICAÇÃO — IDEIA ${ideia.letra.toUpperCase()}`,
                 projetorText: ideia.professor.explicacao,
-                imagePrompt: ideia.imagePrompt || s.imagePrompt
+                imagePrompt: ideia.imagePrompt || s.imagePrompt,
+                onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+                onUpdateText: (val: string) => {
+                  updateLesson(prev => {
+                    const topicos = [...prev.topicos];
+                    const sub = { ...topicos[tIdx].subtopicos[sIdx] };
+                    if (sub.ideias && sub.ideias[iIdx]) {
+                      const ideias = [...sub.ideias];
+                      ideias[iIdx] = {
+                        ...ideias[iIdx],
+                        professor: { ...ideias[iIdx].professor, explicacao: val }
+                      };
+                      sub.ideias = ideias;
+                      topicos[tIdx].subtopicos[sIdx] = sub;
+                    }
+                    return { ...prev, topicos };
+                  });
+                }
               });
             }
           });
@@ -710,7 +1100,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         type: 'conclusao',
         title: 'CONCLUSÃO',
         badgeText: 'CONCLUSÃO',
-        projetorText: lesson.conclusao.takeaway
+        projetorText: lesson.conclusao.takeaway,
+        onUpdateText: (val: string) => updateConclusaoField('takeaway', val)
       });
     }
 
@@ -720,7 +1111,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         type: 'verdades',
         title: 'VERDADES QUE PRECISAMOS GUARDAR',
         badgeText: 'VERDADES QUE PRECISAMOS GUARDAR',
-        bulletPoints: lesson.conclusao.bulletPoints
+        bulletPoints: lesson.conclusao.bulletPoints,
+        onUpdateBulletPoint: (bIdx: number, val: string) => updateConclusaoBullet(bIdx, val)
       });
     }
 
@@ -889,6 +1281,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </>
                 )}
               </button>
+
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                title="Ativar/desativar modo de edição livre de texto"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
+                  isEditMode
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-lg shadow-amber-500/30'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                }`}
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Conteúdo'}</span>
+              </button>
             </div>
           )}
 
@@ -921,6 +1326,25 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
         </div>
       </div>
 
+      {/* Banner de Modo Edição Ativo */}
+      {isEditMode && (
+        <div className="bg-amber-950/80 border-2 border-amber-500/70 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-3 text-amber-200 text-xs md:text-sm font-bold shadow-xl no-print">
+          <div className="flex items-center gap-2">
+            <Edit3 className="w-5 h-5 text-amber-400 shrink-0" />
+            <span>
+              ✏️ <strong>Modo Edição Livre Ativo:</strong> Altere qualquer texto diretamente na tela, ou use os botões <strong>"+ Adicionar"</strong> para incluir novas frases, versículos e tópicos!
+            </span>
+          </div>
+          <button
+            onClick={() => setIsEditMode(false)}
+            className="bg-amber-500 text-slate-950 px-4 py-1.5 rounded-xl font-black text-xs hover:bg-amber-400 transition-colors shadow-md cursor-pointer"
+          >
+            ✓ Concluir Edição
+          </button>
+        </div>
+      )}
+
+
       {/* ========================================================= */}
       {/* 👨‍🏫 ABA 1: VISÃO DO PROFESSOR (PREPARAÇÃO DETALHADA E DIDÁTICA) */}
       {/* ========================================================= */}
@@ -929,15 +1353,31 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {/* Cabeçalho da Preparação e Fontes Utilizadas */}
           <div className="bg-slate-900/80 border border-slate-700/80 p-6 rounded-3xl shadow-xl space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700/60 pb-4">
-              <div>
+              <div className="flex-1">
                 <span className="text-xs font-black text-amber-400 uppercase tracking-widest block mb-1">
-                  {lesson.metadata.lessonNumber || 'Escola Bíblica Dominical'}
+                  <EditableText
+                    value={lesson.metadata.lessonNumber || 'Escola Bíblica Dominical'}
+                    onChange={v => updateMetadata('lessonNumber', v)}
+                    isEditMode={isEditMode}
+                    placeholder="Número da Lição (ex: LIÇÃO 11)"
+                  />
                 </span>
                 <h1 className="text-2xl md:text-4xl font-black text-white font-['Montserrat']">
-                  {lesson.metadata.title}
+                  <EditableText
+                    value={lesson.metadata.title}
+                    onChange={v => updateMetadata('title', v)}
+                    isEditMode={isEditMode}
+                    placeholder="Título da Lição"
+                  />
                 </h1>
-                <p className="text-xs md:text-sm text-slate-300 mt-1 font-semibold">
-                  Tema: {lesson.metadata.themeTopic}
+                <p className="text-xs md:text-sm text-slate-300 mt-1 font-semibold flex items-center gap-1">
+                  <span>Tema:</span>
+                  <EditableText
+                    value={lesson.metadata.themeTopic}
+                    onChange={v => updateMetadata('themeTopic', v)}
+                    isEditMode={isEditMode}
+                    placeholder="Tema do Trimestre"
+                  />
                 </p>
               </div>
 
@@ -1022,35 +1462,46 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             </div>
 
             {/* Transição entre Lições (Se ativada ou com conteúdo - PRIMEIROS CARDS) */}
-            {(lesson.introducao?.ponteContextual?.enabled ||
+            {(isEditMode ||
+              lesson.introducao?.ponteContextual?.enabled ||
               lesson.introducao?.ponteContextual?.naLicaoAnterior ||
               lesson.introducao?.ponteContextual?.ondeParou ||
               lesson.introducao?.ponteContextual?.ponteContextual ||
               lesson.introducao?.ponteContextual?.capitulosIntermediarios) && (
               <div className="space-y-4 pt-2">
                 {/* CARD 1: NA LIÇÃO ANTERIOR */}
-                {(lesson.introducao.ponteContextual.naLicaoAnterior || lesson.introducao.ponteContextual.ondeParou) && (
+                {(isEditMode || lesson.introducao?.ponteContextual?.naLicaoAnterior || lesson.introducao?.ponteContextual?.ondeParou) && (
                   <div className="bg-gradient-to-r from-amber-950/80 via-slate-900 to-amber-950/60 border-2 border-amber-500/40 p-5 rounded-2xl shadow-xl space-y-2">
                     <div className="flex items-center gap-2 text-amber-400 font-extrabold text-sm md:text-base border-b border-amber-500/20 pb-2">
                       <Bookmark className="w-5 h-5 text-amber-400" />
                       <span>NA LIÇÃO ANTERIOR</span>
                     </div>
-                    <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
-                      {lesson.introducao.ponteContextual.naLicaoAnterior || lesson.introducao.ponteContextual.ondeParou}
-                    </p>
+                    <EditableText
+                      value={lesson.introducao?.ponteContextual?.naLicaoAnterior || lesson.introducao?.ponteContextual?.ondeParou || ''}
+                      onChange={v => updatePonteContextualField('naLicaoAnterior', v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Resumo bem breve do que aconteceu na lição anterior..."
+                      className="text-sm md:text-base font-extrabold text-white leading-relaxed"
+                    />
                   </div>
                 )}
 
                 {/* CARD 2: INTERVALO BÍBLICO */}
-                {(lesson.introducao.ponteContextual.ponteContextual || lesson.introducao.ponteContextual.capitulosIntermediarios) && (
+                {(isEditMode || lesson.introducao?.ponteContextual?.ponteContextual || lesson.introducao?.ponteContextual?.capitulosIntermediarios) && (
                   <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-teal-950/80 border-2 border-emerald-500/40 p-5 rounded-2xl shadow-xl space-y-2">
                     <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-sm md:text-base border-b border-emerald-500/20 pb-2">
                       <Link2 className="w-5 h-5 text-emerald-400" />
                       <span>INTERVALO BÍBLICO</span>
                     </div>
-                    <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
-                      {lesson.introducao.ponteContextual.ponteContextual || lesson.introducao.ponteContextual.capitulosIntermediarios}
-                    </p>
+                    <EditableText
+                      value={lesson.introducao?.ponteContextual?.ponteContextual || lesson.introducao?.ponteContextual?.capitulosIntermediarios || ''}
+                      onChange={v => updatePonteContextualField('ponteContextual', v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Capítulos intermediários ou contexto bíblico de transição..."
+                      className="text-sm md:text-base font-extrabold text-white leading-relaxed"
+                    />
                   </div>
                 )}
               </div>
@@ -1063,9 +1514,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
                   TEXTO ÁUREO
                 </span>
-                <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
-                  “{lesson.textAureo.text}” ({lesson.textAureo.reference}).
-                </p>
+                <div className="space-y-2">
+                  <EditableText
+                    value={lesson.textAureo.text}
+                    onChange={v => updateTextAureo('text', v)}
+                    isEditMode={isEditMode}
+                    multiline
+                    placeholder="Texto bíblico áureo..."
+                    className="text-sm md:text-base font-extrabold text-white leading-relaxed"
+                  />
+                  <EditableText
+                    value={lesson.textAureo.reference}
+                    onChange={v => updateTextAureo('reference', v)}
+                    isEditMode={isEditMode}
+                    placeholder="Referência (ex: Salmos 119.105)"
+                    label={isEditMode ? 'Referência Bíblica' : undefined}
+                    className="text-xs text-amber-300 font-bold"
+                  />
+                </div>
               </div>
 
               {/* Verdade Prática */}
@@ -1073,9 +1539,14 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
                   VERDADE PRÁTICA
                 </span>
-                <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
-                  “{lesson.verdadePratica.text}”
-                </p>
+                <EditableText
+                  value={lesson.verdadePratica.text}
+                  onChange={v => updateVerdadePratica(v)}
+                  isEditMode={isEditMode}
+                  multiline
+                  placeholder="Verdade Prática da lição..."
+                  className="text-sm md:text-base font-extrabold text-white leading-relaxed"
+                />
               </div>
             </div>
           </div>
@@ -1098,19 +1569,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
           {/* DESENVOLVIMENTO DOS TÓPICOS I, II, III */}
           {lesson.topicos.map((topico, topicIdx) => (
-            <div key={topico.number} className="bg-slate-900/90 border border-slate-700/90 rounded-3xl overflow-hidden shadow-2xl space-y-4 p-6">
+            <div key={topico.number || topicIdx} className="bg-slate-900/90 border border-slate-700/90 rounded-3xl overflow-hidden shadow-2xl space-y-4 p-6">
               {/* Cabeçalho do Tópico com Botão Recolher/Expandir */}
               <div
                 onClick={() => toggleTopicExpand(topico.number)}
                 className="flex items-center justify-between cursor-pointer border-b border-slate-700/80 pb-4 group"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-orange-600 text-white font-black text-lg flex items-center justify-center shadow-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-orange-600 text-white font-black text-lg flex items-center justify-center shadow-lg shrink-0">
                     {topico.number}
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-xl md:text-2xl font-black text-white group-hover:text-amber-300 transition-colors">
-                      {topico.title}
+                      <EditableText
+                        value={topico.title}
+                        onChange={v => updateTopicTitle(topicIdx, v)}
+                        isEditMode={isEditMode}
+                        placeholder="Título do Tópico"
+                      />
                     </h2>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {topico.subtopicos.length} Subtópicos Oficiais (Mapa de Ensino)
@@ -1118,9 +1594,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </div>
                 </div>
 
-                <button className="p-2 text-slate-400 group-hover:text-white">
-                  {expandedTopics[topico.number] ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                </button>
+                <div className="flex items-center gap-2">
+                  {isEditMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeTopic(topicIdx);
+                      }}
+                      title="Excluir este Tópico"
+                      className="p-2 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white rounded-xl border border-red-500/30 transition-all cursor-pointer text-xs flex items-center gap-1 font-bold no-print"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Excluir Tópico</span>
+                    </button>
+                  )}
+                  <button className="p-2 text-slate-400 group-hover:text-white">
+                    {expandedTopics[topico.number] ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                  </button>
+                </div>
               </div>
 
               {/* Conteúdo Expandido do Tópico */}
@@ -1133,9 +1624,14 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <span className="text-sm md:text-base font-black text-blue-400 uppercase tracking-wider block">
                         📌 SINOPSE DO TÓPICO (REVISÃO RÁPIDA)
                       </span>
-                      <p className="text-base md:text-lg lg:text-xl text-slate-100 leading-relaxed font-semibold">
-                        {topico.sinopse}
-                      </p>
+                      <EditableText
+                        value={topico.sinopse}
+                        onChange={v => updateTopicSinopse(topicIdx, v)}
+                        isEditMode={isEditMode}
+                        multiline
+                        placeholder="Sinopse do tópico..."
+                        className="text-base md:text-lg lg:text-xl text-slate-100 leading-relaxed font-semibold"
+                      />
                     </div>
 
                     {/* Frases para Ênfase */}
@@ -1144,13 +1640,38 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         🗣️ FRASES DE ÊNFASE PARA AULA
                       </span>
                       <ul className="space-y-2 text-xs md:text-sm text-slate-200 font-semibold">
-                        {topico.frasesEnfase.map((frase, fIdx) => (
-                          <li key={fIdx} className="flex items-start gap-1.5">
-                            <span className="text-amber-400 font-bold">•</span>
-                            <span>"{frase}"</span>
+                        {(topico.frasesEnfase || []).map((frase, fIdx) => (
+                          <li key={fIdx} className="flex items-center gap-1.5">
+                            <span className="text-amber-400 font-bold shrink-0">•</span>
+                            <div className="flex-1">
+                              <EditableText
+                                value={frase}
+                                onChange={v => updateTopicFraseEnfase(topicIdx, fIdx, v)}
+                                isEditMode={isEditMode}
+                                placeholder="Frase de ênfase..."
+                              />
+                            </div>
+                            {isEditMode && (
+                              <button
+                                onClick={() => removeTopicFraseEnfase(topicIdx, fIdx)}
+                                className="p-1 text-red-400 hover:text-red-300 shrink-0"
+                                title="Remover esta frase"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </li>
                         ))}
                       </ul>
+                      {isEditMode && (
+                        <button
+                          onClick={() => addTopicFraseEnfase(topicIdx)}
+                          className="w-full mt-2 py-1.5 px-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Adicionar Frase de Ênfase</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1159,15 +1680,32 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     const sectionId = `${topicIdx}-${subIdx}`;
 
                     return (
-                      <div key={subtopico.number} className="subtopic-card bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5 shadow-xl transition-all">
+                      <div key={subtopico.number || subIdx} className="subtopic-card bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 md:p-6 space-y-5 shadow-xl transition-all">
                         {/* Cabeçalho do Subtópico */}
-                        <div className="border-b border-slate-700/60 pb-3">
-                          <span className="text-amber-400 font-bold text-xs uppercase tracking-wider block mb-1">
-                            SUBTÓPICO {subtopico.number}
-                          </span>
-                          <h3 className="text-lg md:text-xl font-extrabold text-white leading-tight">
-                            {subtopico.title}
-                          </h3>
+                        <div className="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                          <div className="flex-1">
+                            <span className="text-amber-400 font-bold text-xs uppercase tracking-wider block mb-1">
+                              SUBTÓPICO {subtopico.number}
+                            </span>
+                            <h3 className="text-lg md:text-xl font-extrabold text-white leading-tight">
+                              <EditableText
+                                value={subtopico.title}
+                                onChange={v => updateSubtopicField(topicIdx, subIdx, 'title', v)}
+                                isEditMode={isEditMode}
+                                placeholder="Título do Subtópico"
+                              />
+                            </h3>
+                          </div>
+                          {isEditMode && (
+                            <button
+                              onClick={() => removeSubtopicFromTopic(topicIdx, subIdx)}
+                              className="p-2 bg-red-600/20 hover:bg-red-600 text-red-300 hover:text-white rounded-xl border border-red-500/30 text-xs font-bold flex items-center gap-1 transition-all shrink-0 cursor-pointer ml-2"
+                              title="Remover este subtópico"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Remover</span>
+                            </button>
+                          )}
                         </div>
 
                         {/* CAMADA 1 — PROJETOR (TEXTO OFICIAL DA LIÇÃO PARA ALUNOS - QUADRO AZUL) */}
@@ -1197,7 +1735,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;
                           }
 
-                          if (!textoQuadroAzul) return null;
+                          if (!textoQuadroAzul && !isEditMode) return null;
 
                           return (
                             <div className="camada-1-box bg-blue-950/40 border border-blue-400/50 rounded-xl p-5 space-y-2.5 shadow-sm no-print">
@@ -1206,17 +1744,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   <Monitor className="w-4 h-4 text-blue-400" />
                                   CAMADA 1 — PROJETOR (TEXTO LITERAL DA REVISTA - IPSIS LITTERIS)
                                 </span>
-                                <button
-                                  onClick={() => handleRegenerateSection('projetor', topicIdx, subIdx)}
-                                  disabled={regeneratingId === `${sectionId}-projetor`}
-                                  className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
-                                >
-                                  {regeneratingId === `${sectionId}-projetor` ? 'Regenerando...' : '🔄 Regenerar Texto'}
-                                </button>
+                                {!isEditMode && (
+                                  <button
+                                    onClick={() => handleRegenerateSection('projetor', topicIdx, subIdx)}
+                                    disabled={regeneratingId === `${sectionId}-projetor`}
+                                    className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
+                                  >
+                                    {regeneratingId === `${sectionId}-projetor` ? 'Regenerando...' : '🔄 Regenerar Texto'}
+                                  </button>
+                                )}
                               </div>
-                              <p className="text-base md:text-lg font-bold text-slate-100 leading-relaxed">
-                                “{textoQuadroAzul}”
-                              </p>
+                              <EditableText
+                                value={textoQuadroAzul}
+                                onChange={v => updateSubtopicField(topicIdx, subIdx, 'projetor', v)}
+                                isEditMode={isEditMode}
+                                multiline
+                                placeholder="Texto de destaque para o projetor..."
+                                className="text-base md:text-lg font-bold text-slate-100 leading-relaxed"
+                              />
                             </div>
                           );
                         })()}
@@ -1230,131 +1775,217 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 <FileText className="w-4 h-4 text-blue-400" />
                                 EXPLICAÇÃO DIDÁTICA DO PROFESSOR (CONSTANTE FRASE A FRASE)
                               </span>
-                              <button
-                                onClick={() => handleRegenerateSection('explicacao', topicIdx, subIdx)}
-                                disabled={regeneratingId === `${sectionId}-explicacao`}
-                                className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
-                              >
-                                {regeneratingId === `${sectionId}-explicacao` ? 'Regenerando...' : '🔄 Regenerar Explicação'}
-                              </button>
+                              {!isEditMode && (
+                                <button
+                                  onClick={() => handleRegenerateSection('explicacao', topicIdx, subIdx)}
+                                  disabled={regeneratingId === `${sectionId}-explicacao`}
+                                  className="no-print hover:text-white transition-colors cursor-pointer text-xs font-bold"
+                                >
+                                  {regeneratingId === `${sectionId}-explicacao` ? 'Regenerando...' : '🔄 Regenerar Explicação'}
+                                </button>
+                              )}
                             </div>
 
                             {subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0 ? (
                               <div className="space-y-4">
                                 {subtopico.frasesExplicativas.map((item, fIdx) => (
-                                  <div key={fIdx} className="explicacao-item-card bg-slate-950/80 p-5 rounded-xl border border-slate-800 space-y-3 shadow-sm">
+                                  <div key={fIdx} className="explicacao-item-card bg-slate-950/80 p-5 rounded-xl border border-slate-800 space-y-3 shadow-sm relative">
+                                    {isEditMode && (
+                                      <button
+                                        onClick={() => removeFraseExplicativa(topicIdx, subIdx, fIdx)}
+                                        className="absolute top-3 right-3 p-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-bold cursor-pointer"
+                                        title="Remover esta frase explicativa"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                     <div className="flex items-start gap-2 text-amber-400 font-extrabold text-base md:text-lg">
                                       <span className="shrink-0">📌 Frase do Texto:</span>
-                                      <span className="italic text-slate-100 font-semibold">“{item.frase}”</span>
+                                      <div className="flex-1">
+                                        <EditableText
+                                          value={item.frase}
+                                          onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'frase', v)}
+                                          isEditMode={isEditMode}
+                                          placeholder="Frase da revista..."
+                                          className="italic text-slate-100 font-semibold"
+                                        />
+                                      </div>
                                     </div>
                                     <div className="pl-4 border-l-4 border-blue-500 space-y-1">
                                       <span className="text-blue-400 font-bold block text-xs md:text-sm uppercase tracking-wider">
                                         👉 Explicação Didática & Histórica:
                                       </span>
-                                      <p className="text-sm md:text-base text-slate-200 leading-relaxed font-normal">
-                                        {item.explicacao}
-                                      </p>
+                                      <EditableText
+                                        value={item.explicacao}
+                                        onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'explicacao', v)}
+                                        isEditMode={isEditMode}
+                                        multiline
+                                        placeholder="Explicação didática do professor..."
+                                        className="text-sm md:text-base text-slate-200 leading-relaxed font-normal"
+                                      />
                                     </div>
-                                    {item.exemplo && (
+                                    {(isEditMode || item.exemplo) && (
                                       <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2.5">
                                         <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
                                           <span>💡 EXEMPLO / ALUSÃO PRÁTICA PARA A AULA:</span>
                                         </span>
-                                        <p className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic">
-                                          "{item.exemplo}"
-                                        </p>
+                                        <EditableText
+                                          value={item.exemplo || ''}
+                                          onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'exemplo', v)}
+                                          isEditMode={isEditMode}
+                                          multiline
+                                          placeholder="Exemplo ou alusão prática..."
+                                          className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic"
+                                        />
                                       </div>
                                     )}
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-sm md:text-base text-slate-200 leading-relaxed font-normal bg-slate-950 p-5 rounded-xl border border-slate-800 whitespace-pre-line">
-                                {subtopico.explicacao || 
-                                 (subtopico.ideias && subtopico.ideias.map(i => `${i.professor?.contexto ? `Contexto Histórico: ${i.professor.contexto}\n\n` : ''}${i.professor?.explicacao || ''}`).filter(Boolean).join('\n\n')) || 
-                                 'Clique no botão "🔄 Regenerar Explicação" acima para gerar a explicação didática deste subtópico.'}
-                              </p>
+                              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                                <EditableText
+                                  value={subtopico.explicacao || ''}
+                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'explicacao', v)}
+                                  isEditMode={isEditMode}
+                                  multiline
+                                  placeholder="Explicação didática do professor..."
+                                  className="text-sm md:text-base text-slate-200 leading-relaxed font-normal whitespace-pre-line"
+                                />
+                              </div>
                             )}
 
-                            {subtopico.exemploAlusao && (
+                            {isEditMode && (
+                              <button
+                                onClick={() => addFraseExplicativa(topicIdx, subIdx)}
+                                className="w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                              >
+                                <Plus className="w-4 h-4" />
+                                <span>+ Adicionar Frase Explicativa ao Subtópico</span>
+                              </button>
+                            )}
+
+                            {(isEditMode || subtopico.exemploAlusao) && (
                               <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2">
                                 <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
                                   <span>💡 EXEMPLO / ALUSÃO ILUSTRATIVA PARA A AULA:</span>
                                 </span>
-                                <p className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic">
-                                  "{subtopico.exemploAlusao}"
-                                </p>
+                                <EditableText
+                                  value={subtopico.exemploAlusao || ''}
+                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'exemploAlusao', v)}
+                                  isEditMode={isEditMode}
+                                  multiline
+                                  placeholder="Exemplo ou alusão prática para ilustrar a aula..."
+                                  className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic"
+                                />
                               </div>
                             )}
                           </div>
 
                           {/* 2. Textos Bíblicos Relevantes (ARC) */}
-                          {subtopico.versiculos && subtopico.versiculos.length > 0 && (
+                          {(isEditMode || (subtopico.versiculos && subtopico.versiculos.length > 0)) && (
                             <div className="space-y-2">
                               <span className="text-emerald-400 font-extrabold text-xs uppercase block">
                                 📖 TEXTOS BÍBLICOS RELEVANTES (ARC)
                               </span>
                               <div className="space-y-2">
-                                {subtopico.versiculos.map((v, vIdx) => (
-                                  <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl">
-                                    <span className="font-extrabold text-amber-300 text-xs block mb-1">
-                                      {v.reference}
-                                    </span>
-                                    <p className="text-xs text-slate-200 leading-relaxed font-medium italic">
-                                      “{v.text}”
-                                    </p>
+                                {(subtopico.versiculos || []).map((v, vIdx) => (
+                                  <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl relative">
+                                    {isEditMode && (
+                                      <button
+                                        onClick={() => removeVersiculoSubtopic(topicIdx, subIdx, vIdx)}
+                                        className="absolute top-2 right-2 p-1 text-red-400 hover:text-red-300"
+                                        title="Remover versículo"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    <EditableText
+                                      value={v.reference}
+                                      onChange={val => updateVersiculoSubtopic(topicIdx, subIdx, vIdx, 'reference', val)}
+                                      isEditMode={isEditMode}
+                                      placeholder="Referência Bíblica"
+                                      className="font-extrabold text-amber-300 text-xs block mb-1"
+                                    />
+                                    <EditableText
+                                      value={v.text}
+                                      onChange={val => updateVersiculoSubtopic(topicIdx, subIdx, vIdx, 'text', val)}
+                                      isEditMode={isEditMode}
+                                      multiline
+                                      placeholder="Texto do versículo..."
+                                      className="text-xs text-slate-200 leading-relaxed font-medium italic"
+                                    />
                                   </div>
                                 ))}
                               </div>
+                              {isEditMode && (
+                                <button
+                                  onClick={() => addVersiculoSubtopic(topicIdx, subIdx)}
+                                  className="w-full py-1.5 px-3 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                  <span>+ Adicionar Versículo</span>
+                                </button>
+                              )}
                             </div>
                           )}
 
                           {/* 3. Aplicação Prática & Pentecostal */}
-                          {subtopico.aplicacao && (
+                          {(isEditMode || subtopico.aplicacao) && (
                             <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl no-print">
                               <div className="flex items-center justify-between text-amber-400 font-extrabold text-xs uppercase">
                                 <span>🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL</span>
-                                <button
-                                  onClick={() => handleRegenerateSection('aplicacao', topicIdx, subIdx)}
-                                  disabled={regeneratingId === `${sectionId}-aplicacao`}
-                                  className="hover:text-white transition-colors cursor-pointer text-[11px]"
-                                >
-                                  {regeneratingId === `${sectionId}-aplicacao` ? 'Regenerando...' : '🔄 Regenerar Aplicação'}
-                                </button>
+                                {!isEditMode && (
+                                  <button
+                                    onClick={() => handleRegenerateSection('aplicacao', topicIdx, subIdx)}
+                                    disabled={regeneratingId === `${sectionId}-aplicacao`}
+                                    className="hover:text-white transition-colors cursor-pointer text-[11px]"
+                                  >
+                                    {regeneratingId === `${sectionId}-aplicacao` ? 'Regenerando...' : '🔄 Regenerar Aplicação'}
+                                  </button>
+                                )}
                               </div>
-                              <p className="text-xs text-slate-200 leading-relaxed font-semibold">
-                                {subtopico.aplicacao}
-                              </p>
+                              <EditableText
+                                value={subtopico.aplicacao || ''}
+                                onChange={v => updateSubtopicField(topicIdx, subIdx, 'aplicacao', v)}
+                                isEditMode={isEditMode}
+                                multiline
+                                placeholder="Aplicação prática para a vida dos alunos..."
+                                className="text-xs text-slate-200 leading-relaxed font-semibold"
+                              />
                             </div>
                           )}
 
                           {/* 4. Frase de Ênfase para o Professor */}
-                          {subtopico.enfase && (() => {
-                            const cleanEnfase = subtopico.enfase
-                              .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
-                              .replace(/^["'“]?\s*Ênfase\s*(?:para\s+a\s+sala)?\s*[\:\–\—\-]?\s*/i, '')
-                              .replace(/^["'“]?\s*📌\s*/, '')
-                              .replace(/^["'“]?\s*💡\s*/, '')
-                              .replace(/["'”]?\s*$/, '')
-                              .trim();
-
-                            return (
-                              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
-                                <span className="text-orange-400 font-black text-sm">💡</span>
-                                <span><strong className="text-orange-300">Ênfase para a Sala:</strong> "{cleanEnfase}"</span>
+                          {(isEditMode || subtopico.enfase) && (
+                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
+                              <span className="text-orange-400 font-black text-sm shrink-0">💡</span>
+                              <div className="flex-1">
+                                <EditableText
+                                  value={subtopico.enfase || ''}
+                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'enfase', v)}
+                                  isEditMode={isEditMode}
+                                  placeholder="Frase de ênfase para a sala..."
+                                  label={isEditMode ? 'Ênfase para a Sala' : undefined}
+                                />
                               </div>
-                            );
-                          })()}
+                            </div>
+                          )}
 
                           {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
-                          {subtopico.cuidadoDoutrinario && (
+                          {(isEditMode || subtopico.cuidadoDoutrinario) && (
                             <div className="bg-gradient-to-r from-red-950/40 via-orange-950/30 to-slate-950 border border-red-500/40 p-4 rounded-xl space-y-1 shadow-lg no-print">
-                              <span className="text-red-400 font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                                <span>🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO)</span>
+                              <span className="text-red-400 font-black text-xs uppercase tracking-wider block">
+                                🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO)
                               </span>
-                              <p className="text-xs font-bold text-red-200 leading-relaxed">
-                                ⚠️ {subtopico.cuidadoDoutrinario}
-                              </p>
+                              <EditableText
+                                value={subtopico.cuidadoDoutrinario || ''}
+                                onChange={v => updateSubtopicField(topicIdx, subIdx, 'cuidadoDoutrinario', v)}
+                                isEditMode={isEditMode}
+                                multiline
+                                placeholder="Alerta ou cuidado doutrinário..."
+                                className="text-xs font-bold text-red-200 leading-relaxed"
+                              />
                             </div>
                           )}
 
@@ -1402,28 +2033,34 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               </p>
                             </div>
                           )}
-
-                          {/* FALLBACK LEGADO: IDEIAS a, b (se o objeto for legado) */}
-                          {!(subtopico.explicacao || subtopico.projetor || (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)) && subtopico.ideias && subtopico.ideias.length > 0 && (
-                            <div className="space-y-4 pt-2">
-                              {subtopico.ideias.map((ideia) => (
-                                <div key={ideia.letra} className="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
-                                  <div className="font-extrabold text-white text-xs">
-                                    Ideia {ideia.letra.toUpperCase()}: {ideia.titulo}
-                                  </div>
-                                  <p className="text-xs text-slate-300">{ideia.professor.explicacao}</p>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
                   })}
+
+                  {isEditMode && (
+                    <button
+                      onClick={() => addSubtopicToTopic(topicIdx)}
+                      className="w-full py-3 px-4 bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border-2 border-dashed border-orange-500/50 rounded-2xl font-black text-sm flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>+ Adicionar Novo Subtópico ao {topico.number}</span>
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           ))}
+
+          {isEditMode && (
+            <button
+              onClick={addNewTopic}
+              className="w-full py-4 px-6 bg-gradient-to-r from-amber-600/20 to-orange-600/20 hover:from-amber-600/30 hover:to-orange-600/30 text-amber-300 border-2 border-dashed border-amber-500/60 rounded-3xl font-black text-base flex items-center justify-center gap-2 cursor-pointer transition-all shadow-xl"
+            >
+              <Plus className="w-5 h-5" />
+              <span>+ Adicionar Novo Tópico (Tópico {lesson.topicos.length + 1})</span>
+            </button>
+          )}
 
           {/* CONCLUSÃO DA AULA */}
           <div className="bg-slate-900 border border-purple-500/40 p-6 rounded-3xl shadow-xl space-y-4">
@@ -1433,23 +2070,60 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             </h2>
 
             <div className="space-y-3">
-              <p className="text-sm md:text-base font-extrabold text-white leading-relaxed">
-                “{lesson.conclusao.takeaway}”
-              </p>
+              <EditableText
+                value={lesson.conclusao.takeaway}
+                onChange={v => updateConclusaoField('takeaway', v)}
+                isEditMode={isEditMode}
+                multiline
+                placeholder="Síntese da conclusão..."
+                className="text-sm md:text-base font-extrabold text-white leading-relaxed"
+              />
 
               <ul className="space-y-2 text-xs md:text-sm text-slate-200 font-medium">
-                {lesson.conclusao.bulletPoints.map((pt, idx) => (
-                  <li key={idx} className="flex items-start gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
-                    <span className="text-purple-400 font-bold">•</span>
-                    <span>{pt}</span>
+                {(lesson.conclusao.bulletPoints || []).map((pt, idx) => (
+                  <li key={idx} className="flex items-center gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+                    <span className="text-purple-400 font-bold shrink-0">•</span>
+                    <div className="flex-1">
+                      <EditableText
+                        value={pt}
+                        onChange={v => updateConclusaoBullet(idx, v)}
+                        isEditMode={isEditMode}
+                        placeholder="Ponto principal..."
+                      />
+                    </div>
+                    {isEditMode && (
+                      <button
+                        onClick={() => removeConclusaoBullet(idx)}
+                        className="p-1 text-red-400 hover:text-red-300 shrink-0"
+                        title="Remover ponto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
+              {isEditMode && (
+                <button
+                  onClick={addConclusaoBullet}
+                  className="w-full py-2 px-3 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Adicionar Ponto Chave na Conclusão</span>
+                </button>
+              )}
 
-              {lesson.conclusao.finalPrayer && (
+              {(isEditMode || lesson.conclusao.finalPrayer) && (
                 <div className="bg-purple-950/40 border border-purple-500/30 p-4 rounded-2xl text-xs md:text-sm text-purple-200 font-bold space-y-1 mt-3">
                   <span className="text-amber-300 uppercase tracking-wide block font-black">🙏 SUGESTÃO DE ORAÇÃO FINAL COM A CLASSE:</span>
-                  <p className="italic">"{lesson.conclusao.finalPrayer}"</p>
+                  <EditableText
+                    value={lesson.conclusao.finalPrayer || ''}
+                    onChange={v => updateConclusaoField('finalPrayer', v)}
+                    isEditMode={isEditMode}
+                    multiline
+                    placeholder="Sugestão de oração final..."
+                    className="italic text-purple-100"
+                  />
                 </div>
               )}
             </div>
@@ -1626,7 +2300,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
               </button>
 
-              {/* ── BOTÃO DA LOUSA INTERATIVA (POSICIONADO ONDE O USUÁRIO CIRCULOU NA TOOLBAR) ── */}
+              {/* ── BOTÃO DA LOUSA INTERATIVA ── */}
               <button
                 onClick={() => setIsLousaActive(!isLousaActive)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
@@ -1639,8 +2313,109 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <Edit3 className="w-3.5 h-3.5 text-current" />
                 <span>{isLousaActive ? '✏️ Lousa Ativa' : '✏️ Lousa Interativa'}</span>
               </button>
+
+              {/* ── BOTÃO DE EDITAR SLIDE (MODO PROJETOR) ── */}
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                  isEditMode
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 ring-2 ring-amber-400/50'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                }`}
+                title="Ativar/desativar modo de edição livre de texto do slide"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-current" />
+                <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
+              </button>
             </div>
           </div>
+
+          {/* ── Painel de Edição Direta do Slide Atual (Modo Projetor) ── */}
+          {isEditMode && currentProjectorItem && !isExporting && (
+            <div className="bg-amber-950/90 border-2 border-amber-500/80 p-4 rounded-2xl shadow-2xl space-y-3 mb-3 text-left animate-in fade-in duration-200">
+              <div className="flex items-center justify-between border-b border-amber-500/40 pb-2">
+                <span className="text-amber-300 font-extrabold text-xs uppercase flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-amber-400" />
+                  <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
+                </span>
+                <span className="text-[11px] text-amber-200/80 italic font-medium">Salvo automaticamente no MegaEBD!</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Título do Slide */}
+                {(currentProjectorItem.onUpdateTitle || currentProjectorItem.type === 'cover') && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase block">Título / Rótulo do Slide</label>
+                    <input
+                      type="text"
+                      value={currentProjectorItem.title || ''}
+                      onChange={(e) => {
+                        if (currentProjectorItem.onUpdateTitle) currentProjectorItem.onUpdateTitle(e.target.value);
+                      }}
+                      placeholder="Título do slide..."
+                      className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-2 text-xs outline-none"
+                    />
+                  </div>
+                )}
+
+                {/* Subtítulo / Referência */}
+                {(currentProjectorItem.subtitle !== undefined || currentProjectorItem.reference !== undefined) && (
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-300 uppercase block">
+                      {currentProjectorItem.reference !== undefined ? 'Referência Bíblica' : 'Subtítulo do Slide'}
+                    </label>
+                    <input
+                      type="text"
+                      value={currentProjectorItem.reference || currentProjectorItem.subtitle || ''}
+                      onChange={(e) => {
+                        if (currentProjectorItem.onUpdateReference) currentProjectorItem.onUpdateReference(e.target.value);
+                        else if (currentProjectorItem.onUpdateSubtitle) currentProjectorItem.onUpdateSubtitle(e.target.value);
+                      }}
+                      placeholder="Subtítulo ou referência..."
+                      className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-2 text-xs outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Texto Principal do Slide */}
+              {currentProjectorItem.projetorText !== undefined && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-amber-300 uppercase block">Texto Principal do Slide (Projetor)</label>
+                  <textarea
+                    rows={3}
+                    value={currentProjectorItem.projetorText || ''}
+                    onChange={(e) => {
+                      if (currentProjectorItem.onUpdateText) currentProjectorItem.onUpdateText(e.target.value);
+                    }}
+                    placeholder="Digite ou cole o texto para exibir no projetor..."
+                    className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl p-3 text-xs outline-none resize-y font-sans"
+                  />
+                </div>
+              )}
+
+              {/* Pontos Principais (se slide de verdades) */}
+              {currentProjectorItem.type === 'verdades' && currentProjectorItem.bulletPoints && (
+                <div className="space-y-2">
+                  <label className="text-[11px] font-bold text-amber-300 uppercase block">Pontos Principais (Verdades para Guardar)</label>
+                  {currentProjectorItem.bulletPoints.map((pt, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-amber-400 font-bold text-xs shrink-0">{idx + 1}.</span>
+                      <input
+                        type="text"
+                        value={pt}
+                        onChange={(e) => {
+                          if (currentProjectorItem.onUpdateBulletPoint) currentProjectorItem.onUpdateBulletPoint(idx, e.target.value);
+                        }}
+                        placeholder={`Ponto ${idx + 1}...`}
+                        className="flex-1 bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-1.5 text-xs outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Painel de Ferramentas da Lousa Interativa ── */}
           {isLousaActive && !isExporting && (
