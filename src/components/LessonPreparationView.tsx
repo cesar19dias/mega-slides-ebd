@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
@@ -166,6 +166,18 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [lesson, setLesson] = useState<EBDLessonPreparation>(lessonData);
   const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
+  // Estado da Visão do Projetor (Slide atual e escala da fonte)
+  const [projectorIndex, setProjectorIndex] = useState(0);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [projectorFontSizeScale, setProjectorFontSizeScale] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('mega_ebd_font_size_scale');
+      return saved ? parseFloat(saved) : 1.0;
+    } catch {
+      return 1.0;
+    }
+  });
 
   useEffect(() => {
     setLesson(lessonData);
@@ -437,11 +449,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       }
     }));
   };
-
-
-  // Estado da Visão do Projetor (Slide atual no projetor)
-  const [projectorIndex, setProjectorIndex] = useState(0);
-  const [isExporting, setIsExporting] = useState<string | null>(null);
 
   // Estados da Lousa Interativa (Modo Projetor)
   const [isLousaActive, setIsLousaActive] = useState(false);
@@ -2327,18 +2334,90 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <Edit3 className="w-3.5 h-3.5 text-current" />
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
               </button>
+
+              {/* ── CONTROLE DE TAMANHO DA FONTE DOS SLIDES ── */}
+              <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800" title="Ajustar tamanho da fonte de todos os slides">
+                <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <button
+                  onClick={() => {
+                    const next = Math.max(0.7, Math.round((projectorFontSizeScale - 0.1) * 10) / 10);
+                    setProjectorFontSizeScale(next);
+                    try { localStorage.setItem('mega_ebd_font_size_scale', String(next)); } catch {}
+                  }}
+                  disabled={projectorFontSizeScale <= 0.7}
+                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                  title="Diminuir tamanho da fonte (A-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+                </button>
+
+                <span className="text-xs font-black text-amber-300 px-1 min-w-[42px] text-center font-mono">
+                  {Math.round(projectorFontSizeScale * 100)}%
+                </span>
+
+                <button
+                  onClick={() => {
+                    const next = Math.min(2.0, Math.round((projectorFontSizeScale + 0.1) * 10) / 10);
+                    setProjectorFontSizeScale(next);
+                    try { localStorage.setItem('mega_ebd_font_size_scale', String(next)); } catch {}
+                  }}
+                  disabled={projectorFontSizeScale >= 2.0}
+                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                  title="Aumentar tamanho da fonte (A+)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                </button>
+
+                {projectorFontSizeScale !== 1.0 && (
+                  <button
+                    onClick={() => {
+                      setProjectorFontSizeScale(1.0);
+                      try { localStorage.setItem('mega_ebd_font_size_scale', '1.0'); } catch {}
+                    }}
+                    className="text-[10px] font-extrabold text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 transition-colors cursor-pointer"
+                    title="Restaurar tamanho padrão (100%)"
+                  >
+                    100%
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           {/* ── Painel de Edição Direta do Slide Atual (Modo Projetor) ── */}
           {isEditMode && currentProjectorItem && !isExporting && (
             <div className="bg-amber-950/90 border-2 border-amber-500/80 p-4 rounded-2xl shadow-2xl space-y-3 mb-3 text-left animate-in fade-in duration-200">
-              <div className="flex items-center justify-between border-b border-amber-500/40 pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 pb-2">
                 <span className="text-amber-300 font-extrabold text-xs uppercase flex items-center gap-2">
                   <Edit3 className="w-4 h-4 text-amber-400" />
                   <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
                 </span>
-                <span className="text-[11px] text-amber-200/80 italic font-medium">Salvo automaticamente no MegaEBD!</span>
+
+                {/* Presets Rápidos de Tamanho da Fonte */}
+                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-200">
+                  <span className="text-amber-400/80 text-[10px] uppercase mr-1">Tamanho Fonte:</span>
+                  {[
+                    { label: 'Pequena', val: 0.85 },
+                    { label: 'Normal', val: 1.0 },
+                    { label: 'Grande', val: 1.2 },
+                    { label: 'Gigante', val: 1.4 }
+                  ].map(p => (
+                    <button
+                      key={p.val}
+                      onClick={() => {
+                        setProjectorFontSizeScale(p.val);
+                        try { localStorage.setItem('mega_ebd_font_size_scale', String(p.val)); } catch {}
+                      }}
+                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer border ${
+                        projectorFontSizeScale === p.val
+                          ? 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-sm'
+                          : 'bg-slate-950/80 text-amber-300 hover:bg-amber-900/60 border-amber-500/30'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -2560,7 +2639,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
-                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
+                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ fontSize: `${projectorFontSizeScale * 100}%` }}>
                     {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
                     <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
                       <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
@@ -2665,7 +2744,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham">
+                <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ fontSize: `${projectorFontSizeScale * 100}%` }}>
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
                   <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
                     <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}>
