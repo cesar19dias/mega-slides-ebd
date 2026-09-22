@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
 import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
+import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
 import { QrCodeModal } from './QrCodeModal';
 
@@ -173,14 +173,39 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [projectorFontSizeScale, setProjectorFontSizeScale] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('mega_ebd_font_size_scale');
-      return saved ? parseFloat(saved) : 1.0;
+      return saved ? parseFloat(saved) : (lessonData.projectorFontSizeScale || 1.0);
     } catch {
-      return 1.0;
+      return lessonData.projectorFontSizeScale || 1.0;
     }
   });
 
+  // Estado de escalas de fonte individuais por slide (indexadas pelo projectorIndex)
+  const [slideFontScales, setSlideFontScales] = useState<Record<number, number>>(() => {
+    if (lessonData.slideFontScales && Object.keys(lessonData.slideFontScales).length > 0) {
+      return lessonData.slideFontScales;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_slide_font_scales');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Escala efetiva da fonte do slide atual e flag se possui personalização individual
+  const currentSlideScale = slideFontScales[projectorIndex] !== undefined
+    ? slideFontScales[projectorIndex]
+    : projectorFontSizeScale;
+  const isCurrentSlideCustomFont = slideFontScales[projectorIndex] !== undefined;
+
   useEffect(() => {
     setLesson(lessonData);
+    if (lessonData.slideFontScales) {
+      setSlideFontScales(lessonData.slideFontScales);
+    }
+    if (lessonData.projectorFontSizeScale) {
+      setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
+    }
   }, [lessonData]);
 
   const updateLesson = useCallback((updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => {
@@ -190,6 +215,35 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       return next;
     });
   }, [onUpdateLesson]);
+
+  // Define a escala de fonte para um slide específico
+  const setSingleSlideFontScale = useCallback((slideIdx: number, scale: number | null) => {
+    setSlideFontScales(prev => {
+      const next = { ...prev };
+      if (scale === null || scale === undefined) {
+        delete next[slideIdx];
+      } else {
+        next[slideIdx] = Math.round(scale * 100) / 100;
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_font_scales', JSON.stringify(next));
+      } catch {}
+      updateLesson(l => ({ ...l, slideFontScales: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  // Aplica o tamanho de fonte a todos os slides da lição
+  const applyScaleToAllSlides = useCallback((scale: number) => {
+    const rounded = Math.round(scale * 100) / 100;
+    setProjectorFontSizeScale(rounded);
+    setSlideFontScales({});
+    try {
+      localStorage.setItem('mega_ebd_font_size_scale', String(rounded));
+      localStorage.setItem('mega_ebd_slide_font_scales', JSON.stringify({}));
+    } catch {}
+    updateLesson(l => ({ ...l, projectorFontSizeScale: rounded, slideFontScales: {} }));
+  }, [updateLesson]);
 
   const updateMetadata = (field: keyof EBDLessonPreparation['metadata'], val: string) => {
     updateLesson(prev => ({
@@ -213,17 +267,24 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   };
 
   const updatePonteContextualField = (field: string, val: string) => {
-    updateLesson(prev => ({
-      ...prev,
-      introducao: {
-        ...prev.introducao,
-        ponteContextual: {
-          ...prev.introducao?.ponteContextual,
-          enabled: true,
-          [field]: val
+    updateLesson(prev => {
+      const pc = {
+        ...prev.introducao?.ponteContextual,
+        enabled: true,
+        [field]: val
+      };
+      if (field === 'naLicaoAnterior') pc.ondeParou = val;
+      if (field === 'ondeParou') pc.naLicaoAnterior = val;
+      if (field === 'ponteContextual') pc.capitulosIntermediarios = val;
+      if (field === 'capitulosIntermediarios') pc.ponteContextual = val;
+      return {
+        ...prev,
+        introducao: {
+          ...prev.introducao,
+          ponteContextual: pc
         }
-      }
-    }));
+      };
+    });
   };
 
   const updateTopicTitle = (topicIdx: number, val: string) => {
@@ -338,45 +399,16 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     updateLesson(prev => {
       const topicos = [...prev.topicos];
       const subList = [...topicos[topicIdx].subtopicos];
-      subList[subIdx] = { ...subList[subIdx], [field]: val };
+      const updatedSub = { ...subList[subIdx], [field]: val };
+      if (field === 'explicacao' || field === 'projetor') {
+        delete updatedSub.frasesExplicativas;
+      }
+      subList[subIdx] = updatedSub;
       topicos[topicIdx] = { ...topicos[topicIdx], subtopicos: subList };
       return { ...prev, topicos };
     });
   };
 
-  const addFraseExplicativa = (topicIdx: number, subIdx: number) => {
-    updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      const list = [...(sub.frasesExplicativas || [])];
-      list.push({ frase: 'Nova frase extraída da revista', explicacao: 'Explicação didática do professor...', exemplo: '' });
-      sub.frasesExplicativas = list;
-      topicos[topicIdx].subtopicos[subIdx] = sub;
-      return { ...prev, topicos };
-    });
-  };
-
-  const updateFraseExplicativa = (topicIdx: number, subIdx: number, fIdx: number, field: 'frase' | 'explicacao' | 'exemplo', val: string) => {
-    updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      const list = [...(sub.frasesExplicativas || [])];
-      list[fIdx] = { ...list[fIdx], [field]: val };
-      sub.frasesExplicativas = list;
-      topicos[topicIdx].subtopicos[subIdx] = sub;
-      return { ...prev, topicos };
-    });
-  };
-
-  const removeFraseExplicativa = (topicIdx: number, subIdx: number, fIdx: number) => {
-    updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      sub.frasesExplicativas = (sub.frasesExplicativas || []).filter((_, idx) => idx !== fIdx);
-      topicos[topicIdx].subtopicos[subIdx] = sub;
-      return { ...prev, topicos };
-    });
-  };
 
   const addVersiculoSubtopic = (topicIdx: number, subIdx: number) => {
     updateLesson(prev => {
@@ -532,9 +564,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     if (data.introducao?.ponteContextual?.enabled) {
       const bridge = data.introducao.ponteContextual;
+      const licaoAnt = bridge.naLicaoAnterior || bridge.ondeParou;
+      const interv = bridge.ponteContextual || bridge.capitulosIntermediarios;
       text += `--- PONTE CONTEXTUAL & TRANSIÇÃO BÍBLICA ---\n`;
-      if (bridge.ondeParou) text += `📌 Onde a lição anterior parou: ${bridge.ondeParou}\n`;
-      if (bridge.capitulosIntermediarios) text += `📜 O que aconteceu no intervalo: ${bridge.capitulosIntermediarios}\n`;
+      if (licaoAnt) text += `📌 Na lição anterior: ${licaoAnt}\n`;
+      if (interv) text += `📜 O que aconteceu no intervalo: ${interv}\n`;
       if (bridge.ganchoAulaAtual) text += `👉 Transição para hoje: ${bridge.ganchoAulaAtual}\n`;
       if (bridge.projetor) text += `🖥️ Síntese no Projetor: "${bridge.projetor}"\n`;
       text += `\n`;
@@ -573,30 +607,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       topico.subtopicos.forEach((sub) => {
         text += `--- Subtópico ${sub.number}: ${sub.title} ---\n\n`;
 
-        const txtProjetor = (sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
+        const txtProjetor = sub.projetor || ((sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
           ? sub.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
-          : (sub.projetor || '');
+          : '');
 
         if (txtProjetor) {
           text += `🖥️ CAMADA 1 - PROJETOR (TEXTO DA REVISTA PARA O QUADRO AZUL):\n"${txtProjetor}"\n\n`;
         }
 
-        if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
-          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (FRASE A FRASE COM EXEMPLOS):\n`;
-          sub.frasesExplicativas.forEach((f) => {
-            text += `📌 Frase: "${f.frase}"\n👉 Explicação: ${f.explicacao}\n`;
-            if (f.exemplo) {
-              text += `💡 Exemplo/Alusão Prática: "${f.exemplo}"\n`;
-            }
-            text += `\n`;
-          });
-        } else if (sub.explicacao) {
-          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (COM CONTEXTO HISTÓRICO INTEGRADO):\n${sub.explicacao}\n\n`;
+        if (sub.explicacao) {
+          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (EXPLICAÇÃO LINEAR):\n${sub.explicacao}\n\n`;
+        } else if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
+          text += `👨‍🏫 CAMADA 2 - EXPLICAÇÃO DIDÁTICA DO PROFESSOR (EXPLICAÇÃO LINEAR):\n`;
+          const linhasLinear = sub.frasesExplicativas
+            .map(f => {
+              const label = f.frase ? `"${f.frase}" — ` : '';
+              return `${label}${f.explicacao}`.trim();
+            })
+            .filter(Boolean);
+          text += linhasLinear.join('\n\n') + '\n\n';
         }
 
-        if (sub.exemploAlusao) {
-          text += `💡 EXEMPLO / ALUSÃO ILUSTRATIVA:\n"${sub.exemploAlusao}"\n\n`;
-        }
 
         if (sub.versiculos && sub.versiculos.length > 0) {
           text += `📖 TEXTOS BÍBLICOS RELEVANTES (ARC):\n`;
@@ -683,9 +714,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     if (data.introducao?.ponteContextual?.enabled) {
       const bridge = data.introducao.ponteContextual;
+      const licaoAnt = bridge.naLicaoAnterior || bridge.ondeParou;
+      const interv = bridge.ponteContextual || bridge.capitulosIntermediarios;
       text += `TRANSIÇÃO BÍBLICA & CONTEXTO\n`;
-      if (bridge.ondeParou) text += `📌 Na lição anterior: ${bridge.ondeParou}\n`;
-      if (bridge.capitulosIntermediarios) text += `📜 Intervalo bíblico: ${bridge.capitulosIntermediarios}\n`;
+      if (licaoAnt) text += `📌 Na lição anterior: ${licaoAnt}\n`;
+      if (interv) text += `📜 Intervalo bíblico: ${interv}\n`;
       if (bridge.ganchoAulaAtual) text += `👉 Transição para hoje: ${bridge.ganchoAulaAtual}\n`;
       if (bridge.projetor) text += `🖥️ Síntese no Projetor: "${bridge.projetor}"\n`;
       text += `\n`;
@@ -712,30 +745,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       topico.subtopicos.forEach((sub) => {
         text += `--- Subtópico ${sub.number}: ${sub.title} ---\n\n`;
 
-        const txtProjetor = (sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
+        const txtProjetor = sub.projetor || ((sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
           ? sub.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
-          : (sub.projetor || '');
+          : '');
 
         if (txtProjetor) {
           text += `Texto da Revista / Quadro:\n"${txtProjetor}"\n\n`;
         }
 
-        if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
-          text += `Explicação Didática do Professor:\n`;
-          sub.frasesExplicativas.forEach((f) => {
-            text += `📌 Frase: "${f.frase}"\n👉 Explicação: ${f.explicacao}\n`;
-            if (f.exemplo) {
-              text += `💡 Exemplo: "${f.exemplo}"\n`;
-            }
-            text += `\n`;
-          });
-        } else if (sub.explicacao) {
+        if (sub.explicacao) {
           text += `Explicação Didática do Professor:\n${sub.explicacao}\n\n`;
+        } else if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
+          text += `Explicação Didática do Professor:\n`;
+          const linhasLinear = sub.frasesExplicativas
+            .map(f => {
+              const label = f.frase ? `"${f.frase}" — ` : '';
+              return `${label}${f.explicacao}`.trim();
+            })
+            .filter(Boolean);
+          text += linhasLinear.join('\n\n') + '\n\n';
         }
 
-        if (sub.exemploAlusao) {
-          text += `💡 Exemplo / Ilustração:\n"${sub.exemploAlusao}"\n\n`;
-        }
 
         if (sub.versiculos && sub.versiculos.length > 0) {
           text += `📖 Textos Bíblicos Relevantes:\n`;
@@ -1224,6 +1254,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               >
                 <FileDown className="w-3.5 h-3.5 text-white" />
                 <span>📄 Roteiro PDF</span>
+              </button>
+
+              <button
+                onClick={() => exportTeacherGuideHTML(lesson)}
+                title="Baixar Roteiro Colorido para colar no Google Docs (abre o .html no navegador, Ctrl+A, Ctrl+C, cola no Docs)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-md transition-all cursor-pointer"
+              >
+                <FileDown className="w-3.5 h-3.5 text-white" />
+                <span>🎨 Google Docs</span>
               </button>
 
               <button
@@ -1717,29 +1756,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                         {/* CAMADA 1 — PROJETOR (TEXTO OFICIAL DA LIÇÃO PARA ALUNOS - QUADRO AZUL) */}
                         {(() => {
-                          let textoQuadroAzul = subtopico.projetor || '';
-
-                          const frasesJoined = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
-                            ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
-                            : '';
-
-                          if (!textoQuadroAzul || frasesJoined.length > textoQuadroAzul.length) {
-                            textoQuadroAzul = frasesJoined || subtopico.explicacao || '';
-                          }
-
-                          let explicacaoLimpa = (subtopico.explicacao || '')
-                            .replace(/^📌\s*["'“]?/gm, '')
-                            .replace(/["'”]?\s*\n👉.*$/gm, '')
-                            .replace(/^👉.*$/gm, '')
-                            .trim();
-
-                          if (!textoQuadroAzul && explicacaoLimpa) {
-                            textoQuadroAzul = explicacaoLimpa;
-                          }
-
-                          const numPrefix = `${subtopico.number}. `;
-                          if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${subtopico.number} `) && !textoQuadroAzul.startsWith(`Subtópico ${subtopico.number}`)) {
-                            textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;
+                          let textoQuadroAzul = subtopico.projetor;
+                          if (textoQuadroAzul === undefined || textoQuadroAzul === null || (textoQuadroAzul === '' && !isEditMode)) {
+                            textoQuadroAzul = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
+                              ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
+                              : (subtopico.explicacao || '');
                           }
 
                           if (!textoQuadroAzul && !isEditMode) return null;
@@ -1762,7 +1783,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 )}
                               </div>
                               <EditableText
-                                value={textoQuadroAzul}
+                                value={subtopico.projetor ?? textoQuadroAzul ?? ''}
                                 onChange={v => updateSubtopicField(topicIdx, subIdx, 'projetor', v)}
                                 isEditMode={isEditMode}
                                 multiline
@@ -1780,7 +1801,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             <div className="flex items-center justify-between text-blue-400 font-extrabold text-xs md:text-sm uppercase tracking-wider">
                               <span className="flex items-center gap-2">
                                 <FileText className="w-4 h-4 text-blue-400" />
-                                EXPLICAÇÃO DIDÁTICA DO PROFESSOR (CONSTANTE FRASE A FRASE)
+                                EXPLICAÇÃO DIDÁTICA DO PROFESSOR (EXPLICAÇÃO LINEAR)
                               </span>
                               {!isEditMode && (
                                 <button
@@ -1793,100 +1814,36 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               )}
                             </div>
 
-                            {subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0 ? (
-                              <div className="space-y-4">
-                                {subtopico.frasesExplicativas.map((item, fIdx) => (
-                                  <div key={fIdx} className="explicacao-item-card bg-slate-950/80 p-5 rounded-xl border border-slate-800 space-y-3 shadow-sm relative">
-                                    {isEditMode && (
-                                      <button
-                                        onClick={() => removeFraseExplicativa(topicIdx, subIdx, fIdx)}
-                                        className="absolute top-3 right-3 p-1.5 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg text-xs font-bold cursor-pointer"
-                                        title="Remover esta frase explicativa"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                    <div className="flex items-start gap-2 text-amber-400 font-extrabold text-base md:text-lg">
-                                      <span className="shrink-0">📌 Frase do Texto:</span>
-                                      <div className="flex-1">
-                                        <EditableText
-                                          value={item.frase}
-                                          onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'frase', v)}
-                                          isEditMode={isEditMode}
-                                          placeholder="Frase da revista..."
-                                          className="italic text-slate-100 font-semibold"
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="pl-4 border-l-4 border-blue-500 space-y-1">
-                                      <span className="text-blue-400 font-bold block text-xs md:text-sm uppercase tracking-wider">
-                                        👉 Explicação Didática & Histórica:
-                                      </span>
-                                      <EditableText
-                                        value={item.explicacao}
-                                        onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'explicacao', v)}
-                                        isEditMode={isEditMode}
-                                        multiline
-                                        placeholder="Explicação didática do professor..."
-                                        className="text-sm md:text-base text-slate-200 leading-relaxed font-normal"
-                                      />
-                                    </div>
-                                    {(isEditMode || item.exemplo) && (
-                                      <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2.5">
-                                        <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
-                                          <span>💡 EXEMPLO / ALUSÃO PRÁTICA PARA A AULA:</span>
-                                        </span>
-                                        <EditableText
-                                          value={item.exemplo || ''}
-                                          onChange={v => updateFraseExplicativa(topicIdx, subIdx, fIdx, 'exemplo', v)}
-                                          isEditMode={isEditMode}
-                                          multiline
-                                          placeholder="Exemplo ou alusão prática..."
-                                          className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800">
-                                <EditableText
-                                  value={subtopico.explicacao || ''}
-                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'explicacao', v)}
-                                  isEditMode={isEditMode}
-                                  multiline
-                                  placeholder="Explicação didática do professor..."
-                                  className="text-sm md:text-base text-slate-200 leading-relaxed font-normal whitespace-pre-line"
-                                />
-                              </div>
-                            )}
+                            {/* Exibição Linear: usa explicacao de texto corrido.
+                                Compatibilidade legada: se existir frasesExplicativas, funde em linear */}
+                            {(() => {
+                              let textoLinear = subtopico.explicacao;
+                              if (textoLinear === undefined || textoLinear === null || (textoLinear === '' && !isEditMode)) {
+                                textoLinear = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
+                                  ? subtopico.frasesExplicativas
+                                      .map(f => {
+                                        const label = f.frase ? `"${f.frase}" — ` : '';
+                                        return `${label}${f.explicacao}`.trim();
+                                      })
+                                      .filter(Boolean)
+                                      .join('\n\n')
+                                  : '';
+                              }
+                              return (
+                                <div className="bg-slate-950 p-5 rounded-xl border border-slate-800">
+                                  <EditableText
+                                    value={subtopico.explicacao ?? textoLinear ?? ''}
+                                    onChange={v => updateSubtopicField(topicIdx, subIdx, 'explicacao', v)}
+                                    isEditMode={isEditMode}
+                                    multiline
+                                    placeholder="Explicação didática linear do professor..."
+                                    className="text-sm md:text-base text-slate-200 leading-relaxed font-normal whitespace-pre-line"
+                                  />
+                                </div>
+                              );
+                            })()}
 
-                            {isEditMode && (
-                              <button
-                                onClick={() => addFraseExplicativa(topicIdx, subIdx)}
-                                className="w-full py-2 px-3 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-                              >
-                                <Plus className="w-4 h-4" />
-                                <span>+ Adicionar Frase Explicativa ao Subtópico</span>
-                              </button>
-                            )}
 
-                            {(isEditMode || subtopico.exemploAlusao) && (
-                              <div className="bg-amber-950/30 border border-amber-500/30 p-3.5 rounded-xl space-y-1 mt-2">
-                                <span className="text-amber-400 font-bold text-xs uppercase tracking-wide flex items-center gap-1.5">
-                                  <span>💡 EXEMPLO / ALUSÃO ILUSTRATIVA PARA A AULA:</span>
-                                </span>
-                                <EditableText
-                                  value={subtopico.exemploAlusao || ''}
-                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'exemploAlusao', v)}
-                                  isEditMode={isEditMode}
-                                  multiline
-                                  placeholder="Exemplo ou alusão prática para ilustrar a aula..."
-                                  className="text-sm md:text-base text-amber-100 font-semibold leading-relaxed italic"
-                                />
-                              </div>
-                            )}
                           </div>
 
                           {/* 2. Textos Bíblicos Relevantes (ARC) */}
@@ -1937,6 +1894,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </div>
                           )}
 
+                          {/* Nota privada — Versículos (só aparece no PDF) */}
+                          <div className="flex items-start gap-1.5 mt-1">
+                            <span className="text-slate-500 text-xs mt-0.5 shrink-0" title="Nota privada — só aparece no PDF">✏️</span>
+                            <textarea
+                              value={subtopico.notaVersiculos || ''}
+                              onChange={e => updateSubtopicField(topicIdx, subIdx, 'notaVersiculos', e.target.value)}
+                              placeholder="Nota pessoal sobre os versículos (só no PDF)..."
+                              rows={2}
+                              className="w-full bg-yellow-950/20 border border-dashed border-yellow-600/30 rounded-lg px-2.5 py-1.5 text-xs text-yellow-200/70 placeholder-yellow-700/50 resize-none focus:outline-none focus:border-yellow-500/50 transition-colors"
+                            />
+                          </div>
+
                           {/* 3. Aplicação Prática & Pentecostal */}
                           {(isEditMode || subtopico.aplicacao) && (
                             <div className="space-y-1.5 bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/30 p-3.5 rounded-xl no-print">
@@ -1963,6 +1932,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </div>
                           )}
 
+                          {/* Nota privada — Aplicação Prática (só aparece no PDF) */}
+                          <div className="flex items-start gap-1.5 mt-1">
+                            <span className="text-slate-500 text-xs mt-0.5 shrink-0" title="Nota privada — só aparece no PDF">✏️</span>
+                            <textarea
+                              value={subtopico.notaAplicacao || ''}
+                              onChange={e => updateSubtopicField(topicIdx, subIdx, 'notaAplicacao', e.target.value)}
+                              placeholder="Nota pessoal sobre a aplicação prática (só no PDF)..."
+                              rows={2}
+                              className="w-full bg-yellow-950/20 border border-dashed border-yellow-600/30 rounded-lg px-2.5 py-1.5 text-xs text-yellow-200/70 placeholder-yellow-700/50 resize-none focus:outline-none focus:border-yellow-500/50 transition-colors"
+                            />
+                          </div>
+
                           {/* 4. Frase de Ênfase para o Professor */}
                           {(isEditMode || subtopico.enfase) && (
                             <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
@@ -1978,6 +1959,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               </div>
                             </div>
                           )}
+
+                          {/* Nota privada — Ênfase (só aparece no PDF) */}
+                          <div className="flex items-start gap-1.5 mt-1">
+                            <span className="text-slate-500 text-xs mt-0.5 shrink-0" title="Nota privada — só aparece no PDF">✏️</span>
+                            <textarea
+                              value={subtopico.notaEnfase || ''}
+                              onChange={e => updateSubtopicField(topicIdx, subIdx, 'notaEnfase', e.target.value)}
+                              placeholder="Nota pessoal sobre a ênfase (só no PDF)..."
+                              rows={2}
+                              className="w-full bg-yellow-950/20 border border-dashed border-yellow-600/30 rounded-lg px-2.5 py-1.5 text-xs text-yellow-200/70 placeholder-yellow-700/50 resize-none focus:outline-none focus:border-yellow-500/50 transition-colors"
+                            />
+                          </div>
 
                           {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
                           {(isEditMode || subtopico.cuidadoDoutrinario) && (
@@ -2335,50 +2328,64 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
               </button>
 
-              {/* ── CONTROLE DE TAMANHO DA FONTE DOS SLIDES ── */}
-              <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800" title="Ajustar tamanho da fonte de todos os slides">
+              {/* ── CONTROLE DE TAMANHO DA FONTE (SLIDE ATUAL / GERAL) ── */}
+              <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800" title="Ajustar tamanho da fonte deste slide ou de todos">
                 <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <button
-                  onClick={() => {
-                    const next = Math.max(0.7, Math.round((projectorFontSizeScale - 0.1) * 10) / 10);
-                    setProjectorFontSizeScale(next);
-                    try { localStorage.setItem('mega_ebd_font_size_scale', String(next)); } catch {}
-                  }}
-                  disabled={projectorFontSizeScale <= 0.7}
-                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                  title="Diminuir tamanho da fonte (A-)"
-                >
-                  <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
-                </button>
-
-                <span className="text-xs font-black text-amber-300 px-1 min-w-[42px] text-center font-mono">
-                  {Math.round(projectorFontSizeScale * 100)}%
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">
+                  {isCurrentSlideCustomFont ? `Slide ${projectorIndex + 1}:` : 'Fonte:'}
                 </span>
 
                 <button
                   onClick={() => {
-                    const next = Math.min(2.0, Math.round((projectorFontSizeScale + 0.1) * 10) / 10);
-                    setProjectorFontSizeScale(next);
-                    try { localStorage.setItem('mega_ebd_font_size_scale', String(next)); } catch {}
+                    const next = Math.max(0.6, Math.round((currentSlideScale - 0.05) * 100) / 100);
+                    setSingleSlideFontScale(projectorIndex, next);
                   }}
-                  disabled={projectorFontSizeScale >= 2.0}
+                  disabled={currentSlideScale <= 0.6}
                   className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                  title="Aumentar tamanho da fonte (A+)"
+                  title="Diminuir fonte deste slide (A-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+                </button>
+
+                <span className={`text-xs font-black px-1 min-w-[42px] text-center font-mono ${isCurrentSlideCustomFont ? 'text-yellow-300 font-extrabold' : 'text-amber-300'}`}>
+                  {Math.round(currentSlideScale * 100)}%
+                </span>
+
+                <button
+                  onClick={() => {
+                    const next = Math.min(2.2, Math.round((currentSlideScale + 0.05) * 100) / 100);
+                    setSingleSlideFontScale(projectorIndex, next);
+                  }}
+                  disabled={currentSlideScale >= 2.2}
+                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                  title="Aumentar fonte deste slide (A+)"
                 >
                   <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
                 </button>
 
-                {projectorFontSizeScale !== 1.0 && (
+                {/* Indicador e botão para restaurar padrão se este slide foi personalizado */}
+                {isCurrentSlideCustomFont ? (
                   <button
-                    onClick={() => {
-                      setProjectorFontSizeScale(1.0);
-                      try { localStorage.setItem('mega_ebd_font_size_scale', '1.0'); } catch {}
-                    }}
-                    className="text-[10px] font-extrabold text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 transition-colors cursor-pointer"
-                    title="Restaurar tamanho padrão (100%)"
+                    onClick={() => setSingleSlideFontScale(projectorIndex, null)}
+                    className="text-[10px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/40 transition-colors cursor-pointer flex items-center gap-1"
+                    title="Restaurar tamanho padrão deste slide"
                   >
-                    100%
+                    <span>↺ Padrão</span>
                   </button>
+                ) : (
+                  currentSlideScale !== 1.0 && (
+                    <button
+                      onClick={() => {
+                        setProjectorFontSizeScale(1.0);
+                        try { localStorage.setItem('mega_ebd_font_size_scale', '1.0'); } catch {}
+                        updateLesson(l => ({ ...l, projectorFontSizeScale: 1.0 }));
+                      }}
+                      className="text-[10px] font-extrabold text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 transition-colors cursor-pointer"
+                      title="Restaurar tamanho padrão (100%)"
+                    >
+                      100%
+                    </button>
+                  )
                 )}
               </div>
             </div>
@@ -2393,23 +2400,54 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
                 </span>
 
-                {/* Presets Rápidos de Tamanho da Fonte */}
-                <div className="flex items-center gap-1 text-[11px] font-bold text-amber-200">
-                  <span className="text-amber-400/80 text-[10px] uppercase mr-1">Tamanho Fonte:</span>
+                {/* Presets Rápidos e Ajuste Individual de Tamanho da Fonte */}
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-amber-200">
+                  <span className="text-amber-400/90 text-[10px] uppercase mr-1 flex items-center gap-1">
+                    <Type className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Fonte deste Slide:</span>
+                  </span>
+
+                  {/* Botões A- e A+ para este slide */}
+                  <button
+                    onClick={() => {
+                      const next = Math.max(0.6, Math.round((currentSlideScale - 0.05) * 100) / 100);
+                      setSingleSlideFontScale(projectorIndex, next);
+                    }}
+                    disabled={currentSlideScale <= 0.6}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 cursor-pointer"
+                    title="Diminuir fonte deste slide"
+                  >
+                    <ZoomOut className="w-3 h-3 text-amber-400" />
+                  </button>
+
+                  <span className={`text-xs font-black px-1.5 font-mono ${isCurrentSlideCustomFont ? 'text-yellow-300' : 'text-amber-300'}`}>
+                    {Math.round(currentSlideScale * 100)}%
+                  </span>
+
+                  <button
+                    onClick={() => {
+                      const next = Math.min(2.2, Math.round((currentSlideScale + 0.05) * 100) / 100);
+                      setSingleSlideFontScale(projectorIndex, next);
+                    }}
+                    disabled={currentSlideScale >= 2.2}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 cursor-pointer"
+                    title="Aumentar fonte deste slide"
+                  >
+                    <ZoomIn className="w-3 h-3 text-amber-400" />
+                  </button>
+
+                  {/* Presets Rápidos */}
                   {[
-                    { label: 'Pequena', val: 0.85 },
-                    { label: 'Normal', val: 1.0 },
-                    { label: 'Grande', val: 1.2 },
-                    { label: 'Gigante', val: 1.4 }
+                    { label: 'Pequena (85%)', val: 0.85 },
+                    { label: 'Normal (100%)', val: 1.0 },
+                    { label: 'Grande (120%)', val: 1.2 },
+                    { label: 'Gigante (140%)', val: 1.4 }
                   ].map(p => (
                     <button
                       key={p.val}
-                      onClick={() => {
-                        setProjectorFontSizeScale(p.val);
-                        try { localStorage.setItem('mega_ebd_font_size_scale', String(p.val)); } catch {}
-                      }}
-                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer border ${
-                        projectorFontSizeScale === p.val
+                      onClick={() => setSingleSlideFontScale(projectorIndex, p.val)}
+                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer border text-[10px] ${
+                        Math.abs(currentSlideScale - p.val) < 0.02
                           ? 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-sm'
                           : 'bg-slate-950/80 text-amber-300 hover:bg-amber-900/60 border-amber-500/30'
                       }`}
@@ -2417,6 +2455,30 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       {p.label}
                     </button>
                   ))}
+
+                  {/* Botão Restaurar Padrão se for customizado */}
+                  {isCurrentSlideCustomFont && (
+                    <button
+                      onClick={() => setSingleSlideFontScale(projectorIndex, null)}
+                      className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-0.5 rounded-lg bg-amber-900/40 hover:bg-amber-900/70 border border-amber-500/40 cursor-pointer transition-colors"
+                      title="Restaurar tamanho herdado global"
+                    >
+                      ↺ Padrão
+                    </button>
+                  )}
+
+                  {/* Botão Aplicar a Todos os Slides */}
+                  <button
+                    onClick={() => {
+                      if (confirm(`Deseja aplicar o tamanho de fonte de ${Math.round(currentSlideScale * 100)}% a TODOS os slides da apresentação?`)) {
+                        applyScaleToAllSlides(currentSlideScale);
+                      }
+                    }}
+                    className="text-[10px] font-extrabold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 cursor-pointer transition-colors ml-1"
+                    title="Definir este tamanho para todos os slides de uma vez"
+                  >
+                    🔗 Aplicar a Todos
+                  </button>
                 </div>
               </div>
 
@@ -2639,7 +2701,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
-                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: projectorFontSizeScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
                     <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
                       <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
@@ -2744,7 +2806,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: projectorFontSizeScale } as React.CSSProperties}>
+                <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
                   <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
                     <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}>

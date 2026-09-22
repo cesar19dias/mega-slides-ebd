@@ -32,19 +32,23 @@ export interface EBDIdeia {
   imagePrompt: string; // Prompt de imagem 16:9 contextual para Canva / AI
 }
 
+/** @deprecated Usar `explicacao` linear no EBDSubtopicPreparation em vez de frase a frase */
 export interface EBDFraseExplicativa {
   frase: string; // A frase/afirmação relevante extraída do texto do subtópico da lição
   explicacao: string; // Explicação didática e histórica direta para ministrar essa frase específica
-  exemplo?: string; // 💡 Exemplo prático / Ilustração / Alusão do dia a dia ou analógica para a sala de aula
+  /** @deprecated Não utilizado mais — exemplos foram removidos do sistema */
+  exemplo?: string;
 }
 
 export interface EBDSubtopicPreparation {
   number: string; // "1", "2", "3"
   title: string;
-  projetor: string; // O que vai escrito no slide para os alunos (frase central do subtópico)
-  explicacao: string; // Explicação didática do professor (texto corrido)
-  frasesExplicativas?: EBDFraseExplicativa[]; // Explicação frase por frase (constante)
-  exemploAlusao?: string; // 💡 Exemplo / Alusão prática do subtópico para ilustrar na aula
+  projetor: string; // O que vai escrito no slide para os alunos (parágrafo literal ipsis litteris da revista)
+  explicacao: string; // ✅ EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR: texto corrido fluido em parágrafos, com todas as referências das transcrições integradas
+  /** @deprecated Dados legados. A nova geração usa apenas `explicacao` linear */
+  frasesExplicativas?: EBDFraseExplicativa[];
+  /** @deprecated Exemplos foram removidos do sistema */
+  exemploAlusao?: string;
   contexto?: string; // Mantido como opcional por compatibilidade
   versiculos?: Array<{ reference: string; text: string }>; // Base Bíblica (ARC)
   aplicacao?: string; // Aplicação cristã e pentecostal
@@ -53,6 +57,10 @@ export interface EBDSubtopicPreparation {
   palavrasOriginais?: EBDPalavraOriginal[]; // 🏛️ EXEGESE BÍBLICA: GREGO / HEBRAICO
   imagePrompt: string; // Prompt de imagem 16:9 contextual
   ideias?: EBDIdeia[]; // Mantido como opcional para compatibilidade com dados legados
+  // 📝 NOTAS PRIVADAS DO PROFESSOR — aparecem apenas no Roteiro PDF
+  notaVersiculos?: string;
+  notaAplicacao?: string;
+  notaEnfase?: string;
 }
 
 export interface EBDTopicPreparation {
@@ -113,10 +121,12 @@ export interface EBDLessonPreparation {
     transcriptionsCount: number;
     sourcesUsed: string[];
   };
-  checklist: Array<{
+    checklist: Array<{
     item: string;
     status: boolean;
   }>;
+  slideFontScales?: Record<number, number>;
+  projectorFontSizeScale?: number;
 }
 
 export interface PreparationOptions {
@@ -157,6 +167,7 @@ export interface Slide {
   imageUrl?: string;
   imagePrompt?: string;
   imageSource?: 'ai' | 'user' | 'placeholder';
+  fontSizeScale?: number;
 }
 
 export interface PresentationData {

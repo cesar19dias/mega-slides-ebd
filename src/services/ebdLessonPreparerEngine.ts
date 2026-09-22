@@ -64,7 +64,6 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
                   ? sub.frasesExplicativas.map((f: any) => ({
                       frase: f.frase || '',
                       explicacao: f.explicacao || '',
-                      exemplo: f.exemplo || f.alusao || f.ilustracao || '',
                     })).filter((f: any) => Boolean(f.frase || f.explicacao))
                   : [];
 
@@ -82,8 +81,12 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
                 let explicacao = sub.explicacao || sub.professor?.explicacao || sub.descricao || sub.conteudo || '';
 
                 if (!explicacao && frasesExplicativas.length > 0) {
+                  // Funde frasesExplicativas legados em texto linear, sem marcações de exemplo
                   explicacao = frasesExplicativas
-                    .map((f: any) => `📌 "${f.frase}"\n👉 ${f.explicacao}`)
+                    .map((f: any) => {
+                      const fraseLabel = f.frase ? `"${f.frase}" — ` : '';
+                      return `${fraseLabel}${f.explicacao}`.trim();
+                    })
                     .join('\n\n');
                 }
 
@@ -146,7 +149,6 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
                   title: sub.title || `Subtópico ${sIdx + 1}`,
                   projetor: projetor,
                   explicacao: explicacao,
-                  frasesExplicativas: frasesExplicativas.length > 0 ? frasesExplicativas : undefined,
                   versiculos: versiculos,
                   aplicacao: aplicacao,
                   enfase: enfase,
@@ -306,16 +308,15 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   É EXPRESSAMENTE PROIBIDO parar no Tópico I ou omitir o Tópico II e o Tópico III!
   A array "topicos" no JSON DEVE CONTER OBRIGATORIAMENTE 3 OBJETOS.
 
-- REGRA MANDATÓRIA DOS SUBTÓPICOS (1, 2 E 3) — NÚMERO + PARÁGRAFO LITERAL DA REVISTA NO SLIDE + EXPLICAÇÃO CONSTANTE:
+- REGRA MANDATÓRIA DOS SUBTÓPICOS (1, 2 E 3) — NÚMERO + PARÁGRAFO LITERAL DA REVISTA NO SLIDE + EXPLICAÇÃO LINEAR:
   Cada Tópico da revista possui seus SUBTÓPICOS OFICIAIS (Subtópico 1, Subtópico 2 e Subtópico 3).
   1. TEXTO DO SLIDE DO QUADRO AZUL ("projetor"): Comece OBRIGATORIAMENTE com o número do subtópico (ex: "1. ", "2. ", "3. ") e em seguida transcreva O PARÁGRAFO LITERAL, COMPLETO E INTEGRAL DA REVISTA para esse subtópico, exatamente como consta na lição impressa (ipsis litteris), sem paráfrases, sem resumos de 1 frase e sem alterar nenhuma palavra.
-  2. EXPLICAÇÃO CONSTANTE FRASE A FRASE ("frasesExplicativas"): A cada frase/afirmação do texto literal do subtópico da revista, forneça IMEDIATAMENTE a sua explicação didática e histórica detalhada baseada nas transcrições e no contexto do século I.
-  3. TEXTO CONTINUO ("explicacao"): A explicação didática completa do professor combinada de forma fluida.
+  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Um texto corrido, fluido e didático em parágrafos. Integre e aproveite ABSOLUTAMENTE TODAS as referências, citações, comentários, alusões históricas, culturais, exegéticas e bíblicas presentes nas transcrições. A explicação deve fluir naturalmente sem marcadores como 📌 ou 👉, revelando a profundidade do conteúdo de forma narrativa e pedagógica.
 
 - CONCISÃO INTELIGENTE PARA GARANTIR TODOS OS TÓPICOS E SUBTÓPICOS:
   Para que a aula completa (todos os 3 tópicos e seus subtópicos) caiba com perfeição sem truncar:
   * "projetor": "1. " + O parágrafo literal e integral do subtópico copiado ipsis litteris da lição da revista.
-  * "frasesExplicativas": As frases literais da revista com suas respectivas explicações didáticas e históricas.
+  * "explicacao": Explicação linear do professor em parágrafos fluidos — integre TODAS as referências e alusões das transcrições.
   * "versiculos": 2 versículos de apoio com texto direto ARC que conversem com a aplicação prática.
   * "aplicacao": 2 a 3 frases práticas e pentecostais para a vida diária.
   * "enfase": 1 frase de alto impacto ("Aprenda com a Palavra...").
@@ -324,16 +325,15 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
 
 - CADA SUBTÓPICO DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES ELEMENTOS CHAVE:
   1. NÚMERO + TEXTO LITERAL DA REVISTA PARA O SLIDE ("projetor"): "1. " seguido do parágrafo original e exato (ipsis litteris) do subtópico da lição para os alunos lerem no quadro azul.
-  2. EXPLICAÇÃO CONSTANTE FRASE POR FRASE ("frasesExplicativas"): Array com objetos contendo "frase" (afirmação do texto da revista), "explicacao" (explicação didática/histórica para o professor) e "exemplo" (exemplo prático do dia a dia ou alusão ilustrativa simples para ministrar essa frase em sala).
-  3. EXPLICAÇÃO COMPLETA ("explicacao"): Texto didático completo do subtópico.
-  4. BASE BÍBLICA ("versiculos"): 
+  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos. REGRA FUNDAMENTAL: Integre na explicação LINEAR absolutamente TODAS as referências, citações, comentários e alusões históricas, culturais, linguísticas e bíblicas presentes nas transcrições fornecidas. A explicação deve encadear o contexto histórico, o significado teológico, as observações das transcrições e a aplicação de forma narrativa, sem bullets, sem frases separadas e sem exemplos avulsos.
+  3. BASE BÍBLICA ("versiculos"):
      * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico para a conduta do crente.
      * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão ARC oficial.
-  5. APLICAÇÃO PRÁTICA ("aplicacao"): Como essa verdade bíblica e os versículos de apoio se aplicam de forma concreta à vida espiritual e diária do aluno.
-  6. APRENDA COM A PALAVRA... ("enfase"): Frase forte de destaque pedagógico e espiritual ("Aprenda com a Palavra...").
-  7. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
-  8. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
-  9. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
+  4. APLICAÇÃO PRÁTICA ("aplicacao"): Como essa verdade bíblica e os versículos de apoio se aplicam de forma concreta à vida espiritual e diária do aluno.
+  5. APRENDA COM A PALAVRA... ("enfase"): Frase forte de destaque pedagógico e espiritual ("Aprenda com a Palavra...").
+  6. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
+  7. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
+  8. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
 
 - LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão ARC. A primeira linha deve conter a referência COMPLETA (ex: "Atos 24.1-6, 10-16") seguida de travessão ("—") e em seguida CADA um dos versículos numerados sem omitir nenhum versículo e sem colocar reticências.
 
@@ -399,19 +399,7 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "1",
           "title": "A conspiração judaica contra Paulo (vv.1,2)",
           "projetor": "Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo.",
-          "frasesExplicativas": [
-            {
-              "frase": "E, cinco dias depois, o sumo sacerdote Ananias desceu com os anciãos e com um certo orador, Tértulo.",
-              "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia. A presença de Tértulo, um orador treinado no direito romano provincial, demonstra que a acusação buscou dar roupagem política de sedição contra Roma.",
-              "exemplo": "É como uma grande corporação contratando advogados renomados para sufocar um trabalhador simples em um tribunal distante."
-            },
-            {
-              "frase": "Os quais compareceram perante o presidente contra Paulo.",
-              "explicacao": "O 'presidente' refere-se ao procurador romano Antônio Félix. A acusação formal visava obter uma sentença sumária contra Paulo.",
-              "exemplo": "Como alguém que tenta pressionar a autoridade pública a assinar uma demissão sem dar direito de resposta ao acusado."
-            }
-          ],
-          "explicacao": "📌 'E, cinco dias depois, o sumo sacerdote Ananias desceu com os anciãos e com um certo orador, Tértulo.'\n👉 No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia...\n\n📌 'Os quais compareceram perante o presidente contra Paulo.'\n👉 O 'presidente' refere-se ao procurador romano Antônio Félix...",
+          "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia para acusar Paulo diante do procurador romano Antônio Félix. A presença de Tértulo — um orador treinado no direito romano provincial — revela a estratégia da liderança religiosa de revestir a acusação com linguagem jurídica romana, enquadrando Paulo como agitador político e herege religioso. Essa manobra combinava o prestígio do Sinédrio com a autoridade imperial, numa tentativa coordenada de sufocar o Evangelho por dentro do sistema de poder.",
           "versiculos": [
             { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois..." }
           ],
@@ -565,8 +553,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     { "item": "Todos os subtópicos da revista gerados (1, 2 e 3 de cada tópico)", "status": true },
     { "item": "Estrutura da revista preservada (Nível 1)", "status": true },
     { "item": "Transcrições cruzadas e âncora teológica (Níveis 2 e 3)", "status": true },
+    { "item": "Absolutamente todas as referências e alusões das transcrições integradas na Explicação Linear", "status": true },
     { "item": "Versículos de apoio conectados à aplicação prática (distintos da leitura)", "status": true },
-    { "item": "Contexto Histórico, Cultural e Bíblico aprofundado", "status": true },
+    { "item": "Explicação Didática Linear do Professor em parágrafos fluidos", "status": true },
     { "item": "Card Aprenda com a Palavra estruturado", "status": true },
     { "item": "Prompts Visuais 16:9 ultra-elaborados e cinematográficos", "status": true },
     { "item": "O Que Não Pode Ser Dito / Cuidado Doutrinário incluído", "status": true },

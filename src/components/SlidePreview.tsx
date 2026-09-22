@@ -3,7 +3,7 @@ import type { PresentationData, Slide } from '../types';
 import { THEMES } from '../constants/themes';
 import { exportToPowerPoint } from '../services/pptxService';
 import { generateAiImage, BIBLICAL_IMAGE_GALLERY } from '../services/imageService';
-import { Download, ChevronLeft, ChevronRight, MessageSquare, RefreshCw, RefreshCcw, Upload, Trash2, Edit3, Image as ImageIcon, Sparkles, X, CheckCircle2, FileImage, LayoutTemplate, Square, ArrowRight, Eraser } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, MessageSquare, RefreshCw, RefreshCcw, Upload, Trash2, Edit3, Image as ImageIcon, Sparkles, X, CheckCircle2, FileImage, LayoutTemplate, Square, ArrowRight, Eraser, Type, ZoomIn, ZoomOut } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { exportSingleSlidePDF, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage } from '../services/exportService';
@@ -320,6 +320,50 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
           <span className="text-xs text-slate-400 font-semibold bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
             Slide {currentSlideIndex + 1} de {slides.length}
           </span>
+
+          {/* ── Controle de Tamanho da Fonte para este Slide ── */}
+          <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-xl border border-slate-700" title="Ajustar tamanho da fonte deste slide">
+            <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <button
+              onClick={() => {
+                const current = currentSlide.fontSizeScale || 1.0;
+                const next = Math.max(0.6, Math.round((current - 0.05) * 100) / 100);
+                updateCurrentSlide({ fontSizeScale: next });
+              }}
+              disabled={(currentSlide.fontSizeScale || 1.0) <= 0.6}
+              className="p-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+              title="Diminuir fonte deste slide"
+            >
+              <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+
+            <span className="text-xs font-black text-amber-300 px-1 min-w-[40px] text-center font-mono">
+              {Math.round((currentSlide.fontSizeScale || 1.0) * 100)}%
+            </span>
+
+            <button
+              onClick={() => {
+                const current = currentSlide.fontSizeScale || 1.0;
+                const next = Math.min(2.2, Math.round((current + 0.05) * 100) / 100);
+                updateCurrentSlide({ fontSizeScale: next });
+              }}
+              disabled={(currentSlide.fontSizeScale || 1.0) >= 2.2}
+              className="p-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+              title="Aumentar fonte deste slide"
+            >
+              <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+            </button>
+
+            {currentSlide.fontSizeScale && currentSlide.fontSizeScale !== 1.0 && (
+              <button
+                onClick={() => updateCurrentSlide({ fontSizeScale: 1.0 })}
+                className="text-[10px] font-extrabold text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 transition-colors cursor-pointer"
+                title="Restaurar tamanho padrão deste slide (100%)"
+              >
+                100%
+              </button>
+            )}
+          </div>
           <button onClick={handleDownloadPngCurrent} disabled={isExportingPng} className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3.5 py-2 rounded-xl border border-slate-600 flex items-center gap-1.5 text-xs transition-all cursor-pointer">
             <FileImage className="w-4 h-4 text-amber-400" />
             {isExportingPng ? 'Baixando...' : 'Baixar PNG (Este Slide)'}
@@ -549,7 +593,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
         {/* ── Conteúdo Oficial do Modelo EBD ── */}
         {(isOfficialEbdTheme || customTemplateBg) ? (
           /* ── Oficial EBD / Modelo Personalizado do Usuário ── */
-          <div className={`absolute inset-0 flex flex-col justify-between overflow-hidden text-white ${customTemplateBg ? 'bg-transparent' : 'bg-white'}`} style={{ padding: '2% 3%' }}>
+          <div className={`absolute inset-0 flex flex-col justify-between overflow-hidden text-white ${customTemplateBg ? 'bg-transparent' : 'bg-white'}`} style={{ padding: '2% 3%', zoom: currentSlide.fontSizeScale || 1.0 } as React.CSSProperties}>
             {!customTemplateBg && currentSlide.layout !== 'title' && <TopLeftPolygons />}
             {currentSlide.layout !== 'title' && <BottomRightPolygonBadge current={currentSlideIndex + 1} total={slides.length} />}
 
