@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Eraser, Trash2, Square, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
@@ -308,6 +308,130 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     } catch {}
     updateLesson(l => ({ ...l, slideTitleFontScales: nextTitles, slideBodyFontScales: nextBodies }));
   }, [currentTitleScale, currentBodyScale, updateLesson]);
+
+  // ── POSICIONAMENTO LIVRE DE ELEMENTOS NO SLIDE ──────────────────────────────
+  const [isLayoutEditMode, setIsLayoutEditMode] = useState(false);
+
+  const [slideTitlePositions, setSlideTitlePositions] = useState<Record<number, { x: number; y: number }>>(() => {
+    if (lessonData.slideTitlePositions && Object.keys(lessonData.slideTitlePositions).length > 0) {
+      return lessonData.slideTitlePositions;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_title_positions');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [slideBodyPositions, setSlideBodyPositions] = useState<Record<number, { x: number; y: number }>>(() => {
+    if (lessonData.slideBodyPositions && Object.keys(lessonData.slideBodyPositions).length > 0) {
+      return lessonData.slideBodyPositions;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_body_positions');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
+  const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
+  const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
+  const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
+
+  // Ref de drag (não causa re-render durante o movimento)
+  const dragStateRef = useRef<{
+    active: boolean;
+    kind: 'title' | 'body';
+    startMouseX: number;
+    startMouseY: number;
+    startOffsetX: number;
+    startOffsetY: number;
+  } | null>(null);
+
+  const handleElementDragStart = useCallback((e: React.MouseEvent, kind: 'title' | 'body') => {
+    if (!isLayoutEditMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = kind === 'title'
+      ? (slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 })
+      : (slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 });
+    dragStateRef.current = {
+      active: true, kind,
+      startMouseX: e.clientX,
+      startMouseY: e.clientY,
+      startOffsetX: pos.x,
+      startOffsetY: pos.y,
+    };
+  }, [isLayoutEditMode, projectorIndex, slideTitlePositions, slideBodyPositions]);
+
+  // Listeners globais de mousemove/mouseup para o drag
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStateRef.current?.active) return;
+      const dx = e.clientX - dragStateRef.current.startMouseX;
+      const dy = e.clientY - dragStateRef.current.startMouseY;
+      const newX = dragStateRef.current.startOffsetX + dx;
+      const newY = dragStateRef.current.startOffsetY + dy;
+      if (dragStateRef.current.kind === 'title') {
+        setSlideTitlePositions(prev => ({ ...prev, [projectorIndex]: { x: newX, y: newY } }));
+      } else {
+        setSlideBodyPositions(prev => ({ ...prev, [projectorIndex]: { x: newX, y: newY } }));
+      }
+    };
+    const handleMouseUp = () => {
+      if (!dragStateRef.current?.active) return;
+      dragStateRef.current.active = false;
+      setSlideTitlePositions(prev => {
+        try { localStorage.setItem('mega_ebd_title_positions', JSON.stringify(prev)); } catch {}
+        updateLesson(l => ({ ...l, slideTitlePositions: prev }));
+        return prev;
+      });
+      setSlideBodyPositions(prev => {
+        try { localStorage.setItem('mega_ebd_body_positions', JSON.stringify(prev)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyPositions: prev }));
+        return prev;
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [projectorIndex, updateLesson]);
+
+  // Reset da posição de um elemento no slide atual
+  const resetSlidePosition = useCallback((kind: 'title' | 'body') => {
+    if (kind === 'title') {
+      setSlideTitlePositions(prev => {
+        const next = { ...prev };
+        delete next[projectorIndex];
+        try { localStorage.setItem('mega_ebd_title_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideTitlePositions: next }));
+        return next;
+      });
+    } else {
+      setSlideBodyPositions(prev => {
+        const next = { ...prev };
+        delete next[projectorIndex];
+        try { localStorage.setItem('mega_ebd_body_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyPositions: next }));
+        return next;
+      });
+    }
+  }, [projectorIndex, updateLesson]);
+
+  // Estilos do wrapper de drag para cada elemento
+  const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body'): React.CSSProperties => ({
+    transform: `translate(${pos.x}px, ${pos.y}px)`,
+    ...(isLayoutEditMode ? {
+      cursor: 'grab',
+      outline: kind === 'title' ? '2px dashed #f59e0b' : '2px dashed #06b6d4',
+      borderRadius: '10px',
+      userSelect: 'none',
+      position: 'relative',
+      zIndex: 50,
+    } : {}),
+  });
 
   const updateMetadata = (field: keyof EBDLessonPreparation['metadata'], val: string) => {
     updateLesson(prev => ({
@@ -2392,6 +2516,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
               </button>
 
+              {/* ── BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) ── */}
+              <button
+                onClick={() => setIsLayoutEditMode(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                  isLayoutEditMode
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
+                    : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
+                }`}
+                title="Arrastar título e texto livremente no slide para reposicioná-los"
+              >
+                <Move className="w-3.5 h-3.5 text-current" />
+                <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
+              </button>
+
               {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
               <div className="flex items-center gap-1.5 flex-wrap">
                 {/* Fonte do Título */}
@@ -2562,6 +2700,30 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     >
                       <span>🔗 Aplicar tamanhos a todos</span>
                     </button>
+                  )}
+
+                  {/* Reset de Posição dos Elementos */}
+                  {(isTitleMoved || isBodyMoved) && (
+                    <div className="flex items-center gap-1.5">
+                      {isTitleMoved && (
+                        <button
+                          onClick={() => resetSlidePosition('title')}
+                          className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-0.5 rounded-lg bg-amber-950/80 border border-amber-500/40 cursor-pointer"
+                          title="Restaurar posição original do título"
+                        >
+                          ↺ Pos. Título
+                        </button>
+                      )}
+                      {isBodyMoved && (
+                        <button
+                          onClick={() => resetSlidePosition('body')}
+                          className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                          title="Restaurar posição original do texto"
+                        >
+                          ↺ Pos. Texto
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
@@ -2786,51 +2948,76 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
                   <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
-                    {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
-                    <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
-                      <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
-                        {coverBadge}
-                      </span>
+                    {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
+                    <div
+                      style={makeDragStyle(titlePos, 'title')}
+                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                      className="w-full shrink-0 relative"
+                    >
+                      {isLayoutEditMode && (
+                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                          style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          👑 Título — arraste
+                        </div>
+                      )}
+                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                        <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
+                          {coverBadge}
+                        </span>
+                      </div>
                     </div>
 
-                    {curSlideImg ? (
-                      <div className="flex-1 w-full flex items-center justify-between gap-6 px-6 py-4 mt-12 md:mt-16 my-auto">
-                        <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-4">
-                          <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                    {/* ── CAPA: CORPO (ARRASTÁVEL) ── */}
+                    <div
+                      style={makeDragStyle(bodyPos, 'body')}
+                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                      className="flex-1 w-full relative"
+                    >
+                      {isLayoutEditMode && (
+                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                          style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          📄 Texto — arraste
+                        </div>
+                      )}
+                      {curSlideImg ? (
+                        <div className="w-full h-full flex items-center justify-between gap-6 px-6 py-4 mt-12 md:mt-16 my-auto">
+                          <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-4">
+                            <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                              {currentProjectorItem.title}
+                            </h1>
+                            {currentProjectorItem.subtitle && (
+                              <>
+                                <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
+                                <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  {currentProjectorItem.subtitle}
+                                </p>
+                              </>
+                            )}
+                          </div>
+                          <div className="w-[38%] shrink-0 flex items-center justify-center">
+                            <img
+                              src={curSlideImg}
+                              alt="Ilustração do Slide"
+                              className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
+                          <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                             {currentProjectorItem.title}
                           </h1>
                           {currentProjectorItem.subtitle && (
                             <>
-                              <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
-                              <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                              <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 {currentProjectorItem.subtitle}
                               </p>
                             </>
                           )}
                         </div>
-                        <div className="w-[38%] shrink-0 flex items-center justify-center">
-                              <img
-                                src={curSlideImg}
-                                alt="Ilustração do Slide"
-                                className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all"
-                              />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
-                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                          {currentProjectorItem.title}
-                        </h1>
-                        {currentProjectorItem.subtitle && (
-                          <>
-                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {currentProjectorItem.subtitle}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    )}
+                      )}
+                    </div>{/* /body drag wrapper */}
 
                     <div className="w-full shrink-0 h-8" />
                   </div>
@@ -2891,14 +3078,37 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
               return (
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
-                  {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
-                  <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
-                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
-                      {formattedTitle}
-                    </span>
+                  {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
+                  <div
+                    style={makeDragStyle(titlePos, 'title')}
+                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                    className="w-full shrink-0"
+                  >
+                    {isLayoutEditMode && (
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                        style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        👑 Título — arraste
+                      </div>
+                    )}
+                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
+                      <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
+                        {formattedTitle}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* CONTEÚDO CENTRALIZADO VERTICALMENTE NA TELA */}
+                  {/* ── CONTEÚDO / CORPO (ARRASTÁVEL) ── */}
+                  <div
+                    style={makeDragStyle(bodyPos, 'body')}
+                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                    className="w-full flex-1 flex flex-col"
+                  >
+                    {isLayoutEditMode && (
+                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                        style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        📄 Texto — arraste
+                      </div>
+                    )}
                   {(() => {
                     const curSlideImg = projectorSlideImages[projectorIndex];
                     if (curSlideImg) {
@@ -3144,6 +3354,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       </div>
                     );
                   })()}
+                  </div>{/* /body drag wrapper */}
 
                   {/* Spacer inferior para equilibrar o título do topo */}
                   <div className="w-full shrink-0 h-8" />
