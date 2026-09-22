@@ -126,6 +126,9 @@ export interface EBDLessonPreparation {
     status: boolean;
   }>;
   slideFontScales?: Record<number, number>;
+  slideTitleFontScales?: Record<number, number>;
+  slideBodyFontScales?: Record<number, number>;
+  slideTextOverrides?: Record<number, { title?: string; subtitle?: string; text?: string }>;
   projectorFontSizeScale?: number;
 }
 

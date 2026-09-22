@@ -192,16 +192,57 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
 
-  // Escala efetiva da fonte do slide atual e flag se possui personalização individual
+  // Escalas de fonte específicas para o TÍTULO de cada slide (indexadas pelo projectorIndex)
+  const [slideTitleFontScales, setSlideTitleFontScales] = useState<Record<number, number>>(() => {
+    if (lessonData.slideTitleFontScales && Object.keys(lessonData.slideTitleFontScales).length > 0) {
+      return lessonData.slideTitleFontScales;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_slide_title_font_scales');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Escalas de fonte específicas para o TEXTO / CORPO de cada slide (indexadas pelo projectorIndex)
+  const [slideBodyFontScales, setSlideBodyFontScales] = useState<Record<number, number>>(() => {
+    if (lessonData.slideBodyFontScales && Object.keys(lessonData.slideBodyFontScales).length > 0) {
+      return lessonData.slideBodyFontScales;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_slide_body_font_scales');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Escalas efetivas da fonte do slide atual
   const currentSlideScale = slideFontScales[projectorIndex] !== undefined
     ? slideFontScales[projectorIndex]
     : projectorFontSizeScale;
-  const isCurrentSlideCustomFont = slideFontScales[projectorIndex] !== undefined;
+
+  const currentTitleScale = slideTitleFontScales[projectorIndex] !== undefined
+    ? slideTitleFontScales[projectorIndex]
+    : 1.0;
+  const isCurrentTitleCustom = slideTitleFontScales[projectorIndex] !== undefined;
+
+  const currentBodyScale = slideBodyFontScales[projectorIndex] !== undefined
+    ? slideBodyFontScales[projectorIndex]
+    : 1.0;
+  const isCurrentBodyCustom = slideBodyFontScales[projectorIndex] !== undefined;
 
   useEffect(() => {
     setLesson(lessonData);
     if (lessonData.slideFontScales) {
       setSlideFontScales(lessonData.slideFontScales);
+    }
+    if (lessonData.slideTitleFontScales) {
+      setSlideTitleFontScales(lessonData.slideTitleFontScales);
+    }
+    if (lessonData.slideBodyFontScales) {
+      setSlideBodyFontScales(lessonData.slideBodyFontScales);
     }
     if (lessonData.projectorFontSizeScale) {
       setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
@@ -216,9 +257,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     });
   }, [onUpdateLesson]);
 
-  // Define a escala de fonte para um slide específico
-  const setSingleSlideFontScale = useCallback((slideIdx: number, scale: number | null) => {
-    setSlideFontScales(prev => {
+  // Define a escala de fonte específica para o TÍTULO do slide
+  const setSingleTitleScale = useCallback((slideIdx: number, scale: number | null) => {
+    setSlideTitleFontScales(prev => {
       const next = { ...prev };
       if (scale === null || scale === undefined) {
         delete next[slideIdx];
@@ -226,24 +267,47 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         next[slideIdx] = Math.round(scale * 100) / 100;
       }
       try {
-        localStorage.setItem('mega_ebd_slide_font_scales', JSON.stringify(next));
+        localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(next));
       } catch {}
-      updateLesson(l => ({ ...l, slideFontScales: next }));
+      updateLesson(l => ({ ...l, slideTitleFontScales: next }));
       return next;
     });
   }, [updateLesson]);
 
-  // Aplica o tamanho de fonte a todos os slides da lição
-  const applyScaleToAllSlides = useCallback((scale: number) => {
-    const rounded = Math.round(scale * 100) / 100;
-    setProjectorFontSizeScale(rounded);
-    setSlideFontScales({});
-    try {
-      localStorage.setItem('mega_ebd_font_size_scale', String(rounded));
-      localStorage.setItem('mega_ebd_slide_font_scales', JSON.stringify({}));
-    } catch {}
-    updateLesson(l => ({ ...l, projectorFontSizeScale: rounded, slideFontScales: {} }));
+  // Define a escala de fonte específica para o TEXTO/CORPO do slide
+  const setSingleBodyScale = useCallback((slideIdx: number, scale: number | null) => {
+    setSlideBodyFontScales(prev => {
+      const next = { ...prev };
+      if (scale === null || scale === undefined) {
+        delete next[slideIdx];
+      } else {
+        next[slideIdx] = Math.round(scale * 100) / 100;
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(next));
+      } catch {}
+      updateLesson(l => ({ ...l, slideBodyFontScales: next }));
+      return next;
+    });
   }, [updateLesson]);
+
+  // Aplica as escalas de título e texto deste slide a todos os slides
+  const applyCurrentScalesToAllSlides = useCallback(() => {
+    const totalSlides = 60;
+    const nextTitles: Record<number, number> = {};
+    const nextBodies: Record<number, number> = {};
+    for (let i = 0; i < totalSlides; i++) {
+      if (currentTitleScale !== 1.0) nextTitles[i] = currentTitleScale;
+      if (currentBodyScale !== 1.0) nextBodies[i] = currentBodyScale;
+    }
+    setSlideTitleFontScales(nextTitles);
+    setSlideBodyFontScales(nextBodies);
+    try {
+      localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(nextTitles));
+      localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(nextBodies));
+    } catch {}
+    updateLesson(l => ({ ...l, slideTitleFontScales: nextTitles, slideBodyFontScales: nextBodies }));
+  }, [currentTitleScale, currentBodyScale, updateLesson]);
 
   const updateMetadata = (field: keyof EBDLessonPreparation['metadata'], val: string) => {
     updateLesson(prev => ({
@@ -2328,65 +2392,87 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
               </button>
 
-              {/* ── CONTROLE DE TAMANHO DA FONTE (SLIDE ATUAL / GERAL) ── */}
-              <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-xl border border-slate-800" title="Ajustar tamanho da fonte deste slide ou de todos">
-                <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider hidden sm:inline">
-                  {isCurrentSlideCustomFont ? `Slide ${projectorIndex + 1}:` : 'Fonte:'}
-                </span>
-
-                <button
-                  onClick={() => {
-                    const next = Math.max(0.6, Math.round((currentSlideScale - 0.05) * 100) / 100);
-                    setSingleSlideFontScale(projectorIndex, next);
-                  }}
-                  disabled={currentSlideScale <= 0.6}
-                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                  title="Diminuir fonte deste slide (A-)"
-                >
-                  <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
-                </button>
-
-                <span className={`text-xs font-black px-1 min-w-[42px] text-center font-mono ${isCurrentSlideCustomFont ? 'text-yellow-300 font-extrabold' : 'text-amber-300'}`}>
-                  {Math.round(currentSlideScale * 100)}%
-                </span>
-
-                <button
-                  onClick={() => {
-                    const next = Math.min(2.2, Math.round((currentSlideScale + 0.05) * 100) / 100);
-                    setSingleSlideFontScale(projectorIndex, next);
-                  }}
-                  disabled={currentSlideScale >= 2.2}
-                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                  title="Aumentar fonte deste slide (A+)"
-                >
-                  <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
-                </button>
-
-                {/* Indicador e botão para restaurar padrão se este slide foi personalizado */}
-                {isCurrentSlideCustomFont ? (
+              {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Fonte do Título */}
+                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-amber-500/40 shadow-sm" title="Ajustar tamanho da fonte do TÍTULO deste slide">
+                  <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider">Título:</span>
                   <button
-                    onClick={() => setSingleSlideFontScale(projectorIndex, null)}
-                    className="text-[10px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-500/40 transition-colors cursor-pointer flex items-center gap-1"
-                    title="Restaurar tamanho padrão deste slide"
+                    onClick={() => {
+                      const next = Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100);
+                      setSingleTitleScale(projectorIndex, next);
+                    }}
+                    disabled={currentTitleScale <= 0.5}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Diminuir fonte do título (A-)"
                   >
-                    <span>↺ Padrão</span>
+                    <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
                   </button>
-                ) : (
-                  currentSlideScale !== 1.0 && (
+                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isCurrentTitleCustom ? 'text-yellow-300 font-black' : 'text-amber-300'}`}>
+                    {Math.round(currentTitleScale * 100)}%
+                  </span>
+                  <button
+                    onClick={() => {
+                      const next = Math.min(2.5, Math.round((currentTitleScale + 0.05) * 100) / 100);
+                      setSingleTitleScale(projectorIndex, next);
+                    }}
+                    disabled={currentTitleScale >= 2.5}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Aumentar fonte do título (A+)"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                  </button>
+                  {isCurrentTitleCustom && (
                     <button
-                      onClick={() => {
-                        setProjectorFontSizeScale(1.0);
-                        try { localStorage.setItem('mega_ebd_font_size_scale', '1.0'); } catch {}
-                        updateLesson(l => ({ ...l, projectorFontSizeScale: 1.0 }));
-                      }}
-                      className="text-[10px] font-extrabold text-slate-400 hover:text-amber-300 px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 transition-colors cursor-pointer"
-                      title="Restaurar tamanho padrão (100%)"
+                      onClick={() => setSingleTitleScale(projectorIndex, null)}
+                      className="text-[9px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
+                      title="Restaurar tamanho padrão do título (100%)"
                     >
-                      100%
+                      ↺ 100%
                     </button>
-                  )
-                )}
+                  )}
+                </div>
+
+                {/* Fonte do Texto */}
+                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-cyan-500/40 shadow-sm" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
+                  <Type className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                  <span className="text-[10px] font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
+                  <button
+                    onClick={() => {
+                      const next = Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100);
+                      setSingleBodyScale(projectorIndex, next);
+                    }}
+                    disabled={currentBodyScale <= 0.5}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Diminuir fonte do texto (A-)"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5 text-cyan-400" />
+                  </button>
+                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isCurrentBodyCustom ? 'text-cyan-200 font-black' : 'text-cyan-300'}`}>
+                    {Math.round(currentBodyScale * 100)}%
+                  </span>
+                  <button
+                    onClick={() => {
+                      const next = Math.min(2.5, Math.round((currentBodyScale + 0.05) * 100) / 100);
+                      setSingleBodyScale(projectorIndex, next);
+                    }}
+                    disabled={currentBodyScale >= 2.5}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Aumentar fonte do texto (A+)"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+                  </button>
+                  {isCurrentBodyCustom && (
+                    <button
+                      onClick={() => setSingleBodyScale(projectorIndex, null)}
+                      className="text-[9px] font-extrabold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
+                      title="Restaurar tamanho padrão do texto (100%)"
+                    >
+                      ↺ 100%
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2400,85 +2486,83 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
                 </span>
 
-                {/* Presets Rápidos e Ajuste Individual de Tamanho da Fonte */}
-                <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold text-amber-200">
-                  <span className="text-amber-400/90 text-[10px] uppercase mr-1 flex items-center gap-1">
-                    <Type className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Fonte deste Slide:</span>
-                  </span>
-
-                  {/* Botões A- e A+ para este slide */}
-                  <button
-                    onClick={() => {
-                      const next = Math.max(0.6, Math.round((currentSlideScale - 0.05) * 100) / 100);
-                      setSingleSlideFontScale(projectorIndex, next);
-                    }}
-                    disabled={currentSlideScale <= 0.6}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 cursor-pointer"
-                    title="Diminuir fonte deste slide"
-                  >
-                    <ZoomOut className="w-3 h-3 text-amber-400" />
-                  </button>
-
-                  <span className={`text-xs font-black px-1.5 font-mono ${isCurrentSlideCustomFont ? 'text-yellow-300' : 'text-amber-300'}`}>
-                    {Math.round(currentSlideScale * 100)}%
-                  </span>
-
-                  <button
-                    onClick={() => {
-                      const next = Math.min(2.2, Math.round((currentSlideScale + 0.05) * 100) / 100);
-                      setSingleSlideFontScale(projectorIndex, next);
-                    }}
-                    disabled={currentSlideScale >= 2.2}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 cursor-pointer"
-                    title="Aumentar fonte deste slide"
-                  >
-                    <ZoomIn className="w-3 h-3 text-amber-400" />
-                  </button>
-
-                  {/* Presets Rápidos */}
-                  {[
-                    { label: 'Pequena (85%)', val: 0.85 },
-                    { label: 'Normal (100%)', val: 1.0 },
-                    { label: 'Grande (120%)', val: 1.2 },
-                    { label: 'Gigante (140%)', val: 1.4 }
-                  ].map(p => (
+                {/* Controles de Tamanho Separados: Título e Texto */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Fonte do Título */}
+                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-amber-500/50">
+                    <span className="text-[10px] font-black text-amber-300 uppercase">Fonte Título:</span>
                     <button
-                      key={p.val}
-                      onClick={() => setSingleSlideFontScale(projectorIndex, p.val)}
-                      className={`px-2 py-0.5 rounded-lg transition-all cursor-pointer border text-[10px] ${
-                        Math.abs(currentSlideScale - p.val) < 0.02
-                          ? 'bg-amber-500 text-slate-950 font-black border-amber-300 shadow-sm'
-                          : 'bg-slate-950/80 text-amber-300 hover:bg-amber-900/60 border-amber-500/30'
-                      }`}
+                      onClick={() => setSingleTitleScale(projectorIndex, Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100))}
+                      disabled={currentTitleScale <= 0.5}
+                      className="p-1 rounded bg-slate-900 text-amber-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Diminuir fonte do título"
                     >
-                      {p.label}
+                      <ZoomOut className="w-3 h-3 text-amber-400" />
                     </button>
-                  ))}
-
-                  {/* Botão Restaurar Padrão se for customizado */}
-                  {isCurrentSlideCustomFont && (
+                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${isCurrentTitleCustom ? 'text-yellow-300' : 'text-amber-300'}`}>
+                      {Math.round(currentTitleScale * 100)}%
+                    </span>
                     <button
-                      onClick={() => setSingleSlideFontScale(projectorIndex, null)}
-                      className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-0.5 rounded-lg bg-amber-900/40 hover:bg-amber-900/70 border border-amber-500/40 cursor-pointer transition-colors"
-                      title="Restaurar tamanho herdado global"
+                      onClick={() => setSingleTitleScale(projectorIndex, Math.min(2.5, Math.round((currentTitleScale + 0.05) * 100) / 100))}
+                      disabled={currentTitleScale >= 2.5}
+                      className="p-1 rounded bg-slate-900 text-amber-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Aumentar fonte do título"
                     >
-                      ↺ Padrão
+                      <ZoomIn className="w-3 h-3 text-amber-400" />
+                    </button>
+                    {isCurrentTitleCustom && (
+                      <button
+                        onClick={() => setSingleTitleScale(projectorIndex, null)}
+                        className="text-[9px] font-bold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 cursor-pointer"
+                        title="Restaurar tamanho padrão do título"
+                      >
+                        ↺ 100%
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Fonte do Texto */}
+                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-cyan-500/50">
+                    <span className="text-[10px] font-black text-cyan-300 uppercase">Fonte Texto:</span>
+                    <button
+                      onClick={() => setSingleBodyScale(projectorIndex, Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100))}
+                      disabled={currentBodyScale <= 0.5}
+                      className="p-1 rounded bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Diminuir fonte do texto"
+                    >
+                      <ZoomOut className="w-3 h-3 text-cyan-400" />
+                    </button>
+                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${isCurrentBodyCustom ? 'text-cyan-200' : 'text-cyan-300'}`}>
+                      {Math.round(currentBodyScale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setSingleBodyScale(projectorIndex, Math.min(2.5, Math.round((currentBodyScale + 0.05) * 100) / 100))}
+                      disabled={currentBodyScale >= 2.5}
+                      className="p-1 rounded bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Aumentar fonte do texto"
+                    >
+                      <ZoomIn className="w-3 h-3 text-cyan-400" />
+                    </button>
+                    {isCurrentBodyCustom && (
+                      <button
+                        onClick={() => setSingleBodyScale(projectorIndex, null)}
+                        className="text-[9px] font-bold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 cursor-pointer"
+                        title="Restaurar tamanho padrão do texto"
+                      >
+                        ↺ 100%
+                      </button>
+                    )}
+                  </div>
+
+                  {(isCurrentTitleCustom || isCurrentBodyCustom) && (
+                    <button
+                      onClick={applyCurrentScalesToAllSlides}
+                      className="text-[10px] font-bold text-amber-300 hover:text-white px-2.5 py-1 rounded-xl bg-amber-950/80 border border-amber-500/50 hover:bg-amber-900 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                      title="Aplicar tamanhos de título e texto deste slide a todos os slides da lição"
+                    >
+                      <span>🔗 Aplicar tamanhos a todos</span>
                     </button>
                   )}
-
-                  {/* Botão Aplicar a Todos os Slides */}
-                  <button
-                    onClick={() => {
-                      if (confirm(`Deseja aplicar o tamanho de fonte de ${Math.round(currentSlideScale * 100)}% a TODOS os slides da apresentação?`)) {
-                        applyScaleToAllSlides(currentSlideScale);
-                      }
-                    }}
-                    className="text-[10px] font-extrabold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 cursor-pointer transition-colors ml-1"
-                    title="Definir este tamanho para todos os slides de uma vez"
-                  >
-                    🔗 Aplicar a Todos
-                  </button>
                 </div>
               </div>
 
@@ -2704,7 +2788,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* Tarja Laranja no Topo: Escreve "LIÇÃO 10" */}
                     <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
-                      <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
+                      <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
                         {coverBadge}
                       </span>
                     </div>
@@ -2712,13 +2796,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {curSlideImg ? (
                       <div className="flex-1 w-full flex items-center justify-between gap-6 px-6 py-4 mt-12 md:mt-16 my-auto">
                         <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-4">
-                          <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                          <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                             {currentProjectorItem.title}
                           </h1>
                           {currentProjectorItem.subtitle && (
                             <>
                               <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
-                              <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                              <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 {currentProjectorItem.subtitle}
                               </p>
                             </>
@@ -2734,13 +2818,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       </div>
                     ) : (
                       <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
-                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm">
+                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                           {currentProjectorItem.title}
                         </h1>
                         {currentProjectorItem.subtitle && (
                           <>
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed">
+                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               {currentProjectorItem.subtitle}
                             </p>
                           </>
@@ -2809,7 +2893,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                   {/* Título Principal no topo do slide (Centralizado a partir de 25% / 2/8, Fonte Montaser Arabic) */}
                   <div className="w-full shrink-0 flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
-                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}>
+                    <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
                       {formattedTitle}
                     </span>
                   </div>
@@ -2825,11 +2909,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             {currentProjectorItem.type === 'leitura' ? (
                               <>
                                 {currentProjectorItem.reference && (
-                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full leading-tight">
+                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full leading-tight" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {currentProjectorItem.reference}
                                   </h3>
                                 )}
-                                <div className="w-full space-y-2 text-left font-sans max-h-[280px] overflow-y-auto pr-1">
+                                <div className="w-full space-y-2 text-left font-sans max-h-[280px] overflow-y-auto pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
                                     const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
                                     if (match) {
@@ -2845,11 +2929,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 </div>
                               </>
                             ) : currentProjectorItem.type === 'conclusao' || currentProjectorItem.type === 'topic_synopsis' ? (
-                              <p className="text-lg md:text-2xl lg:text-3xl font-extrabold leading-snug text-white text-center font-sans break-words">
+                              <p className="text-lg md:text-2xl lg:text-3xl font-extrabold leading-snug text-white text-center font-sans break-words" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 "{currentProjectorItem.projetorText}"
                               </p>
                             ) : currentProjectorItem.type === 'verdades' ? (
-                              <div className="w-full space-y-2 text-left font-sans">
+                              <div className="w-full space-y-2 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 {currentProjectorItem.bulletPoints?.map((point, idx) => (
                                   <div key={idx} className="flex items-start gap-2.5 py-1">
                                     <span className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black">{idx + 1}</span>
@@ -2858,13 +2942,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 ))}
                               </div>
                             ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 <p className="font-sans text-center break-words leading-relaxed text-white font-extrabold text-base md:text-xl lg:text-2xl">
                                   {currentProjectorItem.projetorText}
                                 </p>
                               </div>
                             ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 <p className={`font-sans text-center break-words leading-relaxed ${
                                   (currentProjectorItem.projetorText || '').length > 200
                                     ? 'text-xs md:text-sm lg:text-base text-slate-100 font-bold'
@@ -2874,7 +2958,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 </p>
                               </div>
                             ) : currentProjectorItem.type === 'subtopic' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1">
+                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 <p className={`font-sans text-center break-words leading-relaxed ${
                                   (currentProjectorItem.projetorText || '').length > 200
                                     ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
@@ -2886,12 +2970,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             ) : (
                               <div className="w-full flex-1 flex flex-col items-center justify-start max-h-[280px] overflow-y-auto px-2 my-auto py-1">
                                 {currentProjectorItem.ideiaText && (
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight break-words shrink-0">
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {currentProjectorItem.ideiaText}
                                   </h2>
                                 )}
                                 {currentProjectorItem.reference && (
-                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight w-full shrink-0">
+                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {currentProjectorItem.reference}
                                   </h3>
                                 )}
@@ -2903,7 +2987,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                     currentProjectorItem.projetorText.length > 200
                                       ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
                                       : 'text-xl md:text-3xl lg:text-4xl text-white font-extrabold'
-                                  }`}>
+                                  }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                     {currentProjectorItem.projetorText}
                                   </p>
                                 )}
@@ -2926,11 +3010,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     return currentProjectorItem.type === 'leitura' ? (
                       <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
                         {currentProjectorItem.reference && (
-                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full">
+                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                             {currentProjectorItem.reference}
                           </h3>
                         )}
-                        <div className="w-full space-y-4 text-left font-sans">
+                        <div className="w-full space-y-4 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                           {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
                             const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
                             if (match) {
@@ -2954,13 +3038,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         </div>
                       </div>
                     ) : currentProjectorItem.type === 'conclusao' ? (
-                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]">
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                         <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
                           "{currentProjectorItem.projetorText}"
                         </p>
                       </div>
                     ) : currentProjectorItem.type === 'verdades' ? (
-                      <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]">
+                      <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                         {currentProjectorItem.bulletPoints?.map((point, idx) => (
                           <div key={idx} className="w-full">
                             <div className="flex items-start gap-3 py-2.5">
@@ -2976,17 +3060,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       /* DEMAIS CARDS */
                       <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
                         {currentProjectorItem.type === 'topic_synopsis' ? (
-                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl m-auto">
+                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl m-auto" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                             "{currentProjectorItem.projetorText}"
                           </p>
                         ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                             <p className="font-sans text-center max-w-4xl mx-auto break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
                               {currentProjectorItem.projetorText}
                             </p>
                           </div>
                         ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                             <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
                               (currentProjectorItem.projetorText || '').length > 200
                                 ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -2997,17 +3081,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           </div>
                         ) : currentProjectorItem.type === 'subtopic_verses' ? (
                           <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0">
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                               📖 VAMOS LER A BÍBLIA
                             </h2>
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                            <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed">
+                            <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               {currentProjectorItem.projetorText}
                             </p>
                           </div>
                         ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
                           <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0">
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                               QUAL O ENSINAMENTO PRA MINHA VIDA?
                             </h2>
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
@@ -3015,12 +3099,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               (currentProjectorItem.projetorText || '').length > 180
                                 ? 'text-base md:text-xl lg:text-2xl text-slate-100 font-extrabold'
                                 : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
-                            }`}>
+                            }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               {currentProjectorItem.projetorText}
                             </p>
                           </div>
                         ) : currentProjectorItem.type === 'subtopic' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2">
+                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                             <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
                               (currentProjectorItem.projetorText || '').length > 200
                                 ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -3032,12 +3116,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         ) : (
                           <div className="w-full max-h-[340px] overflow-y-auto px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                             {currentProjectorItem.ideiaText && (
-                              <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0">
+                              <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                 {currentProjectorItem.ideiaText}
                               </h2>
                             )}
                             {currentProjectorItem.reference && (
-                              <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0">
+                              <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                 {currentProjectorItem.reference}
                               </h3>
                             )}
@@ -3051,7 +3135,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   : (currentProjectorItem.projetorText.length > 200
                                       ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
                                       : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold')
-                              }`}>
+                              }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 {currentProjectorItem.type === 'enfase_palavra' ? `“${currentProjectorItem.projetorText}”` : currentProjectorItem.projetorText}
                               </p>
                             )}
