@@ -10,6 +10,11 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,otf,ttf,woff2}']
+      },
       includeAssets: ['favicon.svg', 'icons.svg', 'fonts/*'],
       manifest: {
         name: 'MegaEBD - Gerador de Slides para EBD',
