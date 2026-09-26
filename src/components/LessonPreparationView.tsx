@@ -510,6 +510,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     ...(isLayoutEditMode ? {
       cursor: 'grab',
       outline: kind === 'title' ? '2px dashed #f59e0b' : '2px dashed #06b6d4',
+      outlineOffset: '2px',
       borderRadius: '10px',
       userSelect: 'none',
       position: 'relative',
@@ -3103,7 +3104,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           👑 Título — arraste
                         </div>
                       )}
-                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
                         <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
                           {coverBadge}
                         </span>
@@ -3217,8 +3218,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         👑 Título — arraste
                       </div>
                     )}
-                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-20 md:h-24 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
-                      <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm line-clamp-2 ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
+                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
+                      <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
                         {formattedTitle}
                       </span>
                     </div>

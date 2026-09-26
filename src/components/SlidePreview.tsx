@@ -87,7 +87,7 @@ const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
 
   return (
     <div
-      className="w-full flex flex-col items-center justify-center z-20 font-sans font-medium h-20 md:h-24 my-auto"
+      className="w-full flex flex-col items-center justify-center z-20 font-sans font-medium min-h-20 md:min-h-24 h-auto py-2 my-auto"
       style={{ paddingLeft: '18%', paddingRight: '5%', paddingTop: '6.5%' }}
     >
       <SmartText
