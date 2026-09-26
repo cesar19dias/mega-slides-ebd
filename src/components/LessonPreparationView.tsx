@@ -180,7 +180,10 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
     }
   }
 
-  // 2. Identifica marcos no texto: Títulos de Livro/Passagem (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18") e Versículos (ex: "18 —", "19 —")
+  // 2. Extrai referências individuais (separadas por ;) se houver
+  const subRefs = reference.split(';').map(s => s.trim().replace(/[\;\.]+$|^\;/, '')).filter(Boolean);
+
+  // 3. Identifica marcos no texto: Títulos de Livro/Passagem (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18") e Versículos (ex: "18 —", "19 —")
   const bookNamePattern = '(?:Gên|Êx|Lv|Nm|Dt|Jos|Jz|Rt|1Sm|2Sm|1Rs|2Rs|1Cr|2Cr|Esd|Ne|Et|Jó|Sal|Sl|Pv|Ec|Ct|Is|Jer|Jr|Lam|Lm|Ez|Dn|Os|Jl|Am|Ob|Jon|Mq|Na|Hab|Zef|Zc|Ag|Zc|Mal|Ml|Mt|Mat|Mateus|Mc|Mar|Marcos|Lc|Luc|Lucas|Jo|João|At|Atos|Rm|Rom|Romanos|1Co|2Co|Gál|Gal|Gálatas|Ef|Efé|Efésios|Fp|Fil|Filipenses|Cl|Col|Colossenses|1Ts|2Ts|1Tm|2Tm|Tt|Tito|Fm|Heb|Hb|Hebreus|Tg|Tia|Tiago|1Pe|2Pe|1Jo|2Jo|3Jo|Jd|Jud|Judas|Ap|Apoc|Apocalipse|[1-3]?\\s*[A-Za-zÀ-ÿ]+)';
 
   const headerRegex = new RegExp(`(?:^|\\n|\\s{2,}|(?<=[\\.\\!\\?]"?\\s+))(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}\\s*[—\\-–\\.]|\\s*$)`, 'gi');
@@ -238,7 +241,7 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
         verses.push({ number: '', text: line });
       }
     });
-    return { reference, sections: [{ verses }] };
+    return { reference, sections: [{ bookHeader: subRefs[0], verses }] };
   }
 
   const sections: BiblicalBookSection[] = [];
@@ -271,6 +274,17 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
 
   if (currentSec.verses.length > 0 || currentSec.bookHeader) {
     sections.push(currentSec);
+  }
+
+  // 4. Garantir que cada seção tenha o título de passagem correto
+  if (subRefs.length > 0) {
+    sections.forEach((sec, idx) => {
+      if (subRefs[idx]) {
+        sec.bookHeader = subRefs[idx];
+      } else if (!sec.bookHeader && subRefs[0]) {
+        sec.bookHeader = subRefs[0];
+      }
+    });
   }
 
   return { reference, sections };
@@ -3106,9 +3120,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                             const displayRef = currentProjectorItem.reference || parsed.reference;
+                            const showSectionHeaders = parsed.sections.length > 1 || (displayRef && displayRef.includes(';'));
 
                             return (
-                              <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 my-auto max-h-[380px] md:max-h-[460px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
+                              <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 h-full max-h-full overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
                                 {displayRef && (
                                   <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {displayRef}
@@ -3125,8 +3140,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                         </div>
                                       )}
 
-                                      {/* Título do Livro / Capítulo (ex: "Mateus 28", "Atos 1", "Efésios 2") */}
-                                      {section.bookHeader && (
+                                      {/* Título do Livro / Passagem (ex: "Mateus 28.18-20", "Atos 1.8", "Efésios 2.13-18") */}
+                                      {showSectionHeaders && section.bookHeader && (
                                         <div className="w-full text-center mt-4 mb-3">
                                           <h4 className="text-xl md:text-3xl font-black text-amber-400 tracking-wide font-sans inline-block px-5 py-1.5 bg-amber-500/10 rounded-xl border border-amber-500/40 shadow-sm">
                                             {section.bookHeader}
