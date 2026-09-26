@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
 import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
+import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
@@ -2526,73 +2526,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
               </label>
 
-              {/* 1 SLIDE PNG (Rápido para testes) */}
-              <button
-                onClick={async () => {
-                  if (isExporting) return;
-                  setIsExporting('single-png');
-                  try {
-                    const stage = projectorStageRef.current;
-                    if (!stage) return;
-                    await exportSingleSlidePNG(stage, lesson.metadata.title || 'mega-ebd', projectorIndex + 1);
-                  } finally {
-                    setIsExporting(null);
-                  }
-                }}
-                disabled={!!isExporting}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
-                title="Exportar apenas o slide atual visível como imagem PNG (mais rápido para testes)"
-              >
-                {isExporting === 'single-png' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
-                <span>{isExporting === 'single-png' ? 'Baixando...' : '1 Slide (PNG)'}</span>
-              </button>
 
-              {/* 1 SLIDE PDF (Rápido para testes) */}
-              <button
-                onClick={async () => {
-                  if (isExporting) return;
-                  setIsExporting('single-pdf');
-                  try {
-                    const stage = projectorStageRef.current;
-                    if (!stage) return;
-                    await exportSingleSlidePDF(stage, lesson.metadata.title || 'mega-ebd', projectorIndex + 1);
-                  } finally {
-                    setIsExporting(null);
-                  }
-                }}
-                disabled={!!isExporting}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
-                title="Exportar apenas o slide atual visível como PDF (mais rápido para testes)"
-              >
-                {isExporting === 'single-pdf' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-                <span>{isExporting === 'single-pdf' ? 'Baixando...' : '1 Slide (PDF)'}</span>
-              </button>
 
-              {/* TODOS OS SLIDES - PDF */}
-              <button
-                onClick={async () => {
-                  if (isExporting) return;
-                  setIsExporting('pdf');
-                  const origIdx = projectorIndex;
-                  try {
-                    await exportAllSlidesPDFFromStage(
-                      projectorItems.length,
-                      (i) => setProjectorIndex(i),
-                      () => projectorStageRef.current,
-                      lesson.metadata.title || 'mega-ebd'
-                    );
-                  } finally {
-                    setProjectorIndex(origIdx);
-                    setIsExporting(null);
-                  }
-                }}
-                disabled={!!isExporting}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-700 hover:bg-red-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
-                title="Exportar todos os slides em um arquivo PDF"
-              >
-                {isExporting === 'pdf' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-                <span>{isExporting === 'pdf' ? 'Gerando...' : 'Todos (PDF)'}</span>
-              </button>
 
               {/* TODOS OS SLIDES - PNG/ZIP */}
               <button
