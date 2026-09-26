@@ -145,6 +145,74 @@ export interface BiblicalVerseSlideData {
   verseText: string;
 }
 
+export function formatBiblicalTextForSingleSlide(rawText: string): { reference?: string; text: string } {
+  if (!rawText || !rawText.trim()) return { text: '' };
+
+  let text = rawText.trim();
+  let reference = '';
+  let bodyText = text;
+
+  // Extrai a referência do início antes do travessão (ex: "Atos 24.1-6 — 1 E, cinco dias depois...")
+  const firstDash = text.indexOf('—');
+  if (firstDash !== -1 && firstDash < 80) {
+    reference = text.substring(0, firstDash).trim();
+    bodyText = text.substring(firstDash + 1).trim();
+  } else {
+    const headerMatch = text.match(/^([1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+[\d\.\:\,\s\-]+)(?:\n|$)/i);
+    if (headerMatch) {
+      reference = headerMatch[1].trim();
+      bodyText = text.substring(headerMatch[0].length).trim();
+    }
+  }
+
+  // Se o corpo já possui linhas numeradas (ex: "1 — ..."), limpa e mantém
+  const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
+  const alreadyFormatted = lines.some(line => /^\d{1,3}\s*(?:[—\-–\.]\s*)?/.test(line));
+
+  if (alreadyFormatted && lines.length > 1) {
+    const formattedLines = lines.map(line => {
+      const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+      if (match) {
+        return `${match[1]} — ${match[2].trim()}`;
+      }
+      return line;
+    });
+    return { reference, text: formattedLines.join('\n') };
+  }
+
+  // Caso os versículos estejam em sequência no mesmo bloco de texto, separa cada um por linha
+  const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
+  const matches: { number: string; index: number }[] = [];
+  let m: RegExpExecArray | null;
+
+  while ((m = verseRegex.exec(bodyText)) !== null) {
+    matches.push({
+      number: m[1],
+      index: m.index + m[0].indexOf(m[1])
+    });
+  }
+
+  if (matches.length > 0) {
+    const parsedLines: string[] = [];
+    for (let i = 0; i < matches.length; i++) {
+      const curr = matches[i];
+      const next = matches[i + 1];
+      const startIdx = curr.index + curr.number.length;
+      const endIdx = next ? next.index : bodyText.length;
+      let verseContent = bodyText.substring(startIdx, endIdx).trim();
+      verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
+      if (verseContent.length > 0) {
+        parsedLines.push(`${curr.number} — ${verseContent}`);
+      }
+    }
+    if (parsedLines.length > 0) {
+      return { reference, text: parsedLines.join('\n') };
+    }
+  }
+
+  return { reference, text: bodyText };
+}
+
 export function splitBiblicalVersesIntoSlides(rawText: string): BiblicalVerseSlideData[] {
   if (!rawText || !rawText.trim()) return [];
 
@@ -1330,28 +1398,26 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       });
     }
 
-    // Leitura Bíblica em Classe NA ÍNTEGRA (SLIDES INDIVIDUAIS POR VERSÍCULO COMO NAS IMAGENS)
+    // Leitura Bíblica em Classe NA ÍNTEGRA (EM APENAS 1 ÚNICO CARD COM SCROLL)
     if (lesson.biblicalText) {
-      const verseSlides = splitBiblicalVersesIntoSlides(lesson.biblicalText);
-      verseSlides.forEach((vSlide, vIdx) => {
-        items.push({
-          type: 'leitura',
-          title: `LEITURA BÍBLICA EM CLASSE (${vIdx + 1}/${verseSlides.length})`,
-          badgeText: 'LEITURA BÍBLICA EM CLASSE',
-          reference: vSlide.chapterHeader,
-          projetorText: vSlide.verseText,
-          onUpdateText: (val: string) => {
-            updateLesson(prev => ({ ...prev, biblicalText: val }));
-          },
-          onUpdateReference: (val: string) => {
-            updateLesson(prev => {
-              const text = prev.biblicalText || '';
-              const parts = text.split('—');
-              const body = parts.length > 1 ? parts.slice(1).join('—') : text;
-              return { ...prev, biblicalText: `${val} — ${body}` };
-            });
-          }
-        });
+      const formatted = formatBiblicalTextForSingleSlide(lesson.biblicalText);
+      items.push({
+        type: 'leitura',
+        title: 'LEITURA BÍBLICA EM CLASSE',
+        badgeText: 'LEITURA BÍBLICA EM CLASSE',
+        reference: formatted.reference,
+        projetorText: formatted.text,
+        onUpdateText: (val: string) => {
+          updateLesson(prev => ({ ...prev, biblicalText: val }));
+        },
+        onUpdateReference: (val: string) => {
+          updateLesson(prev => {
+            const text = prev.biblicalText || '';
+            const parts = text.split('—');
+            const body = parts.length > 1 ? parts.slice(1).join('—') : text;
+            return { ...prev, biblicalText: `${val} — ${body}` };
+          });
+        }
       });
     }
 
@@ -3190,19 +3256,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         )}
                         <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center">
                           {currentProjectorItem.type === 'leitura' ? (
-                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
+                            <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 my-auto max-h-[380px] md:max-h-[460px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
                               {currentProjectorItem.reference && (
-                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-md z-20 rounded-xl shadow-md" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                   {currentProjectorItem.reference}
                                 </h3>
                               )}
-                              <div className="w-full space-y-4 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              <div className="w-full space-y-3 text-left font-sans pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                 {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
                                   const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
                                   if (match) {
                                     return (
-                                      <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
-                                        <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
+                                      <div key={idx} className="flex items-start gap-4 text-left w-full py-2.5 border-b border-slate-200/30 last:border-0">
+                                        <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1 drop-shadow-sm">
                                           {match[1]}
                                         </span>
                                         <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
@@ -3212,7 +3278,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                     );
                                   }
                                   return (
-                                    <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
+                                    <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left py-1">
                                       {renderHL(line)}
                                     </p>
                                   );
