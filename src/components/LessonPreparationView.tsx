@@ -3308,13 +3308,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   "{currentProjectorItem.projetorText}"
                                 </p>
                               ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className="font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
                                       ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -3324,7 +3324,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
                                   <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     📖 VAMOS LER A BÍBLIA
                                   </h2>
@@ -3334,7 +3334,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
-                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
                                   <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     QUAL O ENSINAMENTO PRA MINHA VIDA?
                                   </h2>
@@ -3348,7 +3348,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic' ? (
-                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
                                       ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -3358,7 +3358,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : (
-                                <div className="w-full max-h-[340px] overflow-y-auto px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
+                                <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                                   {currentProjectorItem.ideiaText && (
                                     <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.ideiaText}
