@@ -883,26 +883,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
-  const [stageWidth, setStageWidth] = useState<number>(0);
-
-  useEffect(() => {
-    const stage = projectorStageRef.current;
-    if (!stage) return;
-    const updateWidth = () => {
-      if (stage.clientWidth > 0) setStageWidth(stage.clientWidth);
-    };
-    updateWidth();
-    const ro = new ResizeObserver(updateWidth);
-    ro.observe(stage);
-    window.addEventListener('resize', updateWidth);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener('resize', updateWidth);
-    };
-  }, []);
-
-  // Fator de escala responsivo do palco para celulares e telas pequenas (base: ~850px)
-  const responsiveStageScale = stageWidth > 0 ? Math.min(1.0, Math.max(0.42, stageWidth / 850)) : 1.0;
 
   const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>({});
   const [customBg, setCustomBg] = useState<string | null>(() => {
@@ -2966,7 +2946,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
           <div
             ref={projectorStageRef}
-            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[220px] sm:min-h-[380px] md:min-h-[500px] text-slate-900 flex flex-col justify-between p-3 sm:p-6 pt-2 sm:pt-3 pb-3 sm:pb-4"
+            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
             onMouseUp={handleSlideMouseUp}
             onTouchEnd={handleSlideMouseUp}
@@ -3016,7 +2996,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale * responsiveStageScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
                     <div
                       style={makeDragStyle(titlePos, 'title')}
@@ -3030,7 +3010,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           👑 Título — arraste
                         </div>
                       )}
-                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-4 md:pl-[18%] pr-4 md:pr-6">
+                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
                         <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
                           {coverBadge}
                         </span>
@@ -3161,7 +3141,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale * responsiveStageScale } as React.CSSProperties}>
+                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                   {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
                   <div
                     style={makeDragStyle(titlePos, 'title')}
@@ -3175,7 +3155,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         👑 Título — arraste
                       </div>
                     )}
-                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-4 md:pl-[18%] pr-4 md:pr-6 my-auto">
+                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
                       <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
                         {formattedTitle}
                       </span>
