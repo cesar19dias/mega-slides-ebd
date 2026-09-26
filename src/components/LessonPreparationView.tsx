@@ -3095,7 +3095,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     style={makeDragStyle(bodyPos, 'body')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                     onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                    className="w-full flex-1 flex flex-col"
+                    className="w-full flex-1 flex flex-col min-h-0"
                   >
                     {isLayoutEditMode && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -3106,7 +3106,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {(() => {
                     const curSlideImg = projectorSlideImages[projectorIndex];
                     return (
-                      <div className="w-full flex-1 flex flex-col justify-center items-center relative">
+                      <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
                         {curSlideImg && (
                           <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 select-none">
                             <img
@@ -3116,14 +3116,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             />
                           </div>
                         )}
-                        <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center">
+                        <div className="w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                             const displayRef = currentProjectorItem.reference || parsed.reference;
                             const showSectionHeaders = parsed.sections.length > 1 || (displayRef && displayRef.includes(';'));
 
                             return (
-                              <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 h-full max-h-full overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
+                              <div
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onTouchStart={(e) => e.stopPropagation()}
+                                className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
+                              >
                                 {displayRef && (
                                   <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {displayRef}

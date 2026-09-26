@@ -500,18 +500,52 @@ body {
   scrollbar-width: none !important;
 }
 
-/* Oculta automaticamente qualquer barra de rolagem nos elementos dentro dos slides do projetor */
-.slide-stage-wrapper *::-webkit-scrollbar,
-.slide-stage-wrapper::-webkit-scrollbar {
+/* Oculta automaticamente qualquer barra de rolagem nos elementos padrão dentro dos slides do projetor */
+.slide-stage-wrapper *:not(.custom-scrollbar)::-webkit-scrollbar,
+.slide-stage-wrapper:not(.custom-scrollbar)::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
 }
 
-.slide-stage-wrapper *,
+.slide-stage-wrapper *:not(.custom-scrollbar),
 .slide-stage-wrapper {
   -ms-overflow-style: none !important;
   scrollbar-width: none !important;
 }
+
+/* ===== BARRA DE ROLAGEM CUSTOMIZADA VISÍVEL E FUNCIONAL PARA A LEITURA BÍBLICA ===== */
+.slide-stage-wrapper .custom-scrollbar::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 10px !important;
+  height: 10px !important;
+}
+
+.slide-stage-wrapper .custom-scrollbar::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border-radius: 8px !important;
+}
+
+.slide-stage-wrapper .custom-scrollbar::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.85) !important;
+  border-radius: 8px !important;
+  border: 2px solid rgba(15, 23, 42, 0.7) !important;
+}
+
+.slide-stage-wrapper .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 1) !important;
+}
+
+.slide-stage-wrapper .custom-scrollbar,
+.custom-scrollbar {
+  -ms-overflow-style: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(245, 158, 11, 0.85) rgba(15, 23, 42, 0.7) !important;
+}
+
 
 
