@@ -169,107 +169,108 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
 
   // 1. Extrai a referência geral do início antes do primeiro travessão "—"
   const firstDash = text.indexOf('—');
-  if (firstDash !== -1 && firstDash < 120) {
+  if (firstDash !== -1 && firstDash < 140) {
     reference = text.substring(0, firstDash).trim();
     bodyText = text.substring(firstDash + 1).trim();
   } else {
-    const headerMatch = text.match(/^([1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+[\d\.\:\,\s\;\-]+)(?:\n|$)/i);
-    if (headerMatch && headerMatch[1].length < 120) {
-      reference = headerMatch[1].trim();
+    const headerMatch = text.match(/^([1-3]?\s*[A-Za-zÀ-ÿ\.]+(?:\s+[A-Za-zÀ-ÿ\.]+)?\s+[\d\.\:\,\s\;\-]+?)(?:\s*[\—\-\n]|\s+(?=[1-3]?\s*[A-Za-zÀ-ÿ\.]+\s+\d{1,3}))/i);
+    if (headerMatch && headerMatch[1].length < 140) {
+      reference = headerMatch[1].trim().replace(/[\;\.\:\-\—]+$/, '');
       bodyText = text.substring(headerMatch[0].length).trim();
     }
   }
 
-  // Identifica títulos de livros/passagens bíblicas (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18", "Mateus 28")
-  const isBookTitle = (str: string): boolean => {
-    const cleaned = str.trim().replace(/[:\-\—]$/, '').trim();
-    return /^[1-3]?\s*[A-Za-zÀ-ÿ\.]+(?:\s+[A-Za-zÀ-ÿ\.]+)?\s+\d{1,3}(?:[\.\:\,]\d{1,3}(?:[\-\–\—]\d{1,3})?)?$/i.test(cleaned);
-  };
+  // 2. Identifica marcos no texto: Títulos de Livro/Passagem (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18") e Versículos (ex: "18 —", "19 —")
+  const bookNamePattern = '(?:Gên|Êx|Lv|Nm|Dt|Jos|Jz|Rt|1Sm|2Sm|1Rs|2Rs|1Cr|2Cr|Esd|Ne|Et|Jó|Sal|Sl|Pv|Ec|Ct|Is|Jer|Jr|Lam|Lm|Ez|Dn|Os|Jl|Am|Ob|Jon|Mq|Na|Hab|Zef|Zc|Ag|Zc|Mal|Ml|Mt|Mat|Mateus|Mc|Mar|Marcos|Lc|Luc|Lucas|Jo|João|At|Atos|Rm|Rom|Romanos|1Co|2Co|Gál|Gal|Gálatas|Ef|Efé|Efésios|Fp|Fil|Filipenses|Cl|Col|Colossenses|1Ts|2Ts|1Tm|2Tm|Tt|Tito|Fm|Heb|Hb|Hebreus|Tg|Tia|Tiago|1Pe|2Pe|1Jo|2Jo|3Jo|Jd|Jud|Judas|Ap|Apoc|Apocalipse|[1-3]?\\s*[A-Za-zÀ-ÿ]+)';
 
-  const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
-  const sections: BiblicalBookSection[] = [];
-  let currentSection: BiblicalBookSection = { verses: [] };
+  const headerRegex = new RegExp(`(?:^|\\n|\\s{2,}|(?<=[\\.\\!\\?]"?\\s+))(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}\\s*[—\\-–\\.]|\\s*$)`, 'gi');
+  const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)(?=[A-Za-zÀ-ÿ"“'\[])/g;
 
-  for (const line of lines) {
-    if (isBookTitle(line)) {
-      if (currentSection.verses.length > 0 || currentSection.bookHeader) {
-        sections.push(currentSection);
+  interface TokenLandmark {
+    type: 'header' | 'verse';
+    text: string;
+    index: number;
+    endIndex: number;
+  }
+
+  const landmarks: TokenLandmark[] = [];
+
+  let hMatch: RegExpExecArray | null;
+  while ((hMatch = headerRegex.exec(bodyText)) !== null) {
+    const fullStr = hMatch[0];
+    const headerStr = hMatch[1].trim();
+    const idx = hMatch.index + fullStr.indexOf(headerStr);
+    landmarks.push({
+      type: 'header',
+      text: headerStr,
+      index: idx,
+      endIndex: idx + headerStr.length
+    });
+  }
+
+  let vMatch: RegExpExecArray | null;
+  while ((vMatch = verseRegex.exec(bodyText)) !== null) {
+    const fullStr = vMatch[0];
+    const verseNum = vMatch[1];
+    const idx = vMatch.index + fullStr.indexOf(verseNum);
+    const isInsideHeader = landmarks.some(l => l.type === 'header' && idx >= l.index && idx < l.endIndex);
+    if (!isInsideHeader) {
+      landmarks.push({
+        type: 'verse',
+        text: verseNum,
+        index: idx,
+        endIndex: idx + verseNum.length
+      });
+    }
+  }
+
+  landmarks.sort((a, b) => a.index - b.index);
+
+  // Fallback para texto simples sem marcos reconhecidos
+  if (landmarks.length === 0) {
+    const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
+    const verses: BiblicalVerseItem[] = [];
+    lines.forEach(line => {
+      const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+      if (match) {
+        verses.push({ number: match[1], text: match[2].trim() });
+      } else if (line.length > 0) {
+        verses.push({ number: '', text: line });
       }
-      currentSection = {
-        bookHeader: line.replace(/[:\-\—]$/, '').trim(),
+    });
+    return { reference, sections: [{ verses }] };
+  }
+
+  const sections: BiblicalBookSection[] = [];
+  let currentSec: BiblicalBookSection = { verses: [] };
+
+  for (let i = 0; i < landmarks.length; i++) {
+    const curr = landmarks[i];
+    const next = landmarks[i + 1];
+
+    if (curr.type === 'header') {
+      if (currentSec.verses.length > 0 || currentSec.bookHeader) {
+        sections.push(currentSec);
+      }
+      currentSec = {
+        bookHeader: curr.text,
         verses: []
       };
-      continue;
-    }
+    } else if (curr.type === 'verse') {
+      const contentStart = curr.endIndex;
+      const contentEnd = next ? next.index : bodyText.length;
+      let verseText = bodyText.substring(contentStart, contentEnd).trim();
+      verseText = verseText.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
 
-    const verseMatch = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-    if (verseMatch) {
-      currentSection.verses.push({
-        number: verseMatch[1],
-        text: verseMatch[2].trim()
+      currentSec.verses.push({
+        number: curr.text,
+        text: verseText
       });
-    } else {
-      // Se houver versículos numerados embutidos
-      const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
-      const matches: { number: string; index: number }[] = [];
-      let m: RegExpExecArray | null;
-      while ((m = verseRegex.exec(line)) !== null) {
-        matches.push({ number: m[1], index: m.index + m[0].indexOf(m[1]) });
-      }
-
-      if (matches.length > 0) {
-        for (let i = 0; i < matches.length; i++) {
-          const curr = matches[i];
-          const next = matches[i + 1];
-          const startIdx = curr.index + curr.number.length;
-          const endIdx = next ? next.index : line.length;
-          let verseContent = line.substring(startIdx, endIdx).trim();
-          verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
-          if (verseContent.length > 0) {
-            currentSection.verses.push({
-              number: curr.number,
-              text: verseContent
-            });
-          }
-        }
-      } else if (line.length > 0) {
-        if (currentSection.verses.length > 0) {
-          currentSection.verses[currentSection.verses.length - 1].text += ' ' + line;
-        } else {
-          currentSection.verses.push({ number: '', text: line });
-        }
-      }
     }
   }
 
-  if (currentSection.verses.length > 0 || currentSection.bookHeader) {
-    sections.push(currentSection);
-  }
-
-  // Fallback para texto contínuo sem quebras de linha
-  if (sections.length === 0 || (sections.length === 1 && sections[0].verses.length === 0)) {
-    const fallbackSection: BiblicalBookSection = { verses: [] };
-    const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
-    const matches: { number: string; index: number }[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = verseRegex.exec(bodyText)) !== null) {
-      matches.push({ number: m[1], index: m.index + m[0].indexOf(m[1]) });
-    }
-
-    if (matches.length > 0) {
-      for (let i = 0; i < matches.length; i++) {
-        const curr = matches[i];
-        const next = matches[i + 1];
-        const startIdx = curr.index + curr.number.length;
-        const endIdx = next ? next.index : bodyText.length;
-        let verseContent = bodyText.substring(startIdx, endIdx).trim();
-        verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
-        if (verseContent.length > 0) {
-          fallbackSection.verses.push({ number: curr.number, text: verseContent });
-        }
-      }
-      return { reference, sections: [fallbackSection] };
-    }
+  if (currentSec.verses.length > 0 || currentSec.bookHeader) {
+    sections.push(currentSec);
   }
 
   return { reference, sections };
