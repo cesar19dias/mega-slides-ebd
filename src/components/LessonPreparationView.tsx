@@ -3129,7 +3129,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               <div
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onTouchStart={(e) => e.stopPropagation()}
-                                className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-1 min-h-0 h-full max-h-full overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
+                                className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
                               >
                                 {displayRef && (
                                   <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
