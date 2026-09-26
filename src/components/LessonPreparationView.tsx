@@ -145,72 +145,134 @@ export interface BiblicalVerseSlideData {
   verseText: string;
 }
 
-export function formatBiblicalTextForSingleSlide(rawText: string): { reference?: string; text: string } {
-  if (!rawText || !rawText.trim()) return { text: '' };
+export interface BiblicalVerseItem {
+  number: string;
+  text: string;
+}
+
+export interface BiblicalBookSection {
+  bookHeader?: string;
+  verses: BiblicalVerseItem[];
+}
+
+export interface ParsedBiblicalReading {
+  reference?: string;
+  sections: BiblicalBookSection[];
+}
+
+export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReading {
+  if (!rawText || !rawText.trim()) return { sections: [] };
 
   let text = rawText.trim();
   let reference = '';
   let bodyText = text;
 
-  // Extrai a referência do início antes do travessão (ex: "Atos 24.1-6 — 1 E, cinco dias depois...")
+  // 1. Extrai a referência geral do início antes do primeiro travessão "—"
   const firstDash = text.indexOf('—');
-  if (firstDash !== -1 && firstDash < 80) {
+  if (firstDash !== -1 && firstDash < 120) {
     reference = text.substring(0, firstDash).trim();
     bodyText = text.substring(firstDash + 1).trim();
   } else {
-    const headerMatch = text.match(/^([1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+[\d\.\:\,\s\-]+)(?:\n|$)/i);
-    if (headerMatch) {
+    const headerMatch = text.match(/^([1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+[\d\.\:\,\s\;\-]+)(?:\n|$)/i);
+    if (headerMatch && headerMatch[1].length < 120) {
       reference = headerMatch[1].trim();
       bodyText = text.substring(headerMatch[0].length).trim();
     }
   }
 
-  // Se o corpo já possui linhas numeradas (ex: "1 — ..."), limpa e mantém
+  // Identifica títulos de livros/capítulos bíblicos (ex: "Mateus 28", "Atos 1", "Efésios 2", "1 João 3")
+  const isBookTitle = (str: string): boolean => {
+    const cleaned = str.trim().replace(/[:\-\—]$/, '').trim();
+    return /^[1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+\d{1,3}$/i.test(cleaned);
+  };
+
   const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
-  const alreadyFormatted = lines.some(line => /^\d{1,3}\s*(?:[—\-–\.]\s*)?/.test(line));
+  const sections: BiblicalBookSection[] = [];
+  let currentSection: BiblicalBookSection = { verses: [] };
 
-  if (alreadyFormatted && lines.length > 1) {
-    const formattedLines = lines.map(line => {
-      const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-      if (match) {
-        return `${match[1]} — ${match[2].trim()}`;
+  for (const line of lines) {
+    if (isBookTitle(line)) {
+      if (currentSection.verses.length > 0 || currentSection.bookHeader) {
+        sections.push(currentSection);
       }
-      return line;
-    });
-    return { reference, text: formattedLines.join('\n') };
-  }
+      currentSection = {
+        bookHeader: line.replace(/[:\-\—]$/, '').trim(),
+        verses: []
+      };
+      continue;
+    }
 
-  // Caso os versículos estejam em sequência no mesmo bloco de texto, separa cada um por linha
-  const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
-  const matches: { number: string; index: number }[] = [];
-  let m: RegExpExecArray | null;
+    const verseMatch = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+    if (verseMatch) {
+      currentSection.verses.push({
+        number: verseMatch[1],
+        text: verseMatch[2].trim()
+      });
+    } else {
+      // Se houver versículos numerados embutidos
+      const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
+      const matches: { number: string; index: number }[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = verseRegex.exec(line)) !== null) {
+        matches.push({ number: m[1], index: m.index + m[0].indexOf(m[1]) });
+      }
 
-  while ((m = verseRegex.exec(bodyText)) !== null) {
-    matches.push({
-      number: m[1],
-      index: m.index + m[0].indexOf(m[1])
-    });
-  }
-
-  if (matches.length > 0) {
-    const parsedLines: string[] = [];
-    for (let i = 0; i < matches.length; i++) {
-      const curr = matches[i];
-      const next = matches[i + 1];
-      const startIdx = curr.index + curr.number.length;
-      const endIdx = next ? next.index : bodyText.length;
-      let verseContent = bodyText.substring(startIdx, endIdx).trim();
-      verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
-      if (verseContent.length > 0) {
-        parsedLines.push(`${curr.number} — ${verseContent}`);
+      if (matches.length > 0) {
+        for (let i = 0; i < matches.length; i++) {
+          const curr = matches[i];
+          const next = matches[i + 1];
+          const startIdx = curr.index + curr.number.length;
+          const endIdx = next ? next.index : line.length;
+          let verseContent = line.substring(startIdx, endIdx).trim();
+          verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
+          if (verseContent.length > 0) {
+            currentSection.verses.push({
+              number: curr.number,
+              text: verseContent
+            });
+          }
+        }
+      } else if (line.length > 0) {
+        if (currentSection.verses.length > 0) {
+          currentSection.verses[currentSection.verses.length - 1].text += ' ' + line;
+        } else {
+          currentSection.verses.push({ number: '', text: line });
+        }
       }
     }
-    if (parsedLines.length > 0) {
-      return { reference, text: parsedLines.join('\n') };
+  }
+
+  if (currentSection.verses.length > 0 || currentSection.bookHeader) {
+    sections.push(currentSection);
+  }
+
+  // Fallback para texto contínuo sem quebras de linha
+  if (sections.length === 0 || (sections.length === 1 && sections[0].verses.length === 0)) {
+    const fallbackSection: BiblicalBookSection = { verses: [] };
+    const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)?(?=[A-Za-zÀ-ÿ"“'\[])/g;
+    const matches: { number: string; index: number }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = verseRegex.exec(bodyText)) !== null) {
+      matches.push({ number: m[1], index: m.index + m[0].indexOf(m[1]) });
+    }
+
+    if (matches.length > 0) {
+      for (let i = 0; i < matches.length; i++) {
+        const curr = matches[i];
+        const next = matches[i + 1];
+        const startIdx = curr.index + curr.number.length;
+        const endIdx = next ? next.index : bodyText.length;
+        let verseContent = bodyText.substring(startIdx, endIdx).trim();
+        verseContent = verseContent.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
+        if (verseContent.length > 0) {
+          fallbackSection.verses.push({ number: curr.number, text: verseContent });
+        }
+      }
+      return { reference, sections: [fallbackSection] };
     }
   }
 
-  return { reference, text: bodyText };
+  return { reference, sections };
 }
 
 export function splitBiblicalVersesIntoSlides(rawText: string): BiblicalVerseSlideData[] {
@@ -1400,13 +1462,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     // Leitura Bíblica em Classe NA ÍNTEGRA (EM APENAS 1 ÚNICO CARD COM SCROLL)
     if (lesson.biblicalText) {
-      const formatted = formatBiblicalTextForSingleSlide(lesson.biblicalText);
       items.push({
         type: 'leitura',
         title: 'LEITURA BÍBLICA EM CLASSE',
         badgeText: 'LEITURA BÍBLICA EM CLASSE',
-        reference: formatted.reference,
-        projetorText: formatted.text,
+        projetorText: lesson.biblicalText,
         onUpdateText: (val: string) => {
           updateLesson(prev => ({ ...prev, biblicalText: val }));
         },
@@ -3255,37 +3315,66 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           </div>
                         )}
                         <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center">
-                          {currentProjectorItem.type === 'leitura' ? (
-                            <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 my-auto max-h-[380px] md:max-h-[460px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
-                              {currentProjectorItem.reference && (
-                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2 backdrop-blur-md z-20 rounded-xl shadow-md" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                  {currentProjectorItem.reference}
-                                </h3>
-                              )}
-                              <div className="w-full space-y-3 text-left font-sans pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
-                                  const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-                                  if (match) {
-                                    return (
-                                      <div key={idx} className="flex items-start gap-4 text-left w-full py-2.5 border-b border-slate-200/30 last:border-0">
-                                        <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1 drop-shadow-sm">
-                                          {match[1]}
-                                        </span>
-                                        <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
-                                          {renderHL(match[2])}
-                                        </p>
+                          {currentProjectorItem.type === 'leitura' ? (() => {
+                            const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
+                            const displayRef = currentProjectorItem.reference || parsed.reference;
+
+                            return (
+                              <div className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 my-auto max-h-[380px] md:max-h-[460px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y">
+                                {displayRef && (
+                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    {displayRef}
+                                  </h3>
+                                )}
+
+                                <div className="w-full space-y-4 text-left font-sans pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  {parsed.sections.map((section, sIdx) => (
+                                    <div key={sIdx} className="w-full space-y-3">
+                                      {/* Risco Laranja de Separação entre Livros */}
+                                      {sIdx > 0 && (
+                                        <div className="w-full flex items-center justify-center my-6">
+                                          <div className="w-full border-b-2 border-amber-500/90 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+                                        </div>
+                                      )}
+
+                                      {/* Título do Livro / Capítulo (ex: "Mateus 28", "Atos 1", "Efésios 2") */}
+                                      {section.bookHeader && (
+                                        <div className="w-full text-center mt-4 mb-3">
+                                          <h4 className="text-xl md:text-3xl font-black text-amber-400 tracking-wide font-sans inline-block px-5 py-1.5 bg-amber-500/10 rounded-xl border border-amber-500/40 shadow-sm">
+                                            {section.bookHeader}
+                                          </h4>
+                                        </div>
+                                      )}
+
+                                      {/* Versículos do Livro */}
+                                      <div className="w-full space-y-3">
+                                        {section.verses.map((v, vIdx) => {
+                                          if (v.number) {
+                                            return (
+                                              <div key={vIdx} className="flex items-start gap-3.5 text-left w-full py-2.5 border-b border-slate-200/20 last:border-0">
+                                                <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1 drop-shadow-sm">
+                                                  {v.number}
+                                                </span>
+                                                <span className="shrink-0 font-extrabold text-amber-400 text-xl md:text-3xl mt-1">—</span>
+                                                <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1 italic md:not-italic">
+                                                  {renderHL(v.text)}
+                                                </p>
+                                              </div>
+                                            );
+                                          }
+                                          return (
+                                            <p key={vIdx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left py-1">
+                                              {renderHL(v.text)}
+                                            </p>
+                                          );
+                                        })}
                                       </div>
-                                    );
-                                  }
-                                  return (
-                                    <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left py-1">
-                                      {renderHL(line)}
-                                    </p>
-                                  );
-                                })}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ) : currentProjectorItem.type === 'conclusao' ? (
+                            );
+                          })() : currentProjectorItem.type === 'conclusao' ? (
                             <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words w-full max-w-full px-2">
                                 "{currentProjectorItem.projetorText}"

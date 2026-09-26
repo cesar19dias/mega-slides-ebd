@@ -335,7 +335,7 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   7. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
   8. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
 
-- LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão ARC. A primeira linha deve conter a referência COMPLETA (ex: "Atos 24.1-6, 10-16") seguida de travessão ("—") e em seguida CADA um dos versículos numerados sem omitir nenhum versículo e sem colocar reticências.
+- LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão ARC. A primeira linha deve conter a referência COMPLETA (ex: "Mateus 28.18-20; Atos 1.8; Efésios 2.13-18.") seguida de travessão ("—"). Caso haja múltiplos livros ou capítulos, separe cada livro/capítulo em sua própria linha como título (ex: "Mateus 28", "Atos 1", "Efésios 2") seguido de cada versículo numerado.
 
 --- CONTEÚDO DA REVISTA ---
 ${revistaContent}
