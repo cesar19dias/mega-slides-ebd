@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Download, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
+import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
@@ -1214,132 +1214,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return text;
   };
 
-  // Gerador de Texto Limpo do Roteiro (sem prompts de imagem, sem checklist de fontes, sem divisores pesados e sem rótulos de engenharia)
-  const generateCleanTeacherTextContent = (data: EBDLessonPreparation): string => {
-    let text = `ROTEIRO DO PROFESSOR - EBD\n`;
-    text += `${data.metadata.lessonNumber || 'LIÇÃO EBD'}: ${data.metadata.title}\n`;
-    text += `Tema: ${data.metadata.themeTopic}\n\n`;
 
-    text += `1. TEXTO ÁUREO\n`;
-    text += `"${data.textAureo.text}" (${data.textAureo.reference})\n\n`;
-
-    text += `2. VERDADE PRÁTICA\n`;
-    text += `"${data.verdadePratica.text}"\n\n`;
-
-    if (data.introducao?.ponteContextual?.enabled) {
-      const bridge = data.introducao.ponteContextual;
-      const licaoAnt = bridge.naLicaoAnterior || bridge.ondeParou;
-      const interv = bridge.ponteContextual || bridge.capitulosIntermediarios;
-      text += `TRANSIÇÃO BÍBLICA & CONTEXTO\n`;
-      if (licaoAnt) text += `📌 Na lição anterior: ${licaoAnt}\n`;
-      if (interv) text += `📜 Intervalo bíblico: ${interv}\n`;
-      if (bridge.ganchoAulaAtual) text += `👉 Transição para hoje: ${bridge.ganchoAulaAtual}\n`;
-      if (bridge.projetor) text += `🖥️ Síntese no Projetor: "${bridge.projetor}"\n`;
-      text += `\n`;
-    }
-
-    if (data.biblicalText) {
-      text += `3. LEITURA BÍBLICA EM CLASSE\n`;
-      text += `${data.biblicalText}\n\n`;
-    }
-
-    text += `DESENVOLVIMENTO DIDÁTICO DOS TÓPICOS\n\n`;
-
-    data.topicos.forEach((topico) => {
-      text += `TÓPICO ${topico.number}: ${topico.title.toUpperCase()}\n`;
-      text += `Sinopse: ${topico.sinopse}\n`;
-      if (topico.frasesEnfase && topico.frasesEnfase.length > 0) {
-        text += `Frases de Ênfase:\n`;
-        topico.frasesEnfase.forEach((f) => {
-          text += `  • "${f}"\n`;
-        });
-      }
-      text += `\n`;
-
-      topico.subtopicos.forEach((sub) => {
-        text += `--- Subtópico ${sub.number}: ${sub.title} ---\n\n`;
-
-        const txtProjetor = sub.projetor || ((sub.frasesExplicativas && sub.frasesExplicativas.length > 0)
-          ? sub.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
-          : '');
-
-        if (txtProjetor) {
-          text += `Texto da Revista / Quadro:\n"${txtProjetor}"\n\n`;
-        }
-
-        if (sub.explicacao) {
-          text += `Explicação Didática do Professor:\n${sub.explicacao}\n\n`;
-        } else if (sub.frasesExplicativas && sub.frasesExplicativas.length > 0) {
-          text += `Explicação Didática do Professor:\n`;
-          const linhasLinear = sub.frasesExplicativas
-            .map(f => {
-              const label = f.frase ? `"${f.frase}" — ` : '';
-              return `${label}${f.explicacao}`.trim();
-            })
-            .filter(Boolean);
-          text += linhasLinear.join('\n\n') + '\n\n';
-        }
-
-
-        if (sub.versiculos && sub.versiculos.length > 0) {
-          text += `📖 Textos Bíblicos Relevantes:\n`;
-          sub.versiculos.forEach((v) => {
-            text += `  • ${v.reference}: "${v.text}"\n`;
-          });
-          text += `\n`;
-        }
-
-        if (sub.aplicacao) {
-          text += `🔥 Aplicação Prática:\n${sub.aplicacao}\n\n`;
-        }
-
-        if (sub.enfase) {
-          text += `💡 Ênfaise para a Sala:\n"${sub.enfase}"\n\n`;
-        }
-
-        if (sub.cuidadoDoutrinario) {
-          text += `⚠️ Cuidado Doutrinário:\n${sub.cuidadoDoutrinario}\n\n`;
-        }
-
-        if (sub.palavrasOriginais && sub.palavrasOriginais.length > 0) {
-          text += `🏛️ Vocabulário Exegético (Grego / Hebraico):\n`;
-          sub.palavrasOriginais.forEach((p) => {
-            text += `  • ${p.termo} (${p.transliteracao} - ${p.idioma}): ${p.significado}\n    ${p.explicacao}\n`;
-          });
-          text += `\n`;
-        }
-
-        if (sub.ideias && sub.ideias.length > 0) {
-          sub.ideias.forEach((ideia) => {
-            text += `[Ideia ${ideia.letra.toUpperCase()}] ${ideia.titulo}\n`;
-            text += `Projetor: "${ideia.projetor}"\n`;
-            text += `Explicação: ${ideia.professor.explicacao}\n`;
-            if (ideia.professor.contexto) {
-              text += `Contexto Histórico: ${ideia.professor.contexto}\n`;
-            }
-            text += `\n`;
-          });
-        }
-      });
-    });
-
-    text += `CONCLUSÃO & APLICAÇÃO FINAL\n`;
-    text += `"${data.conclusao.takeaway}"\n\n`;
-
-    if (data.conclusao.bulletPoints && data.conclusao.bulletPoints.length > 0) {
-      text += `Pontos Principais:\n`;
-      data.conclusao.bulletPoints.forEach((pt) => {
-        text += `  • ${pt}\n`;
-      });
-      text += `\n`;
-    }
-
-    if (data.conclusao.finalPrayer) {
-      text += `🙏 Sugestão de Oração Final:\n"${data.conclusao.finalPrayer}"\n\n`;
-    }
-
-    return text;
-  };
 
   // Funções de Exportação / Baixar / Imprimir / Copiar
   const handlePrintTeacherGuide = () => {
@@ -1354,26 +1229,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }, 200);
   };
 
-  const handleDownloadTeacherTxt = () => {
-    const textContent = generateCleanTeacherTextContent(lesson);
-    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const sanitizedTitle = lesson.metadata.title.replace(/[^a-zA-Z0-9-_\s]/g, '_').trim() || 'Roteiro_Professor';
-    link.download = `Roteiro_Professor_${sanitizedTitle}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
-  const handleCopyCleanTeacherGuide = () => {
-    const textContent = generateCleanTeacherTextContent(lesson);
-    navigator.clipboard.writeText(textContent);
-    setCopiedToast('clean');
-    setTimeout(() => setCopiedToast(null), 3000);
-  };
 
   const handleCopyTeacherGuide = () => {
     const textContent = generateTeacherTextContent(lesson);
@@ -1785,57 +1641,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               </button>
 
               <button
-                onClick={() => exportTeacherGuideHTML(lesson)}
-                title="Baixar Roteiro Colorido para colar no Google Docs (abre o .html no navegador, Ctrl+A, Ctrl+C, cola no Docs)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/40 shadow-md transition-all cursor-pointer"
-              >
-                <FileDown className="w-3.5 h-3.5 text-white" />
-                <span>🎨 Google Docs</span>
-              </button>
-
-              <button
-                onClick={handlePrintTeacherGuide}
-                title="Salvar Roteiro em PDF ou Imprimir"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition-all cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Imprimir</span>
-              </button>
-
-              <button
                 onClick={() => setIsQrModalOpen(true)}
                 title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/40 shadow-md transition-all cursor-pointer"
               >
                 <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
                 <span>📱 QR Code Celular</span>
-              </button>
-
-              <button
-                onClick={handleDownloadTeacherTxt}
-                title="Baixar Roteiro em Arquivo de Texto (.txt)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-all cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Baixar TXT</span>
-              </button>
-
-              <button
-                onClick={handleCopyCleanTeacherGuide}
-                title="Copiar Roteiro Limpo (somente texto da lição e explicações)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition-all cursor-pointer"
-              >
-                {copiedToast === 'clean' ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Limpo Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Copiar Limpo</span>
-                  </>
-                )}
               </button>
 
               <button
@@ -1989,31 +1800,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>Baixar PDF / Imprimir</span>
                 </button>
 
-                <button
-                  onClick={handleDownloadTeacherTxt}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Baixar TXT</span>
-                </button>
 
-                <button
-                  onClick={handleCopyCleanTeacherGuide}
-                  title="Copiar Roteiro Limpo para uso direto na aula"
-                  className="bg-cyan-600 hover:bg-cyan-500 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
-                >
-                  {copiedToast === 'clean' ? (
-                    <>
-                      <Check className="w-4 h-4 text-slate-950" />
-                      <span>Copiado Limpo!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 text-slate-950" />
-                      <span>Copiar Roteiro Limpo</span>
-                    </>
-                  )}
-                </button>
 
                 <button
                   onClick={handleCopyTeacherGuide}
