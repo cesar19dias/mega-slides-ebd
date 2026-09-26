@@ -309,12 +309,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const currentTitleScale = slideTitleFontScales[projectorIndex] !== undefined
     ? slideTitleFontScales[projectorIndex]
-    : 1.0;
+    : 1.4;
   const isCurrentTitleCustom = slideTitleFontScales[projectorIndex] !== undefined;
 
   const currentBodyScale = slideBodyFontScales[projectorIndex] !== undefined
     ? slideBodyFontScales[projectorIndex]
-    : 1.0;
+    : 1.7;
   const isCurrentBodyCustom = slideBodyFontScales[projectorIndex] !== undefined;
 
   useEffect(() => {
@@ -381,8 +381,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const nextTitles: Record<number, number> = {};
     const nextBodies: Record<number, number> = {};
     for (let i = 0; i < totalSlides; i++) {
-      if (currentTitleScale !== 1.0) nextTitles[i] = currentTitleScale;
-      if (currentBodyScale !== 1.0) nextBodies[i] = currentBodyScale;
+      if (currentTitleScale !== 1.4) nextTitles[i] = currentTitleScale;
+      if (currentBodyScale !== 1.7) nextBodies[i] = currentBodyScale;
     }
     setSlideTitleFontScales(nextTitles);
     setSlideBodyFontScales(nextBodies);
@@ -2696,9 +2696,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => setSingleTitleScale(projectorIndex, null)}
                       className="text-[9px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
-                      title="Restaurar tamanho padrão do título (100%)"
+                      title="Restaurar tamanho padrão do título (140%)"
                     >
-                      ↺ 100%
+                      ↺ 140%
                     </button>
                   )}
                 </div>
@@ -2736,9 +2736,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => setSingleBodyScale(projectorIndex, null)}
                       className="text-[9px] font-extrabold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
-                      title="Restaurar tamanho padrão do texto (100%)"
+                      title="Restaurar tamanho padrão do texto (170%)"
                     >
-                      ↺ 100%
+                      ↺ 170%
                     </button>
                   )}
                 </div>
@@ -2783,9 +2783,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <button
                         onClick={() => setSingleTitleScale(projectorIndex, null)}
                         className="text-[9px] font-bold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 cursor-pointer"
-                        title="Restaurar tamanho padrão do título"
+                        title="Restaurar tamanho padrão do título (140%)"
                       >
-                        ↺ 100%
+                        ↺ 140%
                       </button>
                     )}
                   </div>
@@ -2816,9 +2816,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <button
                         onClick={() => setSingleBodyScale(projectorIndex, null)}
                         className="text-[9px] font-bold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 cursor-pointer"
-                        title="Restaurar tamanho padrão do texto"
+                        title="Restaurar tamanho padrão do texto (170%)"
                       >
-                        ↺ 100%
+                        ↺ 170%
                       </button>
                     )}
                   </div>
