@@ -1292,21 +1292,39 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
 
     // Tópicos, Sinopse do Tópico (Revisão Rápida) e Subtópicos com Ideias a, b, c
+    const parseTopicNum = (val: string | number | undefined, idx: number): string => {
+      if (!val) return String(idx + 1);
+      const str = String(val).trim().toUpperCase();
+      if (str === 'I' || str === '1') return '1';
+      if (str === 'II' || str === '2') return '2';
+      if (str === 'III' || str === '3') return '3';
+      if (str === 'IV' || str === '4') return '4';
+      if (str === 'V' || str === '5') return '5';
+      if (str === 'VI' || str === '6') return '6';
+      const num = parseInt(str, 10);
+      return isNaN(num) ? String(idx + 1) : String(num);
+    };
+
+    // Tópicos, Sinopse do Tópico (Revisão Rápida) e Subtópicos com Ideias a, b, c
     lesson.topicos.forEach((t, tIdx) => {
+      const topicNum = parseTopicNum(t.number, tIdx);
+
       // 📌 CARD DE SINOPSE / REVISÃO DO TÓPICO (TÍTULO DO TÓPICO VAI NA TARJA LARANJA COMO NO PRINT)
       items.push({
         type: 'topic_synopsis',
-        title: `TÓPICO ${t.number}: ${t.title}`,
-        badgeText: `TÓPICO ${t.number}: ${t.title.toUpperCase()}`,
-        ideiaText: `TÓPICO ${t.number}: ${t.title.toUpperCase()}`,
+        title: `${topicNum}. ${t.title}`,
+        badgeText: `TÓPICO ${topicNum}: ${t.title.toUpperCase()}`,
+        ideiaText: `TÓPICO ${topicNum}: ${t.title.toUpperCase()}`,
         projetorText: t.sinopse,
         onUpdateTitle: (val: string) => updateTopicTitle(tIdx, val.replace(/^TÓPICO\s*[I|V|X|\d]+\s*:\s*/i, '')),
         onUpdateText: (val: string) => updateTopicSinopse(tIdx, val)
       });
 
       t.subtopicos.forEach((s, sIdx) => {
-        const numStr = s.number || '1';
-        const numPrefix = `${numStr}. `;
+        const subNumStr = s.number || String(sIdx + 1);
+        const subtopicBadge = `TÓPICO ${topicNum} - SUBTÓPICO ${subNumStr}: ${s.title.toUpperCase()}`;
+        const subtopicTitle = `${topicNum}.${subNumStr}. ${s.title}`;
+        const numPrefix = `${subNumStr}. `;
 
         // 1. SLIDE DO TEXTO OFICIAL DA REVISTA (QUADRO AZUL)
         let textoQuadroAzul = s.projetor || '';
@@ -1316,19 +1334,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         if (!textoQuadroAzul) {
           textoQuadroAzul = s.explicacao || '';
         }
-        if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${numStr} `) && !textoQuadroAzul.startsWith(`Subtópico ${numStr}`)) {
+        if (textoQuadroAzul && !textoQuadroAzul.startsWith(numPrefix) && !textoQuadroAzul.startsWith(`${subNumStr} `) && !textoQuadroAzul.startsWith(`Subtópico ${subNumStr}`)) {
           textoQuadroAzul = `${numPrefix}${textoQuadroAzul}`;
         }
 
         if (textoQuadroAzul) {
           items.push({
             type: 'subtopic',
-            title: `${s.number}. ${s.title}`,
-            badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
-            ideiaText: `${s.number}. ${s.title}`,
+            title: subtopicTitle,
+            badgeText: subtopicBadge,
+            ideiaText: `${subNumStr}. ${s.title}`,
             projetorText: textoQuadroAzul,
             imagePrompt: s.imagePrompt,
-            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
             onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'projetor', val)
           });
         }
@@ -1342,12 +1360,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           if (textoReferencias) {
             items.push({
               type: 'subtopic_verses',
-              title: `${s.number}. ${s.title}`,
-              badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+              title: subtopicTitle,
+              badgeText: subtopicBadge,
               ideiaText: '📖 VAMOS LER A BÍBLIA',
               projetorText: textoReferencias,
               imagePrompt: s.imagePrompt,
-              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
               onUpdateText: (val: string) => {
                 const refs = val.split('\n').filter(Boolean);
                 const newVerses = refs.map(r => ({ reference: r.trim(), text: '' }));
@@ -1361,12 +1379,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         if (s.aplicacao) {
           items.push({
             type: 'subtopic_aplicacao',
-            title: `${s.number}. ${s.title}`,
-            badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+            title: subtopicTitle,
+            badgeText: subtopicBadge,
             ideiaText: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
             projetorText: s.aplicacao,
             imagePrompt: s.imagePrompt,
-            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
             onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'aplicacao', val)
           });
         }
@@ -1383,12 +1401,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
           items.push({
             type: 'enfase_palavra',
-            title: `${s.number}. ${s.title}`,
-            badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+            title: subtopicTitle,
+            badgeText: subtopicBadge,
             ideiaText: 'APRENDA COM A PALAVRA...',
             projetorText: cleanEnfaseText ? `“${cleanEnfaseText}”` : s.enfase,
             imagePrompt: s.imagePrompt,
-            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
             onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'enfase', val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
           });
         }
@@ -1398,12 +1416,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           s.ideias.forEach((ideia, iIdx) => {
             items.push({
               type: 'subtopic',
-              title: `${s.number}. ${s.title}`,
-              badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+              title: subtopicTitle,
+              badgeText: subtopicBadge,
               ideiaText: `${ideia.letra}) ${ideia.titulo}`,
               projetorText: ideia.projetor,
               imagePrompt: ideia.imagePrompt || s.imagePrompt,
-              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
               onUpdateText: (val: string) => {
                 updateLesson(prev => {
                   const topicos = [...prev.topicos];
@@ -1421,12 +1439,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             if (ideia.professor?.explicacao) {
               items.push({
                 type: 'subtopic_explanation',
-                title: `${s.number}. ${s.title}`,
-                badgeText: `SUBTÓPICO ${s.number}: ${s.title.toUpperCase()}`,
+                title: subtopicTitle,
+                badgeText: subtopicBadge,
                 ideiaText: `EXPLICAÇÃO — IDEIA ${ideia.letra.toUpperCase()}`,
                 projetorText: ideia.professor.explicacao,
                 imagePrompt: ideia.imagePrompt || s.imagePrompt,
-                onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+\.\s*/, '')),
+                onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
                 onUpdateText: (val: string) => {
                   updateLesson(prev => {
                     const topicos = [...prev.topicos];
@@ -3169,39 +3187,68 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 return res;
               };
               const badgeText = currentProjectorItem.badgeText || 'MEGA EBD';
-              const subMatch = badgeText.match(/^(SUBTÓPICO\s*([\d|A-Z]+)?|SUBT\.?\s*([\d|A-Z]+)?)\s*[:\—\-]?\s*(.+)$/i);
-              const topMatch = badgeText.match(/^(TÓPICO\s*([I|V|X|\d]+)?)\s*[:\—\-]?\s*(.+)$/i);
-              
+
+              // Suporta: TÓPICO X - SUBTÓPICO Y: TÍTULO ou SUBTÓPICO Y: TÍTULO ou TÓPICO X: TÍTULO
+              const fullTopicSubMatch = badgeText.match(/^(?:TÓPICO\s*([I|V|X|\d]+)\s*[\:\-\—\–]?\s*)?(?:SUBTÓPICO\s*([\d|A-Z]+)|SUBT\.?\s*([\d|A-Z]+))\s*[:\—\-]?\s*(.+)$/i);
+              const topMatch = badgeText.match(/^(?:TÓPICO\s*([I|V|X|\d]+))\s*[:\—\-]?\s*(.+)$/i);
+
               let mainTitle = badgeText;
               let isSubtopic = false;
-              let subNum = '';
+              let topicNumStr = '';
+              let subNumStr = '';
 
-              if (subMatch) {
-                subNum = subMatch[2] || subMatch[3] || '';
-                mainTitle = subMatch[4].trim();
+              if (fullTopicSubMatch) {
+                topicNumStr = fullTopicSubMatch[1] || '';
+                subNumStr = fullTopicSubMatch[2] || fullTopicSubMatch[3] || '';
+                mainTitle = fullTopicSubMatch[4].trim();
                 isSubtopic = true;
               } else if (topMatch) {
-                mainTitle = topMatch[3].trim();
+                topicNumStr = topMatch[1] || '';
+                mainTitle = topMatch[2].trim();
                 isSubtopic = false;
               } else if (badgeText.toUpperCase().includes('SUBT') || badgeText.toUpperCase().includes('SUBTÓPICO')) {
                 isSubtopic = true;
               }
 
-              if (isSubtopic && !subNum) {
-                const m = badgeText.match(/subtÓpico\s*([\d|A-Z]+)/i) || badgeText.match(/subt\.?\s*([\d|A-Z]+)/i);
-                if (m) subNum = m[1];
+              if (!topicNumStr) {
+                const mTop = badgeText.match(/tÓpico\s*([I|V|X|\d]+)/i);
+                if (mTop) topicNumStr = mTop[1];
+              }
+              if (isSubtopic && !subNumStr) {
+                const mSub = badgeText.match(/subtÓpico\s*([\d|A-Z]+)/i) || badgeText.match(/subt\.?\s*([\d|A-Z]+)/i);
+                if (mSub) subNumStr = mSub[1];
               }
 
-              // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2" e referências do tipo (vv.1,2)
+              const parseRomanToNum = (val: string): string => {
+                if (!val) return '';
+                const s = val.trim().toUpperCase();
+                if (s === 'I') return '1';
+                if (s === 'II') return '2';
+                if (s === 'III') return '3';
+                if (s === 'IV') return '4';
+                if (s === 'V') return '5';
+                if (s === 'VI') return '6';
+                return val;
+              };
+              const formattedTopicNum = parseRomanToNum(topicNumStr);
+
+              // Remove qualquer prefixo legado tipo "Tópico 1", "Subtópico 1", "Subt.", e referências do tipo (vv.1,2) ou numerações duplicadas
               let cleanTitle = mainTitle
-                .replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '')
+                .replace(/^(tÓpico\s*[\d|I|V|X]*\s*[\:\–\—\-]?\s*subtópico\s*[\d|A-Z]*|subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*|tópico\s*[\d|I|V|X]*)\s*[\:\.\—\-]?\s*/i, '')
                 .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
+                .replace(/^\d+(\.\d+)?[\.\s\-\:]+\s*/, '')
                 .trim();
 
               let formattedTitle = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
-              if (isSubtopic && subNum && !formattedTitle.startsWith(`${subNum}.`) && !formattedTitle.startsWith(`${subNum} `) && !formattedTitle.startsWith(`${subNum}-`)) {
-                formattedTitle = `${subNum}. ${formattedTitle}`;
+              if (isSubtopic) {
+                if (formattedTopicNum && subNumStr) {
+                  formattedTitle = `${formattedTopicNum}.${subNumStr}. ${formattedTitle}`;
+                } else if (subNumStr) {
+                  formattedTitle = `${subNumStr}. ${formattedTitle}`;
+                }
+              } else if (formattedTopicNum) {
+                formattedTitle = `${formattedTopicNum}. ${formattedTitle}`;
               }
 
               return (
@@ -3308,13 +3355,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   "{currentProjectorItem.projetorText}"
                                 </p>
                               ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className="font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
                                       ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -3324,7 +3371,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
                                   <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     📖 VAMOS LER A BÍBLIA
                                   </h2>
@@ -3334,7 +3381,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
-                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
                                   <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     QUAL O ENSINAMENTO PRA MINHA VIDA?
                                   </h2>
@@ -3348,7 +3395,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic' ? (
-                                <div className="max-h-[340px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
                                       ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
@@ -3358,7 +3405,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   </p>
                                 </div>
                               ) : (
-                                <div className="w-full max-h-[340px] overflow-y-auto no-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
+                                <div className="w-full max-h-[408px] overflow-y-auto no-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                                   {currentProjectorItem.ideiaText && (
                                     <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.ideiaText}

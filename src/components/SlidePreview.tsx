@@ -50,39 +50,65 @@ function toCaixaBaixa(text: string): string {
 
 // ─── Header de Título da EBD (Nome Principal no Topo - Centralizado a partir do recuo de 2/8, Fonte Gotham Medium) ──────────────────────────
 const EbdHeaderBadge: React.FC<{ label: string }> = ({ label }) => {
-  const subMatch = label.match(/^(SUBTÓPICO\s*([\d|A-Z]+)?|SUBT\.?\s*([\d|A-Z]+)?)\s*[:\—\-]?\s*(.+)$/i);
-  const topMatch = label.match(/^(TÓPICO\s*([I|V|X|\d]+)?)\s*[:\—\-]?\s*(.+)$/i);
+  const fullTopicSubMatch = label.match(/^(?:TÓPICO\s*([I|V|X|\d]+)\s*[\:\-\—\–]?\s*)?(?:SUBTÓPICO\s*([\d|A-Z]+)|SUBT\.?\s*([\d|A-Z]+))\s*[:\—\-]?\s*(.+)$/i);
+  const topMatch = label.match(/^(?:TÓPICO\s*([I|V|X|\d]+))\s*[:\—\-]?\s*(.+)$/i);
 
   let mainTitle = label;
   let isSubtopic = false;
-  let subNum = '';
+  let topicNumStr = '';
+  let subNumStr = '';
 
-  if (subMatch) {
-    subNum = subMatch[2] || subMatch[3] || '';
-    mainTitle = subMatch[4].trim();
+  if (fullTopicSubMatch) {
+    topicNumStr = fullTopicSubMatch[1] || '';
+    subNumStr = fullTopicSubMatch[2] || fullTopicSubMatch[3] || '';
+    mainTitle = fullTopicSubMatch[4].trim();
     isSubtopic = true;
   } else if (topMatch) {
-    mainTitle = topMatch[3].trim();
+    topicNumStr = topMatch[1] || '';
+    mainTitle = topMatch[2].trim();
     isSubtopic = false;
   } else if (label.toUpperCase().includes('SUBT') || label.toUpperCase().includes('SUBTÓPICO')) {
     isSubtopic = true;
   }
 
-  if (isSubtopic && !subNum) {
-    const m = label.match(/subtÓpico\s*([\d|A-Z]+)/i) || label.match(/subt\.?\s*([\d|A-Z]+)/i);
-    if (m) subNum = m[1];
+  if (!topicNumStr) {
+    const mTop = label.match(/tÓpico\s*([I|V|X|\d]+)/i);
+    if (mTop) topicNumStr = mTop[1];
+  }
+  if (isSubtopic && !subNumStr) {
+    const mSub = label.match(/subtÓpico\s*([\d|A-Z]+)/i) || label.match(/subt\.?\s*([\d|A-Z]+)/i);
+    if (mSub) subNumStr = mSub[1];
   }
 
-  // Remove qualquer prefixo tipo "Subtópico 1", "Subt.", "Subt 2", "SUBTÓPICO" e referências do tipo (vv.1,2)
+  const parseRomanToNum = (val: string): string => {
+    if (!val) return '';
+    const s = val.trim().toUpperCase();
+    if (s === 'I') return '1';
+    if (s === 'II') return '2';
+    if (s === 'III') return '3';
+    if (s === 'IV') return '4';
+    if (s === 'V') return '5';
+    if (s === 'VI') return '6';
+    return val;
+  };
+  const formattedTopicNum = parseRomanToNum(topicNumStr);
+
   let cleanTitle = mainTitle
-    .replace(/^(subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*)\s*[\:\.\—\-]?\s*/i, '')
+    .replace(/^(tÓpico\s*[\d|I|V|X]*\s*[\:\–\—\-]?\s*subtópico\s*[\d|A-Z]*|subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*|tópico\s*[\d|I|V|X]*)\s*[\:\.\—\-]?\s*/i, '')
     .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
+    .replace(/^\d+(\.\d+)?[\.\s\-\:]+\s*/, '')
     .trim();
 
   let formattedTitle = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
 
-  if (isSubtopic && subNum && !formattedTitle.startsWith(`${subNum}.`) && !formattedTitle.startsWith(`${subNum} `) && !formattedTitle.startsWith(`${subNum}-`)) {
-    formattedTitle = `${subNum}. ${formattedTitle}`;
+  if (isSubtopic) {
+    if (formattedTopicNum && subNumStr) {
+      formattedTitle = `${formattedTopicNum}.${subNumStr}. ${formattedTitle}`;
+    } else if (subNumStr) {
+      formattedTitle = `${subNumStr}. ${formattedTitle}`;
+    }
+  } else if (formattedTopicNum) {
+    formattedTitle = `${formattedTopicNum}. ${formattedTitle}`;
   }
 
   return (
