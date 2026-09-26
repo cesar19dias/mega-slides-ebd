@@ -12,6 +12,17 @@ export interface SlideCanvasOverlayProps {
   isExporting?: boolean;
 }
 
+const LOUSA_STORAGE_KEY = 'mega_ebd_lousa_history';
+
+const getStoredHistory = (): Record<number, string> => {
+  try {
+    const saved = localStorage.getItem(LOUSA_STORAGE_KEY);
+    return saved ? JSON.parse(saved) : {};
+  } catch {
+    return {};
+  }
+};
+
 export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
   slideIndex,
   isActive = false,
@@ -28,28 +39,69 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
   const startPointRef = useRef<{ x: number; y: number } | null>(null);
   const snapshotRef = useRef<ImageData | null>(null);
 
-  // Armazena histórico de desenhos indexado pelo slideIndex
-  const [slideHistory, setSlideHistory] = useState<Record<number, string>>({});
+  // Histórico de marcações persistido por slideIndex
+  const [slideHistory, setSlideHistory] = useState<Record<number, string>>(getStoredHistory);
 
-  // Redimensiona o canvas para bater exatamente com a largura/altura real do contêiner
+  // Refs para rastrear estado atual e anterior sem causar re-renders desnecessários
+  const prevSlideIndexRef = useRef<number>(slideIndex);
+  const slideHistoryRef = useRef<Record<number, string>>(slideHistory);
+
+  // Mantém slideHistoryRef sempre sincronizado
+  useEffect(() => {
+    slideHistoryRef.current = slideHistory;
+  }, [slideHistory]);
+
+  // Salva o canvas atual para o slide fornecido
+  const saveCurrentSlideCanvas = useCallback((targetIndex: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas || canvas.width === 0 || canvas.height === 0) return;
+
+    try {
+      const dataUrl = canvas.toDataURL();
+      setSlideHistory(prev => {
+        const next = { ...prev, [targetIndex]: dataUrl };
+        slideHistoryRef.current = next;
+        try {
+          localStorage.setItem(LOUSA_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // ignora cota de localStorage excedida
+        }
+        return next;
+      });
+    } catch {
+      // ignora erro de canvas
+    }
+  }, []);
+
+  // Redimensiona o canvas para ajustar perfeitamente ao tamanho total (incluindo scrollHeight) do elemento pai
   const syncCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    const rect = parent.getBoundingClientRect();
-    if (canvas.width !== rect.width || canvas.height !== rect.height) {
-      const tempUrl = canvas.toDataURL();
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+    const parentRect = parent.getBoundingClientRect();
+    if (parentRect.width === 0 || parentRect.height === 0) return;
 
-      const img = new Image();
-      img.onload = () => {
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.drawImage(img, 0, 0);
-      };
-      img.src = tempUrl;
+    const targetWidth = parent.clientWidth || Math.round(parentRect.width);
+    const targetHeight = Math.max(parent.scrollHeight, parent.clientHeight, Math.round(parentRect.height));
+
+    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+      const tempUrl = canvas.toDataURL();
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      if (tempUrl && tempUrl !== 'data:,') {
+        const img = new Image();
+        img.onload = () => {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          }
+        };
+        img.src = tempUrl;
+      }
     }
   }, []);
 
@@ -59,8 +111,8 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
     return () => window.removeEventListener('resize', syncCanvasSize);
   }, [syncCanvasSize]);
 
-  // Restaura o desenho salvo ao trocar de slide
-  useEffect(() => {
+  // Renderiza a imagem salva no canvas
+  const renderCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -68,22 +120,47 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const savedData = slideHistory[slideIndex];
-    if (savedData) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.drawImage(img, 0, 0);
-      };
-      img.src = savedData;
-    }
-  }, [slideIndex, slideHistory]);
+    const savedData = slideHistoryRef.current[slideIndex];
+    if (!savedData) return;
 
-  const saveCurrentSlideCanvas = () => {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = savedData;
+  }, [slideIndex]);
+
+  useEffect(() => {
+    renderCanvas();
+  }, [renderCanvas]);
+
+  // Restaura o desenho salvo ao trocar de slide e salva o slide anterior
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dataUrl = canvas.toDataURL();
-    setSlideHistory(prev => ({ ...prev, [slideIndex]: dataUrl }));
-  };
+
+    const prevIndex = prevSlideIndexRef.current;
+
+    // Se o índice do slide realmente mudou
+    if (prevIndex !== slideIndex) {
+      // 1. Salva a tela do slide anterior antes de trocar
+      const currentCanvasData = canvas.toDataURL();
+      if (currentCanvasData && currentCanvasData !== 'data:,') {
+        const next = { ...slideHistoryRef.current, [prevIndex]: currentCanvasData };
+        slideHistoryRef.current = next;
+        setSlideHistory(next);
+        try {
+          localStorage.setItem(LOUSA_STORAGE_KEY, JSON.stringify(next));
+        } catch {}
+      }
+
+      // Atualiza a referência para o novo slideIndex
+      prevSlideIndexRef.current = slideIndex;
+    }
+
+    renderCanvas();
+  }, [slideIndex, renderCanvas]);
 
   const handleClearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -91,9 +168,14 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     setSlideHistory(prev => {
       const next = { ...prev };
       delete next[slideIndex];
+      slideHistoryRef.current = next;
+      try {
+        localStorage.setItem(LOUSA_STORAGE_KEY, JSON.stringify(next));
+      } catch {}
       return next;
     });
   }, [slideIndex]);
@@ -309,7 +391,7 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
       lastPointRef.current = null;
       startPointRef.current = null;
       snapshotRef.current = null;
-      saveCurrentSlideCanvas();
+      saveCurrentSlideCanvas(slideIndex);
     }
   };
 
@@ -323,9 +405,12 @@ export const SlideCanvasOverlay: React.FC<SlideCanvasOverlayProps> = ({
       onTouchStart={startDrawing}
       onTouchMove={drawMove}
       onTouchEnd={stopDrawing}
-      className={`absolute inset-0 w-full h-full rounded-3xl ${
+      className={`absolute top-0 left-0 w-full ${
         isActive ? 'z-30 cursor-crosshair touch-none pointer-events-auto' : 'z-20 pointer-events-none'
       }`}
+      style={{
+        height: canvasRef.current?.height ? `${canvasRef.current.height}px` : '100%',
+      }}
     />
   );
 };

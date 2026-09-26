@@ -14,16 +14,19 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
   const [shareUrl, setShareUrl] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
+  const [isShortened, setIsShortened] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen && lesson) {
       setIsLoading(true);
-      const url = encodeLessonToUrl(lesson);
-      setShareUrl(url);
+      const fullUrl = encodeLessonToUrl(lesson);
+      setShareUrl(fullUrl);
 
-      generateQrCodeDataUrl(url)
-        .then((dataUrl) => {
-          setQrDataUrl(dataUrl);
+      generateQrCodeDataUrl(fullUrl, lesson)
+        .then((result) => {
+          setQrDataUrl(result.dataUrl);
+          setShareUrl(result.shareUrl);
+          setIsShortened(result.isShortened);
           setIsLoading(false);
         })
         .catch((err) => {
@@ -116,7 +119,11 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
 
         {/* Dica de rodapé */}
         <p className="text-[11px] text-center text-slate-500">
-          💡 A aula é codificada diretamente no link, permitindo abrir instantaneamente em qualquer aparelho sem precisar re-gerar na IA.
+          {isShortened ? (
+            <span>⚡ Link otimizado e encurtado para leitura instantânea no celular.</span>
+          ) : (
+            <span>💡 A aula é codificada diretamente no link, permitindo abrir instantaneamente em qualquer aparelho.</span>
+          )}
         </p>
       </div>
     </div>

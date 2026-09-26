@@ -4,7 +4,91 @@ import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Mo
 import { callGeminiRaw } from '../services/geminiService';
 import { exportSingleSlidePDF, exportSingleSlidePNG, exportAllSlidesPDFFromStage, exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 import { SlideCanvasOverlay, type DrawingTool } from './SlideCanvasOverlay';
+import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
+
+// ── Inline Text Highlight System ──────────────────────────────────
+interface TextHighlightEntry {
+  text: string;
+  color: string;
+  style?: 'fill' | 'outline'; // default 'fill' for backward compat
+}
+type SlideHighlights = Record<number, TextHighlightEntry[]>;
+const HL_STORAGE_KEY = 'mega_ebd_text_highlights_v2';
+
+function loadSlideHighlights(): SlideHighlights {
+  try {
+    const s = localStorage.getItem(HL_STORAGE_KEY);
+    return s ? JSON.parse(s) : {};
+  } catch { return {}; }
+}
+function persistSlideHighlights(h: SlideHighlights) {
+  localStorage.setItem(HL_STORAGE_KEY, JSON.stringify(h));
+}
+
+/**
+ * Returns React nodes with highlight <mark> elements injected inline.
+ * Matching is case-sensitive and marks ALL occurrences.
+ */
+function applyHighlightsToText(
+  text: string,
+  entries: TextHighlightEntry[],
+): React.ReactNode {
+  if (!entries.length || !text) return text;
+
+  const LIGHT = new Set(['#facc15', '#fb923c', '#4ade80']);
+
+  // Build sorted, non-overlapping intervals
+  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' }> = [];
+  for (const h of entries) {
+    if (!h.text) continue;
+    let pos = 0;
+    while (pos <= text.length - h.text.length) {
+      const idx = text.indexOf(h.text, pos);
+      if (idx === -1) break;
+      const overlaps = intervals.some((iv) => idx < iv.e && idx + h.text.length > iv.s);
+      if (!overlaps) intervals.push({ s: idx, e: idx + h.text.length, color: h.color, style: h.style ?? 'fill' });
+      pos = idx + 1;
+    }
+  }
+  if (!intervals.length) return text;
+  intervals.sort((a, b) => a.s - b.s);
+
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  intervals.forEach((iv, i) => {
+    if (cursor < iv.s) nodes.push(<React.Fragment key={`t${i}`}>{text.slice(cursor, iv.s)}</React.Fragment>);
+    const isFill = iv.style !== 'outline';
+    const isDark = LIGHT.has(iv.color);
+    nodes.push(
+      <mark
+        key={`m${i}`}
+        style={isFill ? {
+          background: iv.color,
+          color: isDark ? '#1e293b' : '#fff',
+          borderRadius: '3px',
+          padding: '2px 5px',
+          fontWeight: 'inherit',
+          display: 'inline',
+        } : {
+          background: 'transparent',
+          color: 'inherit',
+          borderRadius: '3px',
+          padding: '2px 5px',
+          fontWeight: 'inherit',
+          display: 'inline',
+          outline: `4px solid ${iv.color}`,
+          outlineOffset: '1px',
+        }}
+      >
+        {text.slice(iv.s, iv.e)}
+      </mark>,
+    );
+    cursor = iv.e;
+  });
+  if (cursor < text.length) nodes.push(<React.Fragment key="tend">{text.slice(cursor)}</React.Fragment>);
+  return <>{nodes}</>;
+}
 
 interface EditableTextProps {
   value: string;
@@ -676,6 +760,52 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [selectedLousaColor, setSelectedLousaColor] = useState('#facc15');
   const [lousaStrokeSize, setLousaStrokeSize] = useState(8);
   const [clearLousaTrigger, setClearLousaTrigger] = useState(0);
+
+  // ── Inline Text Highlight State ──────────────────────────────────
+  const [slideHighlights, setSlideHighlights] = useState<SlideHighlights>(loadSlideHighlights);
+  const [hlToolbar, setHlToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
+  void HIGHLIGHT_COLORS; // keep import used
+
+  const saveHighlights = useCallback((next: SlideHighlights) => {
+    setSlideHighlights(next);
+    persistSlideHighlights(next);
+  }, []);
+
+  /** Wraps text with inline highlight marks for the current projector slide. */
+  const renderHL = useCallback((text: string | undefined): React.ReactNode => {
+    if (!text) return text;
+    const entries = slideHighlights[projectorIndex] || [];
+    return applyHighlightsToText(text, entries);
+  }, [slideHighlights, projectorIndex]);
+
+  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' = 'fill') => {
+    if (!hlToolbar) return;
+    const current = slideHighlights[projectorIndex] || [];
+    const filtered = current.filter((h) => h.text !== hlToolbar.text);
+    saveHighlights({ ...slideHighlights, [projectorIndex]: [...filtered, { text: hlToolbar.text, color, style: hlStyle }] });
+    setHlToolbar(null);
+    window.getSelection()?.removeAllRanges();
+  }, [hlToolbar, slideHighlights, projectorIndex, saveHighlights]);
+
+  const removeHighlight = useCallback(() => {
+    if (!hlToolbar) return;
+    const current = slideHighlights[projectorIndex] || [];
+    saveHighlights({ ...slideHighlights, [projectorIndex]: current.filter((h) => h.text !== hlToolbar.text) });
+    setHlToolbar(null);
+    window.getSelection()?.removeAllRanges();
+  }, [hlToolbar, slideHighlights, projectorIndex, saveHighlights]);
+
+  const handleSlideMouseUp = useCallback(() => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) { setHlToolbar(null); return; }
+    const text = sel.toString().trim();
+    if (!text) { setHlToolbar(null); return; }
+    const range = sel.getRangeAt(0);
+    const stageEl = projectorStageRef.current;
+    if (!stageEl || !stageEl.contains(range.commonAncestorContainer)) { setHlToolbar(null); return; }
+    const rect = range.getBoundingClientRect();
+    setHlToolbar({ text, x: rect.left + rect.width / 2, y: rect.bottom });
+  }, []);
 
 
   // Estados de Regeneração Seletiva e Notificações
@@ -1415,7 +1545,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
   };
 
   return (
-    <div className="preparation-view-container space-y-6 max-w-6xl mx-auto font-['Montserrat']">
+    <div className="preparation-view-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
       {/* Barra de Ferramentas Superior & Alternador de Visão */}
       <div className="bg-slate-900/90 border border-slate-700/90 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 backdrop-blur-md no-print">
         <div className="flex items-center gap-3">
@@ -2904,6 +3034,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             ref={projectorStageRef}
             className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
+            onMouseUp={handleSlideMouseUp}
+            onTouchEnd={handleSlideMouseUp}
           >
             {/* Lousa Interativa (Canvas de Desenho / Anotações) */}
             <SlideCanvasOverlay
@@ -2915,6 +3047,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               clearTrigger={clearLousaTrigger}
               isExporting={!!isExporting}
             />
+
+            {/* Toolbar de Destaque de Texto (aparece ao selecionar texto no slide) */}
+            {hlToolbar && (
+              <TextHighlightToolbar
+                x={hlToolbar.x}
+                y={hlToolbar.y}
+                onApply={applyHighlight}
+                onRemove={removeHighlight}
+                onClose={() => { setHlToolbar(null); window.getSelection()?.removeAllRanges(); }}
+              />
+            )}
 
             {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
             {!isExporting && (
@@ -2947,7 +3090,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
-                  <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
                     <div
                       style={makeDragStyle(titlePos, 'title')}
@@ -2979,44 +3122,28 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           📄 Texto — arraste
                         </div>
                       )}
-                      {curSlideImg ? (
-                        <div className="w-full h-full flex items-center justify-between gap-6 px-6 py-4 mt-12 md:mt-16 my-auto">
-                          <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center space-y-4">
-                            <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                              {currentProjectorItem.title}
-                            </h1>
-                            {currentProjectorItem.subtitle && (
-                              <>
-                                <div className="w-4/5 border-b border-slate-200/40 my-2 mx-auto" />
-                                <p className="text-sm md:text-lg font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  {currentProjectorItem.subtitle}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                          <div className="w-[38%] shrink-0 flex items-center justify-center">
-                            <img
-                              src={curSlideImg}
-                              alt="Ilustração do Slide"
-                              className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all"
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
-                          <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight max-w-4xl font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                            {currentProjectorItem.title}
-                          </h1>
-                          {currentProjectorItem.subtitle && (
-                            <>
-                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                              <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 max-w-3xl font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                {currentProjectorItem.subtitle}
-                              </p>
-                            </>
-                          )}
+                      {curSlideImg && (
+                        <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
+                          <img
+                            src={curSlideImg}
+                            alt="Ilustração do Slide"
+                            className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]"
+                          />
                         </div>
                       )}
+                      <div className="w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
+                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                          {currentProjectorItem.title}
+                        </h1>
+                        {currentProjectorItem.subtitle && (
+                          <>
+                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
+                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 w-full max-w-full font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              {currentProjectorItem.subtitle}
+                            </p>
+                          </>
+                        )}
+                      </div>
                     </div>{/* /body drag wrapper */}
 
                     <div className="w-full shrink-0 h-8" />
@@ -3077,7 +3204,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-5xl mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                   {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
                   <div
                     style={makeDragStyle(titlePos, 'title')}
@@ -3111,246 +3238,155 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     )}
                   {(() => {
                     const curSlideImg = projectorSlideImages[projectorIndex];
-                    if (curSlideImg) {
-                      return (
-                        <div className="w-full flex-1 flex items-center justify-between gap-6 px-4 py-2 my-auto mt-[5%]">
-                          {/* Coluna Esquerda: Texto adaptado (58%) */}
-                          <div className="w-[58%] shrink-0 flex flex-col justify-center items-center text-center space-y-3">
-                            {currentProjectorItem.type === 'leitura' ? (
-                              <>
-                                {currentProjectorItem.reference && (
-                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full leading-tight" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    {currentProjectorItem.reference}
-                                  </h3>
-                                )}
-                                <div className="w-full space-y-2 text-left font-sans max-h-[280px] overflow-y-auto pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
-                                    const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-                                    if (match) {
-                                      return (
-                                        <div key={idx} className="flex items-start gap-2.5 text-left w-full py-1 border-b border-slate-200/40 last:border-0">
-                                          <span className="shrink-0 font-black text-white text-xl md:text-3xl lg:text-4xl leading-none mt-0.5">{match[1]}</span>
-                                          <p className="font-extrabold text-white text-sm md:text-lg lg:text-xl leading-snug break-words flex-1">{match[2]}</p>
-                                        </div>
-                                      );
-                                    }
-                                    return <p key={idx} className="font-extrabold text-white text-sm md:text-lg lg:text-xl leading-snug break-words text-left">{line}</p>;
-                                  })}
-                                </div>
-                              </>
-                            ) : currentProjectorItem.type === 'conclusao' || currentProjectorItem.type === 'topic_synopsis' ? (
-                              <p className="text-lg md:text-2xl lg:text-3xl font-extrabold leading-snug text-white text-center font-sans break-words" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                    return (
+                      <div className="w-full flex-1 flex flex-col justify-center items-center relative">
+                        {curSlideImg && (
+                          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 select-none">
+                            <img
+                              src={curSlideImg}
+                              alt="Ilustração do Slide"
+                              className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]"
+                            />
+                          </div>
+                        )}
+                        <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center">
+                          {currentProjectorItem.type === 'leitura' ? (
+                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
+                              {currentProjectorItem.reference && (
+                                <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                  {currentProjectorItem.reference}
+                                </h3>
+                              )}
+                              <div className="w-full space-y-4 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
+                                  const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
+                                  if (match) {
+                                    return (
+                                      <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
+                                        <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
+                                          {match[1]}
+                                        </span>
+                                        <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
+                                          {renderHL(match[2])}
+                                        </p>
+                                      </div>
+                                    );
+                                  }
+                                  return (
+                                    <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
+                                      {renderHL(line)}
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          ) : currentProjectorItem.type === 'conclusao' ? (
+                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words w-full max-w-full px-2">
                                 "{currentProjectorItem.projetorText}"
                               </p>
-                            ) : currentProjectorItem.type === 'verdades' ? (
-                              <div className="w-full space-y-2 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                {currentProjectorItem.bulletPoints?.map((point, idx) => (
-                                  <div key={idx} className="flex items-start gap-2.5 py-1">
-                                    <span className="mt-0.5 shrink-0 w-6 h-6 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black">{idx + 1}</span>
-                                    <p className="text-sm md:text-lg lg:text-xl font-bold leading-snug text-white font-sans break-words">{point}</p>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                <p className="font-sans text-center break-words leading-relaxed text-white font-extrabold text-base md:text-xl lg:text-2xl">
-                                  {currentProjectorItem.projetorText}
-                                </p>
-                              </div>
-                            ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                <p className={`font-sans text-center break-words leading-relaxed ${
-                                  (currentProjectorItem.projetorText || '').length > 200
-                                    ? 'text-xs md:text-sm lg:text-base text-slate-100 font-bold'
-                                    : 'text-lg md:text-2xl lg:text-3xl text-white font-extrabold'
-                                }`}>
-                                  {currentProjectorItem.projetorText}
-                                </p>
-                              </div>
-                            ) : currentProjectorItem.type === 'subtopic' ? (
-                              <div className="max-h-[280px] overflow-y-auto w-full px-2 flex flex-col items-center justify-start my-auto py-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                <p className={`font-sans text-center break-words leading-relaxed ${
-                                  (currentProjectorItem.projetorText || '').length > 200
-                                    ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
-                                    : 'text-xl md:text-3xl lg:text-4xl text-white font-extrabold'
-                                }`}>
-                                  {currentProjectorItem.projetorText}
-                                </p>
-                              </div>
-                            ) : (
-                              <div className="w-full flex-1 flex flex-col items-center justify-start max-h-[280px] overflow-y-auto px-2 my-auto py-1">
-                                {currentProjectorItem.ideiaText && (
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    {currentProjectorItem.ideiaText}
-                                  </h2>
-                                )}
-                                {currentProjectorItem.reference && (
-                                  <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 leading-tight w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    {currentProjectorItem.reference}
-                                  </h3>
-                                )}
-                                {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                                  <div className="w-4/5 border-b border-slate-200/40 my-1.5 mx-auto shrink-0" />
-                                )}
-                                {currentProjectorItem.projetorText && (
-                                  <p className={`font-sans text-center break-words leading-relaxed ${
-                                    currentProjectorItem.projetorText.length > 200
-                                      ? 'text-sm md:text-base lg:text-xl text-slate-100 font-extrabold'
-                                      : 'text-xl md:text-3xl lg:text-4xl text-white font-extrabold'
-                                  }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                    {currentProjectorItem.projetorText}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                            <div className="w-[38%] shrink-0 flex items-center justify-center">
-                              <img
-                                src={curSlideImg}
-                                alt="Ilustração do Slide"
-                                className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all"
-                              />
                             </div>
-                        </div>
-                      );
-                    }
-
-                    // SE NÃO HOUVER IMAGEM (100% TEXTO CHEIO NORMAL)
-                    return currentProjectorItem.type === 'leitura' ? (
-                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-4 py-4 my-auto mt-[5%]">
-                        {currentProjectorItem.reference && (
-                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                            {currentProjectorItem.reference}
-                          </h3>
-                        )}
-                        <div className="w-full space-y-4 text-left font-sans" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                          {(currentProjectorItem.projetorText || '').split('\n').filter(l => l.trim()).map((line, idx) => {
-                            const match = line.match(/^(\d{1,3})\s*(?:[—\-–\.]\s*)?(.+)$/);
-                            if (match) {
-                              return (
-                                <div key={idx} className="flex items-start gap-4 text-left w-full py-2 border-b border-slate-200/60 last:border-0">
-                                  <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1">
-                                    {match[1]}
-                                  </span>
-                                  <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1">
-                                    {match[2]}
+                          ) : currentProjectorItem.type === 'verdades' ? (
+                            <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              {currentProjectorItem.bulletPoints?.map((point, idx) => (
+                                <div key={idx} className="w-full">
+                                  <div className="flex items-start gap-3 py-2.5">
+                                    <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
+                                    <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
+                                      {point}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            /* DEMAIS CARDS */
+                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
+                              {currentProjectorItem.type === 'topic_synopsis' ? (
+                                <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words w-full max-w-full px-2 m-auto" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  "{currentProjectorItem.projetorText}"
+                                </p>
+                              ) : currentProjectorItem.type === 'na_licao_anterior' ? (
+                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className="font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
+                                    {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
-                              );
-                            }
-                            return (
-                              <p key={idx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left">
-                                {line}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : currentProjectorItem.type === 'conclusao' ? (
-                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                        <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl">
-                          "{currentProjectorItem.projetorText}"
-                        </p>
-                      </div>
-                    ) : currentProjectorItem.type === 'verdades' ? (
-                      <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                        {currentProjectorItem.bulletPoints?.map((point, idx) => (
-                          <div key={idx} className="w-full">
-                            <div className="flex items-start gap-3 py-2.5">
-                              <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                              <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
-                                {point}
-                              </p>
+                              ) : currentProjectorItem.type === 'ponte_contextual' ? (
+                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
+                                    (currentProjectorItem.projetorText || '').length > 200
+                                      ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
+                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                  }`}>
+                                    {renderHL(currentProjectorItem.projetorText)}
+                                  </p>
+                                </div>
+                              ) : currentProjectorItem.type === 'subtopic_verses' ? (
+                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    📖 VAMOS LER A BÍBLIA
+                                  </h2>
+                                  <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
+                                  <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                    {renderHL(currentProjectorItem.projetorText)}
+                                  </p>
+                                </div>
+                              ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
+                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    QUAL O ENSINAMENTO PRA MINHA VIDA?
+                                  </h2>
+                                  <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
+                                    (currentProjectorItem.projetorText || '').length > 180
+                                      ? 'text-base md:text-xl lg:text-2xl text-slate-100 font-extrabold'
+                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                  }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                    {renderHL(currentProjectorItem.projetorText)}
+                                  </p>
+                                </div>
+                              ) : currentProjectorItem.type === 'subtopic' ? (
+                                <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
+                                    (currentProjectorItem.projetorText || '').length > 200
+                                      ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
+                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                  }`}>
+                                    {renderHL(currentProjectorItem.projetorText)}
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="w-full max-h-[340px] overflow-y-auto px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
+                                  {currentProjectorItem.ideiaText && (
+                                    <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                      {currentProjectorItem.ideiaText}
+                                    </h2>
+                                  )}
+                                  {currentProjectorItem.reference && (
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                      {currentProjectorItem.reference}
+                                    </h3>
+                                  )}
+                                  {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
+                                    <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
+                                  )}
+                                  {currentProjectorItem.projetorText && (
+                                    <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed whitespace-pre-line ${
+                                      currentProjectorItem.type === 'enfase_palavra'
+                                        ? 'italic text-yellow-100 text-lg md:text-2xl font-extrabold'
+                                        : (currentProjectorItem.projetorText.length > 200
+                                            ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
+                                            : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold')
+                                    }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                      {currentProjectorItem.type === 'enfase_palavra' ? <>“{renderHL(currentProjectorItem.projetorText)}”</> : renderHL(currentProjectorItem.projetorText)}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      /* DEMAIS CARDS */
-                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
-                        {currentProjectorItem.type === 'topic_synopsis' ? (
-                          <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words max-w-4xl m-auto" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                            "{currentProjectorItem.projetorText}"
-                          </p>
-                        ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                            <p className="font-sans text-center max-w-4xl mx-auto break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
-                              {currentProjectorItem.projetorText}
-                            </p>
-                          </div>
-                        ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
-                              (currentProjectorItem.projetorText || '').length > 200
-                                ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
-                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
-                            }`}>
-                              {currentProjectorItem.projetorText}
-                            </p>
-                          </div>
-                        ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                              📖 VAMOS LER A BÍBLIA
-                            </h2>
-                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                            <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {currentProjectorItem.projetorText}
-                            </p>
-                          </div>
-                        ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                              QUAL O ENSINAMENTO PRA MINHA VIDA?
-                            </h2>
-                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
-                              (currentProjectorItem.projetorText || '').length > 180
-                                ? 'text-base md:text-xl lg:text-2xl text-slate-100 font-extrabold'
-                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
-                            }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {currentProjectorItem.projetorText}
-                            </p>
-                          </div>
-                        ) : currentProjectorItem.type === 'subtopic' ? (
-                          <div className="max-h-[340px] overflow-y-auto w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                            <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed ${
-                              (currentProjectorItem.projetorText || '').length > 200
-                                ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
-                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
-                            }`}>
-                              {currentProjectorItem.projetorText}
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="w-full max-h-[340px] overflow-y-auto px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
-                            {currentProjectorItem.ideiaText && (
-                              <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                {currentProjectorItem.ideiaText}
-                              </h2>
-                            )}
-                            {currentProjectorItem.reference && (
-                              <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                {currentProjectorItem.reference}
-                              </h3>
-                            )}
-                            {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                              <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                            )}
-                            {currentProjectorItem.projetorText && (
-                              <p className={`font-sans text-center max-w-4xl mx-auto break-words leading-relaxed whitespace-pre-line ${
-                                currentProjectorItem.type === 'enfase_palavra'
-                                  ? 'italic text-yellow-100 text-lg md:text-2xl font-extrabold'
-                                  : (currentProjectorItem.projetorText.length > 200
-                                      ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
-                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold')
-                              }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                {currentProjectorItem.type === 'enfase_palavra' ? `“${currentProjectorItem.projetorText}”` : currentProjectorItem.projetorText}
-                              </p>
-                            )}
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     );
                   })()}

@@ -306,7 +306,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
   const handleRemoveImage = () => updateCurrentSlide({ imageUrl: undefined, imageSource: undefined });
 
   return (
-    <div className="preview-container space-y-5 max-w-6xl mx-auto font-['Gotham']">
+    <div className="preview-container space-y-5 max-w-[1600px] w-full mx-auto font-['Gotham']">
 
       {/* ── Toolbar ── */}
       <div className="preview-toolbar flex flex-wrap items-center justify-between bg-slate-900/90 backdrop-blur-md border border-slate-700/80 p-4 rounded-2xl shadow-xl gap-4">
@@ -628,8 +628,8 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                         </>
                       )}
                     </div>
-                    <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
+                    <div className="w-[45%] shrink-0 flex items-center justify-center h-full">
+                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[400px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
                     </div>
                   </div>
                 ) : (
@@ -668,61 +668,36 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 </div>
 
                 {/* Conteúdo perfeitamente centralizado na vertical em toda a tela (FONTES DOBRADAS) */}
-                {currentSlide.imageUrl ? (
-                  <div className="flex-1 w-full flex items-center justify-between gap-6 px-[4%] my-auto mt-[5%]">
-                    <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center">
-                      {currentSlide.keyVerse ? (
-                        <div className="w-full space-y-2 flex flex-col justify-center items-center">
-                          <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={60} minFontSize={18} className="font-extrabold text-white text-center leading-snug w-full" />
-                          <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={50} minFontSize={20} className="font-black text-yellow-400 text-center tracking-wide" />
-                        </div>
-                      ) : currentSlide.takeaway ? (
-                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={60} minFontSize={18} className="font-extrabold text-white text-center w-full leading-snug" />
-                      ) : (
-                        <div className="w-full space-y-2 flex flex-col justify-center items-center">
-                          {presentation.biblicalText && (
-                            <SmartText text={presentation.biblicalText} maxFontSize={50} minFontSize={18} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
-                          )}
-                          <SmartText
-                            text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
-                            maxFontSize={36}
-                            minFontSize={16}
-                            className="font-semibold text-white text-center leading-snug w-full"
-                          />
-                        </div>
-                      )}
-                    </div>
-                    <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
-                    {currentSlide.keyVerse ? (
-                      <div className="w-full space-y-4 flex flex-col justify-center items-center">
-                        <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
-                        <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 text-center tracking-wide" />
-                      </div>
-                    ) : currentSlide.takeaway ? (
-                      <div className="w-full flex flex-col justify-center items-center">
-                        <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
-                      </div>
-                    ) : (
-                      <div className="w-full space-y-4 flex flex-col justify-center items-center">
-                        {presentation.biblicalText && (
-                          <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
-                        )}
-                        <SmartText
-                          text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
-                          maxFontSize={40}
-                          minFontSize={18}
-                          className="font-semibold text-white text-center leading-relaxed w-full"
-                          style={{ lineHeight: 1.5 }}
-                        />
-                      </div>
-                    )}
+                {currentSlide.imageUrl && (
+                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
+                    <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
                   </div>
                 )}
+                <div className="flex-1 w-full relative z-10 flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
+                  {currentSlide.keyVerse ? (
+                    <div className="w-full space-y-4 flex flex-col justify-center items-center">
+                      <SmartText text={`"${currentSlide.keyVerse.text}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center leading-relaxed w-full" />
+                      <SmartText text={`(${currentSlide.keyVerse.reference}).`} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 text-center tracking-wide" />
+                    </div>
+                  ) : currentSlide.takeaway ? (
+                    <div className="w-full flex flex-col justify-center items-center">
+                      <SmartText text={`"${currentSlide.takeaway}"`} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                    </div>
+                  ) : (
+                    <div className="w-full space-y-4 flex flex-col justify-center items-center">
+                      {presentation.biblicalText && (
+                        <SmartText text={presentation.biblicalText} maxFontSize={60} minFontSize={24} className="font-black text-yellow-400 uppercase tracking-wider text-center" />
+                      )}
+                      <SmartText
+                        text={currentSlide.subtitle || (currentSlide.bulletPoints || []).join(' ') || 'Leitura bíblica...'}
+                        maxFontSize={40}
+                        minFontSize={18}
+                        className="font-semibold text-white text-center leading-relaxed w-full"
+                        style={{ lineHeight: 1.5 }}
+                      />
+                    </div>
+                  )}
+                </div>
 
                 <div className="w-full shrink-0 h-8" />
               </div>
@@ -734,80 +709,43 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                 <div className="w-full shrink-0 pt-1">
                   <EbdHeaderBadge label={currentSlide.topicBadge || currentSlide.title || 'TÓPICO DA LIÇÃO'} />
                 </div>
-
-                {/* Conteúdo: flex-1 centralizado na vertical (FONTES DOBRADAS) */}
-                {currentSlide.imageUrl ? (
-                  <div className="flex-1 w-full flex items-center justify-between gap-6 px-[4%] my-auto mt-[5%]">
-                    <div className="w-[58%] shrink-0 flex flex-col items-center justify-center text-center">
-                      {currentSlide.topicBadge && currentSlide.title && (
-                        <>
-                          <SmartText
-                            text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
-                            maxFontSize={90}
-                            minFontSize={20}
-                            maxLines={2}
-                            className={`font-black text-yellow-400 text-center tracking-wide mb-1.5 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                            style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
-                          />
-                          <div className="w-4/5 border-b border-slate-200/40 my-1.5 mx-auto" />
-                        </>
-                      )}
-                      {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
-                        <div className="w-full space-y-2.5 overflow-hidden">
-                          {currentSlide.bulletPoints.map((pt, i) => (
-                            <div key={i} className="flex items-start justify-center gap-2.5">
-                              <span
-                                className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
-                                style={{ width: 'clamp(26px, 4.5%, 40px)', height: 'clamp(26px, 4.5%, 40px)', fontSize: 'clamp(13px, 2.2%, 24px)', marginTop: '0.15em' }}
-                              >
-                                {i + 1}
-                              </span>
-                              <SmartText text={pt} maxFontSize={54} minFontSize={16} className="font-bold text-white text-left leading-snug" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={64} minFontSize={18} className="font-extrabold text-white text-center w-full leading-snug" />
-                      )}
-                    </div>
-                    <div className="w-[38%] shrink-0 flex items-center justify-center">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[310px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 w-full flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
-                    {currentSlide.topicBadge && currentSlide.title && (
-                      <>
-                        <SmartText
-                          text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
-                          maxFontSize={108}
-                          minFontSize={24}
-                          maxLines={2}
-                          className={`font-black text-yellow-400 text-center tracking-wide mb-3 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
-                          style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
-                        />
-                        <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
-                      </>
-                    )}
-                    {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
-                      <div className="w-full space-y-4 overflow-hidden">
-                        {currentSlide.bulletPoints.map((pt, i) => (
-                          <div key={i} className="flex items-start justify-center gap-3">
-                            <span
-                              className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
-                              style={{ width: 'clamp(28px, 5%, 44px)', height: 'clamp(28px, 5%, 44px)', fontSize: 'clamp(14px, 2.5%, 26px)', marginTop: '0.15em' }}
-                            >
-                              {i + 1}
-                            </span>
-                            <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-white text-left leading-relaxed" />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={80} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
-                    )}
+                {currentSlide.imageUrl && (
+                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
+                    <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
                   </div>
                 )}
+                <div className="flex-1 w-full relative z-10 flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
+                  {currentSlide.topicBadge && currentSlide.title && (
+                    <>
+                      <SmartText
+                        text={currentSlide.topicBadge.toUpperCase().includes('SUBTÓPICO') || currentSlide.topicBadge.toUpperCase().includes('SUBT') ? currentSlide.title : currentSlide.title.toUpperCase()}
+                        maxFontSize={108}
+                        minFontSize={24}
+                        maxLines={2}
+                        className={`font-black text-yellow-400 text-center tracking-wide mb-2 w-full ${currentSlide.topicBadge.toUpperCase().includes('SUBT') ? 'normal-case' : 'uppercase'}`}
+                        style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", textWrap: 'balance', WebkitTextWrap: 'balance' } as React.CSSProperties}
+                      />
+                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-2 mx-auto" />
+                    </>
+                  )}
+                  {currentSlide.bulletPoints && currentSlide.bulletPoints.length > 0 ? (
+                    <div className="w-full space-y-3 overflow-hidden">
+                      {currentSlide.bulletPoints.map((pt, i) => (
+                        <div key={i} className="flex items-start justify-center gap-3">
+                          <span
+                            className="shrink-0 rounded-full bg-[#091b2c] flex items-center justify-center font-black text-white leading-none"
+                            style={{ width: 'clamp(28px, 5%, 44px)', height: 'clamp(28px, 5%, 44px)', fontSize: 'clamp(14px, 2.4%, 26px)', marginTop: '0.15em' }}
+                          >
+                            {i + 1}
+                          </span>
+                          <SmartText text={pt} maxFontSize={64} minFontSize={18} className="font-bold text-white text-left leading-relaxed" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <SmartText text={currentSlide.subtitle || currentSlide.speakerNotes || ''} maxFontSize={72} minFontSize={20} className="font-extrabold text-white text-center w-full leading-relaxed" />
+                  )}
+                </div>
 
                 <div className="w-full shrink-0 h-8" />
               </div>

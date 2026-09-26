@@ -144,7 +144,7 @@ export const ContentInput: React.FC<ContentInputProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="input-card-container space-y-6 max-w-5xl mx-auto font-['Montserrat']">
+    <form onSubmit={handleSubmit} className="input-card-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
       {/* Banner Informativo do Princípio Fundamental */}
       <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900/80 border border-blue-500/30 p-4 rounded-2xl flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
