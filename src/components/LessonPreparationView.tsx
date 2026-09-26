@@ -180,10 +180,10 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
     }
   }
 
-  // Identifica títulos de livros/capítulos bíblicos (ex: "Mateus 28", "Atos 1", "Efésios 2", "1 João 3")
+  // Identifica títulos de livros/passagens bíblicas (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18", "Mateus 28")
   const isBookTitle = (str: string): boolean => {
     const cleaned = str.trim().replace(/[:\-\—]$/, '').trim();
-    return /^[1-3]?\s*[A-Za-zÀ-ÿ]+(?:\s+[A-Za-zÀ-ÿ]+)?\s+\d{1,3}$/i.test(cleaned);
+    return /^[1-3]?\s*[A-Za-zÀ-ÿ\.]+(?:\s+[A-Za-zÀ-ÿ\.]+)?\s+\d{1,3}(?:[\.\:\,]\d{1,3}(?:[\-\–\—]\d{1,3})?)?$/i.test(cleaned);
   };
 
   const lines = bodyText.split('\n').map(l => l.trim()).filter(Boolean);
