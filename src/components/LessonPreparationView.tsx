@@ -183,11 +183,11 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
   // 2. Extrai referências individuais (separadas por ;) se houver
   const subRefs = reference.split(';').map(s => s.trim().replace(/[\;\.]+$|^\;/, '')).filter(Boolean);
 
-  // 3. Identifica marcos no texto: Títulos de Livro/Passagem (ex: "Mt 28.18-20", "At. 1.8", "Ef. 2.13-18") e Versículos (ex: "18 —", "19 —")
+  // 3. Identifica marcos no texto: Títulos de Livro/Passagem e Versículos
   const bookNamePattern = '(?:Gên|Êx|Lv|Nm|Dt|Jos|Jz|Rt|1Sm|2Sm|1Rs|2Rs|1Cr|2Cr|Esd|Ne|Et|Jó|Sal|Sl|Pv|Ec|Ct|Is|Jer|Jr|Lam|Lm|Ez|Dn|Os|Jl|Am|Ob|Jon|Mq|Na|Hab|Zef|Zc|Ag|Zc|Mal|Ml|Mt|Mat|Mateus|Mc|Mar|Marcos|Lc|Luc|Lucas|Jo|João|At|Atos|Rm|Rom|Romanos|1Co|2Co|Gál|Gal|Gálatas|Ef|Efé|Efésios|Fp|Fil|Filipenses|Cl|Col|Colossenses|1Ts|2Ts|1Tm|2Tm|Tt|Tito|Fm|Heb|Hb|Hebreus|Tg|Tia|Tiago|1Pe|2Pe|1Jo|2Jo|3Jo|Jd|Jud|Judas|Ap|Apoc|Apocalipse|[1-3]?\\s*[A-Za-zÀ-ÿ]+)';
 
-  const headerRegex = new RegExp(`(?:^|\\n|\\s{2,}|(?<=[\\.\\!\\?]"?\\s+))(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}\\s*[—\\-–\\.]|\\s*$)`, 'gi');
-  const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.]\s*)(?=[A-Za-zÀ-ÿ"“'\[])/g;
+  const headerRegex = new RegExp(`(?:^|\\n|\\s{2,}|(?<=[\\.\\!\\?]"?\\s+)|(?<=\\s))(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}|\\s*$)`, 'gi');
+  const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.\:]\s*|\s+)(?=[A-Za-zÀ-ÿ"“'\(])/g;
 
   interface TokenLandmark {
     type: 'header' | 'verse';
@@ -263,12 +263,14 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
       const contentStart = curr.endIndex;
       const contentEnd = next ? next.index : bodyText.length;
       let verseText = bodyText.substring(contentStart, contentEnd).trim();
-      verseText = verseText.replace(/^[—\-–\.]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
+      verseText = verseText.replace(/^[—\-–\.\:]\s*/, '').replace(/\[\.\.\.\]/g, '').trim();
 
-      currentSec.verses.push({
-        number: curr.text,
-        text: verseText
-      });
+      if (verseText.length > 0) {
+        currentSec.verses.push({
+          number: curr.text,
+          text: verseText
+        });
+      }
     }
   }
 
@@ -276,15 +278,16 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
     sections.push(currentSec);
   }
 
-  // 4. Garantir que cada seção tenha o título de passagem correto
-  if (subRefs.length > 0) {
-    sections.forEach((sec, idx) => {
+  // 4. Filtra seções válidas com versículos e associa os subRefs aos cabeçalhos
+  const validSections = sections.filter(sec => sec.verses && sec.verses.length > 0);
+
+  if (validSections.length > 0) {
+    validSections.forEach((sec, idx) => {
       if (subRefs[idx]) {
         sec.bookHeader = subRefs[idx];
-      } else if (!sec.bookHeader && subRefs[0]) {
-        sec.bookHeader = subRefs[0];
       }
     });
+    return { reference, sections: validSections };
   }
 
   return { reference, sections };
