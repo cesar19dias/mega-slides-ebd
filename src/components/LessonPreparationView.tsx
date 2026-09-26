@@ -409,47 +409,102 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
 
-  // Ref de drag (não causa re-render durante o movimento)
+  // Ref de drag responsivo (suporta mouse e touch com posições em porcentagem)
   const dragStateRef = useRef<{
     active: boolean;
     kind: 'title' | 'body';
-    startMouseX: number;
-    startMouseY: number;
-    startOffsetX: number;
-    startOffsetY: number;
+    startClientX: number;
+    startClientY: number;
+    startOffsetXPct: number;
+    startOffsetYPct: number;
+    stageWidth: number;
+    stageHeight: number;
   } | null>(null);
 
-  const handleElementDragStart = useCallback((e: React.MouseEvent, kind: 'title' | 'body') => {
+  const handleElementDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, kind: 'title' | 'body') => {
     if (!isLayoutEditMode) return;
-    e.preventDefault();
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
     e.stopPropagation();
-    const pos = kind === 'title'
+
+    const stage = projectorStageRef.current;
+    const stageRect = stage ? stage.getBoundingClientRect() : { width: 800, height: 450 };
+    const stageW = stageRect.width || 800;
+    const stageH = stageRect.height || 450;
+
+    let clientX = 0;
+    let clientY = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    } else {
+      return;
+    }
+
+    const rawPos = kind === 'title'
       ? (slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 })
       : (slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 });
+
+    let startXPct = rawPos.x;
+    let startYPct = rawPos.y;
+    // Converte pixels legados (>100px) para porcentagem responsiva do palco
+    if (Math.abs(startXPct) > 100) startXPct = (startXPct / stageW) * 100;
+    if (Math.abs(startYPct) > 100) startYPct = (startYPct / stageH) * 100;
+
     dragStateRef.current = {
-      active: true, kind,
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      startOffsetX: pos.x,
-      startOffsetY: pos.y,
+      active: true,
+      kind,
+      startClientX: clientX,
+      startClientY: clientY,
+      startOffsetXPct: startXPct,
+      startOffsetYPct: startYPct,
+      stageWidth: stageW,
+      stageHeight: stageH,
     };
   }, [isLayoutEditMode, projectorIndex, slideTitlePositions, slideBodyPositions]);
 
-  // Listeners globais de mousemove/mouseup para o drag
+  // Listeners globais de mouse/touch para o drag responsivo
   useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
+    const handleMove = (e: MouseEvent | TouchEvent) => {
       if (!dragStateRef.current?.active) return;
-      const dx = e.clientX - dragStateRef.current.startMouseX;
-      const dy = e.clientY - dragStateRef.current.startMouseY;
-      const newX = dragStateRef.current.startOffsetX + dx;
-      const newY = dragStateRef.current.startOffsetY + dy;
-      if (dragStateRef.current.kind === 'title') {
-        setSlideTitlePositions(prev => ({ ...prev, [projectorIndex]: { x: newX, y: newY } }));
+
+      let clientX = 0;
+      let clientY = 0;
+      if ('touches' in e && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+        if (e.cancelable) e.preventDefault();
+      } else if ('clientX' in e) {
+        clientX = (e as MouseEvent).clientX;
+        clientY = (e as MouseEvent).clientY;
       } else {
-        setSlideBodyPositions(prev => ({ ...prev, [projectorIndex]: { x: newX, y: newY } }));
+        return;
+      }
+
+      const { startClientX, startClientY, startOffsetXPct, startOffsetYPct, stageWidth, stageHeight, kind } = dragStateRef.current;
+      const dxPx = clientX - startClientX;
+      const dyPx = clientY - startClientY;
+
+      const dxPct = (dxPx / stageWidth) * 100;
+      const dyPct = (dyPx / stageHeight) * 100;
+
+      const newXPct = Math.round((startOffsetXPct + dxPct) * 10) / 10;
+      const newYPct = Math.round((startOffsetYPct + dyPct) * 10) / 10;
+
+      if (kind === 'title') {
+        setSlideTitlePositions(prev => ({ ...prev, [projectorIndex]: { x: newXPct, y: newYPct } }));
+      } else {
+        setSlideBodyPositions(prev => ({ ...prev, [projectorIndex]: { x: newXPct, y: newYPct } }));
       }
     };
-    const handleMouseUp = () => {
+
+    const handleEnd = () => {
       if (!dragStateRef.current?.active) return;
       dragStateRef.current.active = false;
       setSlideTitlePositions(prev => {
@@ -463,11 +518,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return prev;
       });
     };
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('touchcancel', handleEnd);
     };
   }, [projectorIndex, updateLesson]);
 
@@ -492,19 +555,36 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   }, [projectorIndex, updateLesson]);
 
-  // Estilos do wrapper de drag para cada elemento
-  const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body'): React.CSSProperties => ({
-    transform: `translate(${pos.x}px, ${pos.y}px)`,
-    ...(isLayoutEditMode ? {
-      cursor: 'grab',
-      outline: kind === 'title' ? '2px dashed #f59e0b' : '2px dashed #06b6d4',
-      outlineOffset: '2px',
-      borderRadius: '10px',
-      userSelect: 'none',
-      position: 'relative',
-      zIndex: 50,
-    } : {}),
-  });
+  // Estilos do wrapper de drag para cada elemento (suporta pixels legados e porcentagem responsiva)
+  const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body'): React.CSSProperties => {
+    const stage = projectorStageRef.current;
+    const stageW = stage?.clientWidth || 800;
+    const stageH = stage?.clientHeight || 450;
+
+    let offsetX = pos.x;
+    let offsetY = pos.y;
+    // Se o valor estiver entre -100 e 100, trata como porcentagem da largura/altura do palco
+    if (Math.abs(offsetX) <= 100) {
+      offsetX = (offsetX / 100) * stageW;
+    }
+    if (Math.abs(offsetY) <= 100) {
+      offsetY = (offsetY / 100) * stageH;
+    }
+
+    return {
+      transform: `translate(${offsetX}px, ${offsetY}px)`,
+      ...(isLayoutEditMode ? {
+        cursor: 'grab',
+        outline: kind === 'title' ? '2px dashed #f59e0b' : '2px dashed #06b6d4',
+        outlineOffset: '2px',
+        borderRadius: '10px',
+        userSelect: 'none',
+        touchAction: 'none',
+        position: 'relative',
+        zIndex: 50,
+      } : {}),
+    };
+  };
 
   const updateMetadata = (field: keyof EBDLessonPreparation['metadata'], val: string) => {
     updateLesson(prev => ({
@@ -803,6 +883,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
+  const [stageWidth, setStageWidth] = useState<number>(0);
+
+  useEffect(() => {
+    const stage = projectorStageRef.current;
+    if (!stage) return;
+    const updateWidth = () => {
+      if (stage.clientWidth > 0) setStageWidth(stage.clientWidth);
+    };
+    updateWidth();
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(stage);
+    window.addEventListener('resize', updateWidth);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, []);
+
+  // Fator de escala responsivo do palco para celulares e telas pequenas (base: ~850px)
+  const responsiveStageScale = stageWidth > 0 ? Math.min(1.0, Math.max(0.42, stageWidth / 850)) : 1.0;
+
   const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>({});
   const [customBg, setCustomBg] = useState<string | null>(() => {
     try {
@@ -2865,7 +2966,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
           <div
             ref={projectorStageRef}
-            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
+            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[220px] sm:min-h-[380px] md:min-h-[500px] text-slate-900 flex flex-col justify-between p-3 sm:p-6 pt-2 sm:pt-3 pb-3 sm:pb-4"
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
             onMouseUp={handleSlideMouseUp}
             onTouchEnd={handleSlideMouseUp}
@@ -2915,11 +3016,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale * responsiveStageScale } as React.CSSProperties}>
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
                     <div
                       style={makeDragStyle(titlePos, 'title')}
                       onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                       className="w-full shrink-0 relative"
                     >
                       {isLayoutEditMode && (
@@ -2928,7 +3030,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           👑 Título — arraste
                         </div>
                       )}
-                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-4 md:pl-[18%] pr-4 md:pr-6">
                         <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
                           {coverBadge}
                         </span>
@@ -2939,6 +3041,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <div
                       style={makeDragStyle(bodyPos, 'body')}
                       onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                       className="flex-1 w-full relative"
                     >
                       {isLayoutEditMode && (
@@ -3058,11 +3161,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale * responsiveStageScale } as React.CSSProperties}>
                   {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
                   <div
                     style={makeDragStyle(titlePos, 'title')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                     className="w-full shrink-0"
                   >
                     {isLayoutEditMode && (
@@ -3071,7 +3175,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         👑 Título — arraste
                       </div>
                     )}
-                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
+                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-4 md:pl-[18%] pr-4 md:pr-6 my-auto">
                       <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
                         {formattedTitle}
                       </span>
@@ -3082,6 +3186,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <div
                     style={makeDragStyle(bodyPos, 'body')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                     className="w-full flex-1 flex flex-col"
                   >
                     {isLayoutEditMode && (

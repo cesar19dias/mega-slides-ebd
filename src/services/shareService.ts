@@ -10,14 +10,7 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
   try {
     const clone = JSON.parse(JSON.stringify(lesson)) as any;
     
-    // Remove estados temporários de visualização e escalonamento dos slides
-    delete clone.slideFontScales;
-    delete clone.slideTitleFontScales;
-    delete clone.slideBodyFontScales;
-    delete clone.slideTextOverrides;
-    delete clone.slideTitlePositions;
-    delete clone.slideBodyPositions;
-    delete clone.projectorFontSizeScale;
+    // Remove apenas metadados pesados de análise, mantendo personalizações de layout, fontes e posições
     delete clone.checklist;
     delete clone.sourcesSummary;
 
