@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2 } from 'lucide-react';
+import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2, Video, Loader2 } from 'lucide-react';
 import type { TranscriptionSource, PreparationOptions, DepthControl } from '../types';
 import { extractTextFromPDF } from '../services/pdfService';
+import { fetchYouTubeTranscript } from '../services/youtubeService';
 
 interface ContentInputProps {
   onGenerate: (revistaText: string, transcriptions: TranscriptionSource[], options: PreparationOptions) => void;
@@ -27,6 +28,44 @@ export const ContentInput: React.FC<ContentInputProps> = ({
     { id: '1', title: 'Transcrição 1 (Ex: Pr. Priscilo / Pregação)', content: '' },
     { id: '2', title: 'Transcrição 2 (Ex: Pr. EBD / Comentário)', content: '' }
   ]);
+
+  // Estados para importação de vídeos do YouTube por link
+  const [loadingYoutubeId, setLoadingYoutubeId] = useState<string | null>(null);
+  const [activeYoutubeInput, setActiveYoutubeInput] = useState<Record<string, boolean>>({});
+  const [youtubeUrls, setYoutubeUrls] = useState<Record<string, string>>({});
+  const [youtubeErrors, setYoutubeErrors] = useState<Record<string, string>>({});
+
+  const handleFetchYouTube = async (id: string) => {
+    const url = youtubeUrls[id];
+    if (!url || !url.trim()) {
+      setYoutubeErrors(prev => ({ ...prev, [id]: 'Por favor, insira o link de um vídeo do YouTube.' }));
+      return;
+    }
+
+    setLoadingYoutubeId(id);
+    setYoutubeErrors(prev => ({ ...prev, [id]: '' }));
+
+    try {
+      const result = await fetchYouTubeTranscript(url);
+      setTranscriptions(prev => prev.map(t => {
+        if (t.id === id) {
+          const isDefaultTitle = t.title.includes('Ex:') || t.title.startsWith('Transcrição');
+          return {
+            ...t,
+            title: isDefaultTitle ? `Vídeo: ${result.title}` : t.title,
+            content: result.transcript,
+            youtubeUrl: url
+          };
+        }
+        return t;
+      }));
+      setActiveYoutubeInput(prev => ({ ...prev, [id]: false }));
+    } catch (err: any) {
+      setYoutubeErrors(prev => ({ ...prev, [id]: err.message || 'Falha ao buscar transcrição do vídeo.' }));
+    } finally {
+      setLoadingYoutubeId(null);
+    }
+  };
 
   // 3. OPÇÕES DE PREPARAÇÃO
   const [options, setOptions] = useState<PreparationOptions>({
@@ -276,6 +315,19 @@ export const ContentInput: React.FC<ContentInputProps> = ({
                 />
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveYoutubeInput(prev => ({ ...prev, [t.id]: !prev[t.id] }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      activeYoutubeInput[t.id] || t.youtubeUrl
+                        ? 'bg-red-950/80 text-red-200 border-red-700/80'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5 text-red-400" />
+                    <span>{t.youtubeUrl ? 'Link YouTube ✓' : 'Link YouTube'}</span>
+                  </button>
+
                   <label className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition-all flex items-center gap-1">
                     <Upload className="w-3.5 h-3.5 text-blue-400" />
                     <span>{t.fileName ? 'Alterar Arquivo' : 'Enviar Arquivo'}</span>
@@ -298,6 +350,86 @@ export const ContentInput: React.FC<ContentInputProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Caixas de importação via YouTube Link */}
+              {activeYoutubeInput[t.id] && (
+                <div className="bg-red-950/30 border border-red-800/40 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-red-200 flex items-center gap-1.5">
+                      <Video className="w-4 h-4 text-red-400" />
+                      <span>Extração de Transcrição Automática por Link do YouTube</span>
+                    </label>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="url"
+                      placeholder="Cole aqui a URL do vídeo (ex: https://www.youtube.com/watch?v=...)"
+                      value={youtubeUrls[t.id] || ''}
+                      onChange={(e) => setYoutubeUrls(prev => ({ ...prev, [t.id]: e.target.value }))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleFetchYouTube(t.id);
+                        }
+                      }}
+                      className="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-2 rounded-lg flex-1 outline-none focus:border-red-500 font-['Montserrat']"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleFetchYouTube(t.id)}
+                      disabled={loadingYoutubeId === t.id}
+                      className="bg-red-600 hover:bg-red-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      {loadingYoutubeId === t.id ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Extraindo Legendas...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Extrair Legendas</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {youtubeErrors[t.id] && (
+                    <div className="bg-red-950/80 p-3 rounded-lg border border-red-800/60 space-y-2 text-xs">
+                      <div className="flex items-start gap-2 text-red-300 font-semibold">
+                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <span>{youtubeErrors[t.id]}</span>
+                      </div>
+                      <div className="bg-slate-950/60 p-2 rounded border border-slate-800 text-[11px] text-slate-300 space-y-1">
+                        <p className="font-bold text-amber-300">💡 Como copiar a transcrição do YouTube manualmente:</p>
+                        <p>1. Abra o vídeo no YouTube no navegador ou celular.</p>
+                        <p>2. Clique nos 3 pontinhos (<b>...</b>) abaixo do vídeo e escolha <b>"Mostrar transcrição"</b>.</p>
+                        <p>3. Selecione todo o texto gerado, copie e cole diretamente no campo de texto abaixo.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {t.youtubeUrl && !activeYoutubeInput[t.id] && (
+                <div className="flex items-center justify-between text-[11px] text-emerald-300 bg-emerald-950/40 border border-emerald-800/60 px-3 py-2 rounded-lg">
+                  <span className="truncate max-w-[80%] font-semibold flex items-center gap-1.5">
+                    🎙️ Vídeo Transcrito: <span className="text-white font-bold">{t.title}</span>
+                    <span className="bg-emerald-900/80 text-emerald-200 border border-emerald-600/80 px-2 py-0.5 rounded text-[10px] font-bold">
+                      {t.content.length.toLocaleString()} caracteres extraídos
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveYoutubeInput(prev => ({ ...prev, [t.id]: true }));
+                      setYoutubeUrls(prev => ({ ...prev, [t.id]: t.youtubeUrl || '' }));
+                    }}
+                    className="underline hover:text-white ml-2 font-bold cursor-pointer shrink-0 text-slate-300"
+                  >
+                    Trocar Link
+                  </button>
+                </div>
+              )}
 
               <textarea
                 placeholder={`Cole aqui o texto completo da Transcrição ${index + 1} (Vídeo do YouTube, áudio transcrito, estudo em áudio)...`}

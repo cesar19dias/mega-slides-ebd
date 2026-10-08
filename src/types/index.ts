@@ -6,6 +6,7 @@ export interface TranscriptionSource {
   title: string;
   content: string;
   fileName?: string;
+  youtubeUrl?: string;
 }
 
 export interface EBDPalavraOriginal {
@@ -125,6 +126,8 @@ export interface EBDLessonPreparation {
     item: string;
     status: boolean;
   }>;
+  extraSlides?: EBDExtraSlide[];
+  customSlideOrder?: string[];
   slideFontScales?: Record<number, number>;
   slideTitleFontScales?: Record<number, number>;
   slideBodyFontScales?: Record<number, number>;
@@ -132,6 +135,19 @@ export interface EBDLessonPreparation {
   slideTitlePositions?: Record<number, { x: number; y: number }>;
   slideBodyPositions?: Record<number, { x: number; y: number }>;
   projectorFontSizeScale?: number;
+}
+
+export interface EBDExtraSlide {
+  id: string;
+  type: 'extra';
+  title: string;
+  badgeText?: string;
+  projetorText?: string;
+  subtitle?: string;
+  reference?: string;
+  bulletPoints?: string[];
+  imagePrompt?: string;
+  imageUrl?: string;
 }
 
 export interface PreparationOptions {

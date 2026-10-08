@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { EBDLessonPreparation, EBDTopicPreparation } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move } from 'lucide-react';
+import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
+import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
+import { THEMES } from '../constants/themes';
 
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
@@ -1255,10 +1257,118 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setTimeout(() => setCopiedToast(null), 3000);
   };
 
+  // ── MANIPULAÇÃO DE SLIDES EXTRAS E REORDENAÇÃO ─────────────────────────────
+  const handleAddExtraSlide = () => {
+    const newId = `extra-${Date.now()}`;
+    const newSlide: EBDExtraSlide = {
+      id: newId,
+      type: 'extra',
+      title: 'SLIDE EXTRA PERSONALIZADO',
+      badgeText: 'SLIDE EXTRA',
+      projetorText: 'Digite aqui o conteúdo do seu novo slide extra...',
+      subtitle: '',
+      reference: ''
+    };
+
+    const updatedExtraSlides = [...(lesson.extraSlides || []), newSlide];
+    const currentOrder = projectorItems.map(item => item.id);
+    let newOrder = [...currentOrder];
+    const insertIdx = Math.min(projectorIndex + 1, newOrder.length);
+    newOrder.splice(insertIdx, 0, newId);
+
+    updateLesson(prev => ({
+      ...prev,
+      extraSlides: updatedExtraSlides,
+      customSlideOrder: newOrder
+    }));
+
+    setProjectorIndex(insertIdx);
+    setIsEditMode(true);
+  };
+
+  const handleDuplicateSlide = () => {
+    if (!currentProjectorItem) return;
+    const newId = `extra-${Date.now()}`;
+    const duplicatedSlide: EBDExtraSlide = {
+      id: newId,
+      type: 'extra',
+      title: `${currentProjectorItem.title} (Cópia)`,
+      badgeText: currentProjectorItem.badgeText || 'SLIDE EXTRA',
+      projetorText: currentProjectorItem.projetorText || '',
+      subtitle: currentProjectorItem.subtitle || '',
+      reference: currentProjectorItem.reference || '',
+      bulletPoints: currentProjectorItem.bulletPoints ? [...currentProjectorItem.bulletPoints] : undefined
+    };
+
+    const updatedExtraSlides = [...(lesson.extraSlides || []), duplicatedSlide];
+    const currentOrder = projectorItems.map(item => item.id);
+    let newOrder = [...currentOrder];
+    const insertIdx = Math.min(projectorIndex + 1, newOrder.length);
+    newOrder.splice(insertIdx, 0, newId);
+
+    updateLesson(prev => ({
+      ...prev,
+      extraSlides: updatedExtraSlides,
+      customSlideOrder: newOrder
+    }));
+
+    setProjectorIndex(insertIdx);
+    setIsEditMode(true);
+  };
+
+  const handleMoveSlideLeft = () => {
+    if (projectorIndex <= 0) return;
+    const currentOrder = projectorItems.map(item => item.id);
+    const newOrder = [...currentOrder];
+    const temp = newOrder[projectorIndex];
+    newOrder[projectorIndex] = newOrder[projectorIndex - 1];
+    newOrder[projectorIndex - 1] = temp;
+
+    updateLesson(prev => ({
+      ...prev,
+      customSlideOrder: newOrder
+    }));
+    setProjectorIndex(projectorIndex - 1);
+  };
+
+  const handleMoveSlideRight = () => {
+    if (projectorIndex >= projectorItems.length - 1) return;
+    const currentOrder = projectorItems.map(item => item.id);
+    const newOrder = [...currentOrder];
+    const temp = newOrder[projectorIndex];
+    newOrder[projectorIndex] = newOrder[projectorIndex + 1];
+    newOrder[projectorIndex + 1] = temp;
+
+    updateLesson(prev => ({
+      ...prev,
+      customSlideOrder: newOrder
+    }));
+    setProjectorIndex(projectorIndex + 1);
+  };
+
+  const handleDeleteSlide = () => {
+    if (projectorItems.length <= 1 || !currentProjectorItem) return;
+    if (!window.confirm(`Deseja remover o slide "${currentProjectorItem.title}"?`)) return;
+
+    const currId = currentProjectorItem.id;
+    const updatedExtraSlides = (lesson.extraSlides || []).filter(s => s.id !== currId);
+    const currentOrder = projectorItems.map(item => item.id);
+    const newOrder = currentOrder.filter(id => id !== currId);
+
+    updateLesson(prev => ({
+      ...prev,
+      extraSlides: updatedExtraSlides,
+      customSlideOrder: newOrder
+    }));
+
+    setProjectorIndex(prev => Math.min(prev, Math.max(0, newOrder.length - 1)));
+  };
+
   // Flattened items for Projector Mode
   const projectorItems = React.useMemo(() => {
     const items: Array<{
-      type: 'cover' | 'aureo' | 'pratica' | 'na_licao_anterior' | 'ponte_contextual' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'subtopic_explanation' | 'subtopic_verses' | 'subtopic_aplicacao' | 'enfase_palavra' | 'conclusao' | 'verdades';
+      id: string;
+      type: 'cover' | 'aureo' | 'pratica' | 'na_licao_anterior' | 'ponte_contextual' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'subtopic_explanation' | 'subtopic_verses' | 'subtopic_aplicacao' | 'enfase_palavra' | 'conclusao' | 'verdades' | 'extra';
       title: string;
       subtitle?: string;
       bulletPoints?: string[];
@@ -1267,6 +1377,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       ideiaText?: string;
       reference?: string;
       imagePrompt?: string;
+      imageUrl?: string;
       onUpdateText?: (val: string) => void;
       onUpdateTitle?: (val: string) => void;
       onUpdateSubtitle?: (val: string) => void;
@@ -1282,6 +1393,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
       if (textLicaoAnterior) {
         items.push({
+          id: 'na_licao_anterior',
           type: 'na_licao_anterior',
           title: 'NA LIÇÃO ANTERIOR',
           badgeText: 'NA LIÇÃO ANTERIOR',
@@ -1292,6 +1404,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
       if (textPonteContextual) {
         items.push({
+          id: 'ponte_contextual',
           type: 'ponte_contextual',
           title: 'INTERVALO BÍBLICO',
           badgeText: 'INTERVALO BÍBLICO',
@@ -1303,6 +1416,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     // 3. Capa (Lição 11 / Título)
     items.push({
+      id: 'cover',
       type: 'cover',
       title: lesson.metadata.title,
       subtitle: lesson.metadata.themeTopic,
@@ -1314,6 +1428,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     // 4. Texto Áureo
     items.push({
+      id: 'aureo',
       type: 'aureo',
       title: 'TEXTO ÁUREO',
       badgeText: 'TEXTO ÁUREO',
@@ -1326,6 +1441,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     // 5. Verdade Prática
     if (lesson.verdadePratica?.text) {
       items.push({
+        id: 'pratica',
         type: 'pratica',
         title: 'VERDADE PRÁTICA',
         badgeText: 'VERDADE PRÁTICA',
@@ -1337,6 +1453,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     // Leitura Bíblica em Classe NA ÍNTEGRA (EM APENAS 1 ÚNICO CARD COM SCROLL)
     if (lesson.biblicalText) {
       items.push({
+        id: 'leitura',
         type: 'leitura',
         title: 'LEITURA BÍBLICA EM CLASSE',
         badgeText: 'LEITURA BÍBLICA EM CLASSE',
@@ -1373,8 +1490,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     lesson.topicos.forEach((t, tIdx) => {
       const topicNum = parseTopicNum(t.number, tIdx);
 
-      // 📌 CARD DE SINOPSE / REVISÃO DO TÓPICO (TÍTULO DO TÓPICO VAI NA TARJA LARANJA COMO NO PRINT)
+      // 📌 CARD DE SINOPSE / REVISÃO DO TÓPICO
       items.push({
+        id: `topic_synopsis_${tIdx}`,
         type: 'topic_synopsis',
         title: `${topicNum}. ${t.title}`,
         badgeText: `TÓPICO ${topicNum}: ${t.title.toUpperCase()}`,
@@ -1404,6 +1522,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
         if (textoQuadroAzul) {
           items.push({
+            id: `subtopic_${tIdx}_${sIdx}`,
             type: 'subtopic',
             title: subtopicTitle,
             badgeText: subtopicBadge,
@@ -1423,6 +1542,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             .join('\n');
           if (textoReferencias) {
             items.push({
+              id: `subtopic_verses_${tIdx}_${sIdx}`,
               type: 'subtopic_verses',
               title: subtopicTitle,
               badgeText: subtopicBadge,
@@ -1442,6 +1562,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         // 3. SLIDE DE APLICAÇÃO (QUAL O ENSINAMENTO PRA MINHA VIDA?)
         if (s.aplicacao) {
           items.push({
+            id: `subtopic_aplicacao_${tIdx}_${sIdx}`,
             type: 'subtopic_aplicacao',
             title: subtopicTitle,
             badgeText: subtopicBadge,
@@ -1464,6 +1585,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             .trim();
 
           items.push({
+            id: `enfase_${tIdx}_${sIdx}`,
             type: 'enfase_palavra',
             title: subtopicTitle,
             badgeText: subtopicBadge,
@@ -1479,6 +1601,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         if (!textoQuadroAzul && s.ideias && s.ideias.length > 0) {
           s.ideias.forEach((ideia, iIdx) => {
             items.push({
+              id: `subtopic_legacy_${tIdx}_${sIdx}_${iIdx}`,
               type: 'subtopic',
               title: subtopicTitle,
               badgeText: subtopicBadge,
@@ -1502,6 +1625,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
             });
             if (ideia.professor?.explicacao) {
               items.push({
+                id: `explanation_${tIdx}_${sIdx}_${iIdx}`,
                 type: 'subtopic_explanation',
                 title: subtopicTitle,
                 badgeText: subtopicBadge,
@@ -1535,6 +1659,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     // Conclusão
     if (lesson.conclusao?.takeaway) {
       items.push({
+        id: 'conclusao',
         type: 'conclusao',
         title: 'CONCLUSÃO',
         badgeText: 'CONCLUSÃO',
@@ -1546,11 +1671,64 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     // Verdades que precisamos guardar (bulletPoints antes da oração)
     if (lesson.conclusao?.bulletPoints?.length) {
       items.push({
+        id: 'verdades',
         type: 'verdades',
         title: 'VERDADES QUE PRECISAMOS GUARDAR',
         badgeText: 'VERDADES QUE PRECISAMOS GUARDAR',
         bulletPoints: lesson.conclusao.bulletPoints,
         onUpdateBulletPoint: (bIdx: number, val: string) => updateConclusaoBullet(bIdx, val)
+      });
+    }
+
+    // Slides Extras adicionados pelo usuário
+    (lesson.extraSlides || []).forEach((extra) => {
+      items.push({
+        id: extra.id,
+        type: 'extra',
+        title: extra.title,
+        badgeText: extra.badgeText || 'SLIDE EXTRA',
+        projetorText: extra.projetorText || '',
+        subtitle: extra.subtitle || '',
+        reference: extra.reference || '',
+        bulletPoints: extra.bulletPoints,
+        imagePrompt: extra.imagePrompt,
+        imageUrl: extra.imageUrl,
+        onUpdateTitle: (val: string) => {
+          updateLesson(prev => ({
+            ...prev,
+            extraSlides: (prev.extraSlides || []).map(s => s.id === extra.id ? { ...s, title: val } : s)
+          }));
+        },
+        onUpdateSubtitle: (val: string) => {
+          updateLesson(prev => ({
+            ...prev,
+            extraSlides: (prev.extraSlides || []).map(s => s.id === extra.id ? { ...s, subtitle: val, reference: val } : s)
+          }));
+        },
+        onUpdateReference: (val: string) => {
+          updateLesson(prev => ({
+            ...prev,
+            extraSlides: (prev.extraSlides || []).map(s => s.id === extra.id ? { ...s, reference: val, subtitle: val } : s)
+          }));
+        },
+        onUpdateText: (val: string) => {
+          updateLesson(prev => ({
+            ...prev,
+            extraSlides: (prev.extraSlides || []).map(s => s.id === extra.id ? { ...s, projetorText: val } : s)
+          }));
+        }
+      });
+    });
+
+    // Aplica a reordenação personalizada se existir
+    if (lesson.customSlideOrder && lesson.customSlideOrder.length > 0) {
+      const orderMap = new Map<string, number>();
+      lesson.customSlideOrder.forEach((id, idx) => orderMap.set(id, idx));
+
+      items.sort((a, b) => {
+        const orderA = orderMap.has(a.id) ? orderMap.get(a.id)! : 999;
+        const orderB = orderMap.has(b.id) ? orderMap.get(b.id)! : 999;
+        return orderA - orderB;
       });
     }
 
@@ -2468,31 +2646,32 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
       {/* ========================================================= */}
       {activeTab === 'projetor' && (
         <div className="space-y-5">
-          {/* Barra de Navegação do Projetor */}
-          <div className="flex items-center justify-between bg-slate-900 p-3.5 rounded-2xl border border-slate-700/80 shadow-lg">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setProjectorIndex(prev => Math.max(0, prev - 1))}
-                disabled={projectorIndex === 0}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Anterior</span>
-              </button>
+          {/* Barra de Navegação do Projetor e Controles do Slide */}
+          <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-700/80 shadow-lg space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setProjectorIndex(prev => Math.max(0, prev - 1))}
+                  disabled={projectorIndex === 0}
+                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Anterior</span>
+                </button>
 
-              <span className="text-xs text-slate-300 font-bold bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                Slide {projectorIndex + 1} de {projectorItems.length}
-              </span>
+                <span className="text-xs text-slate-300 font-bold bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                  Slide {projectorIndex + 1} de {projectorItems.length}
+                </span>
 
-              <button
-                onClick={() => setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1))}
-                disabled={projectorIndex === projectorItems.length - 1}
-                className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
-              >
-                <span>Próximo</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
+                <button
+                  onClick={() => setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1))}
+                  disabled={projectorIndex === projectorItems.length - 1}
+                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
+                >
+                  <span>Próximo</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
 
             <div className="text-xs text-slate-300 font-extrabold truncate max-w-sm">
               {currentProjectorItem.title}
@@ -2537,6 +2716,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>📁 Meu Modelo</span>
                 <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
               </label>
+
+              {/* Exportar PPTX com todos os slides */}
+              <button
+                onClick={() => {
+                  const theme = THEMES[0];
+                  exportProjectorItemsToPowerPoint(projectorItems, lesson.metadata.title, theme, customBg);
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all"
+                title="Exportar apresentação completa (.pptx) com todos os slides e edições"
+              >
+                <Download className="w-3.5 h-3.5 text-white" />
+                <span>PowerPoint (.pptx)</span>
+              </button>
 
 
 
@@ -2680,6 +2872,89 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+          {/* ── FERRAMENTAS DE GESTÃO DE SLIDES: +ADICIONAR EXTRA, DUPLICAR, REORDENAR, EXCLUIR ── */}
+          <div className="flex items-center justify-between gap-2.5 flex-wrap bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-sans">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botão Adicionar Slide Extra */}
+              <button
+                onClick={handleAddExtraSlide}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3.5 py-1.5 rounded-xl border border-emerald-400/40 flex items-center gap-1.5 text-xs shadow-md cursor-pointer transition-all hover:scale-105"
+                title="Adicionar um novo slide extra personalizado nesta lição"
+              >
+                <PlusCircle className="w-4 h-4 text-emerald-200" />
+                <span>➕ Adicionar Slide Extra</span>
+              </button>
+
+              {/* Botão Duplicar Slide */}
+              <button
+                onClick={handleDuplicateSlide}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5 text-xs cursor-pointer transition-all"
+                title="Duplicar este slide atual para editar"
+              >
+                <Copy className="w-3.5 h-3.5 text-cyan-400" />
+                <span>📋 Duplicar</span>
+              </button>
+
+              {/* Botão Mover para Esquerda */}
+              <button
+                onClick={handleMoveSlideLeft}
+                disabled={projectorIndex === 0}
+                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1 text-xs cursor-pointer transition-all"
+                title="Mover este slide para trás na ordem da apresentação"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
+                <span>⬅️ Mover Esquerda</span>
+              </button>
+
+              {/* Botão Mover para Direita */}
+              <button
+                onClick={handleMoveSlideRight}
+                disabled={projectorIndex === projectorItems.length - 1}
+                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1 text-xs cursor-pointer transition-all"
+                title="Mover este slide para frente na ordem da apresentação"
+              >
+                <span>➡️ Mover Direita</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Botão Excluir Slide */}
+              {projectorItems.length > 1 && (
+                <button
+                  onClick={handleDeleteSlide}
+                  className="bg-red-600/20 hover:bg-red-600/40 text-red-300 hover:text-white border border-red-500/30 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 cursor-pointer transition-all"
+                  title="Excluir o slide atual"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                  <span>🗑️ Excluir Slide</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── BARRA DE MINIATURAS VISUAIS DOS SLIDES ── */}
+          <div className="slides-navigation-bar flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 overflow-x-auto custom-scrollbar">
+            {projectorItems.map((item, idx) => (
+              <button
+                key={item.id || idx}
+                onClick={() => setProjectorIndex(idx)}
+                className={`px-3 py-2 rounded-xl text-xs font-semibold border text-left truncate min-w-[130px] max-w-[170px] transition-all cursor-pointer font-sans shrink-0 ${
+                  idx === projectorIndex
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg font-black scale-105 ring-2 ring-amber-400/50'
+                    : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:bg-slate-800'
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] opacity-80 font-bold uppercase mb-0.5">
+                  <span>Slide {idx + 1}</span>
+                  {item.type === 'extra' && <span className="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/50 px-1 rounded font-black">EXTRA</span>}
+                </div>
+                <span className="truncate block font-extrabold">{item.badgeText || item.title || `Slide ${idx + 1}`}</span>
+              </button>
+            ))}
           </div>
 
           {/* ── Painel de Edição Direta do Slide Atual (Modo Projetor) ── */}
@@ -2982,6 +3257,82 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </p>
                           </>
                         )}
+                      </div>
+                    </div>{/* /body drag wrapper */}
+
+                    <div className="w-full shrink-0 h-8" />
+                  </div>
+                );
+              }
+
+              // 2. SLIDE EXTRA PERSONALIZADO
+              if (currentProjectorItem.type === 'extra') {
+                const curSlideImg = projectorSlideImages[projectorIndex];
+                return (
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                    {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
+                    <div
+                      style={makeDragStyle(titlePos, 'title')}
+                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
+                      className="w-full shrink-0 relative"
+                    >
+                      {isLayoutEditMode && (
+                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                          style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          👑 Título — arraste
+                        </div>
+                      )}
+                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-14 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                        {currentProjectorItem.title && (
+                          <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
+                            {currentProjectorItem.title}
+                          </span>
+                        )}
+                        {currentProjectorItem.reference && (
+                          <span className="text-base md:text-xl lg:text-2xl font-bold text-yellow-400 tracking-wider block text-center mt-1" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                            {currentProjectorItem.reference}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ── EXTRA: CORPO (ARRASTÁVEL) ── */}
+                    <div
+                      style={makeDragStyle(bodyPos, 'body')}
+                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
+                      className="w-full flex-1 flex flex-col min-h-0"
+                    >
+                      {isLayoutEditMode && (
+                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
+                          style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          📄 Texto — arraste
+                        </div>
+                      )}
+                      <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
+                        {curSlideImg && (
+                          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 select-none">
+                            <img src={curSlideImg} alt="Ilustração do Slide" className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
+                          </div>
+                        )}
+                        <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[420px] overflow-y-auto no-scrollbar">
+                          {currentProjectorItem.projetorText ? (
+                            <p className={`font-sans text-center w-full max-w-full break-words leading-relaxed whitespace-pre-line ${
+                              (currentProjectorItem.projetorText || '').length > 200
+                                ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
+                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                            }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              {renderHL(currentProjectorItem.projetorText)}
+                            </p>
+                          ) : (
+                            !currentProjectorItem.title && (
+                              <p className="text-2xl md:text-3xl font-extrabold text-slate-500 text-center italic">
+                                Slide em branco — edite o título e texto acima ✏️
+                              </p>
+                            )
+                          )}
+                        </div>
                       </div>
                     </div>{/* /body drag wrapper */}
 

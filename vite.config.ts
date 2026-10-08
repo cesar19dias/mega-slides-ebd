@@ -36,6 +36,9 @@ export default defineConfig({
       }
     })
   ],
+  optimizeDeps: {
+    include: ['pptxgenjs', 'jszip']
+  },
   server: {
     port: 3000,
     open: true

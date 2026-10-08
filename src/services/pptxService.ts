@@ -1,5 +1,5 @@
 import pptxgen from 'pptxgenjs';
-import type { PresentationData, ThemeConfig, Slide } from '../types';
+import type { PresentationData, ThemeConfig, Slide, SlideLayout } from '../types';
 
 export function exportToPowerPoint(data: PresentationData, theme: ThemeConfig, customTemplateBg?: string | null): void {
   const pptx = new pptxgen();
@@ -385,3 +385,51 @@ function buildTopicSlide(slide: any, slideData: Slide, theme: ThemeConfig, isOff
     });
   }
 }
+
+export function exportProjectorItemsToPowerPoint(
+  items: Array<{
+    id?: string;
+    type: string;
+    title: string;
+    subtitle?: string;
+    bulletPoints?: string[];
+    badgeText?: string;
+    projetorText?: string;
+    reference?: string;
+    imageUrl?: string;
+  }>,
+  lessonTitle: string,
+  theme: ThemeConfig,
+  customTemplateBg?: string | null
+): void {
+  const slides: Slide[] = items.map((item, idx) => {
+    let layout: SlideLayout = 'standard';
+    if (item.type === 'cover') layout = 'title';
+    else if (item.type === 'aureo' || item.type === 'pratica') layout = 'verse';
+    else if (item.type === 'conclusao' || item.type === 'verdades') layout = 'conclusion';
+    else if (item.type === 'subtopic_verses' || item.type === 'leitura') layout = 'verse';
+
+    return {
+      id: item.id || `slide-${idx}`,
+      title: item.title,
+      subtitle: item.subtitle,
+      topicBadge: item.badgeText || item.title,
+      bulletPoints: item.bulletPoints || (item.projetorText ? [item.projetorText] : []),
+      layout: layout,
+      keyVerse: item.type === 'aureo' ? { reference: item.reference || '', text: item.projetorText?.replace(/^[“"']|[”"']$/g, '') || '' } : undefined,
+      takeaway: (item.type === 'pratica' || item.type === 'conclusao') ? item.projetorText : undefined,
+      imageUrl: item.imageUrl
+    };
+  });
+
+  const presentation: PresentationData = {
+    title: lessonTitle,
+    subtitle: '',
+    themeTopic: lessonTitle,
+    targetAudience: 'EBD',
+    slides
+  };
+
+  exportToPowerPoint(presentation, theme, customTemplateBg);
+}
+
