@@ -807,7 +807,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
               key={slide.id || idx}
               onClick={() => setCurrentSlideIndex(idx)}
               className={`thumbnail-card px-3.5 py-2.5 rounded-xl text-xs font-semibold border text-left truncate min-w-[130px] max-w-[160px] transition-all cursor-pointer font-['Gotham'] ${
-                idx === currentSlideIndex ? 'bg-orange-600 text-white border-orange-400 shadow-lg shadow-orange-500/40 scale-105' : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
+                idx === currentSlideIndex ? 'bg-orange-600 text-slate-950 border-orange-400 shadow-lg shadow-orange-500/40 scale-105' : 'bg-slate-800/80 text-slate-300 border-slate-700 hover:bg-slate-700'
               }`}
             >
               <span className="block text-[10px] opacity-75 font-bold uppercase">Slide {idx + 1}</span>
