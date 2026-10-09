@@ -3654,7 +3654,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             })()}
 
             {/* Rodapé do Projetor com Slide Number */}
-            <div className="relative z-10 flex justify-between items-center text-xs font-bold text-slate-500 border-t border-slate-200 pt-3">
+            <div className="relative z-10 flex justify-between items-center text-xs font-bold text-white border-t border-slate-200 pt-3">
               <span>MegaEBD • {lesson.metadata.title}</span>
               <span>{projectorIndex + 1} / {projectorItems.length}</span>
             </div>

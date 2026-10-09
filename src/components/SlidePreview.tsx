@@ -823,8 +823,8 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
       {/* ── Notas pedagógicas ── */}
       {currentSlide.speakerNotes && (
         <div className="speaker-notes-card bg-slate-900/90 border-2 border-blue-500/50 p-5 rounded-2xl shadow-lg space-y-2">
-          <div className="notes-header flex items-center gap-2 text-blue-400 font-black text-sm md:text-base uppercase">
-            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+          <div className="notes-header flex items-center gap-2 text-white font-black text-sm md:text-base uppercase">
+            <MessageSquare className="w-4 h-4 md:w-5 md:h-5 text-white" />
             <span>Notas Pedagógicas para o Professor (EBD)</span>
           </div>
           <p className="notes-text text-sm md:text-base lg:text-lg text-slate-100 leading-relaxed font-semibold">{currentSlide.speakerNotes}</p>
