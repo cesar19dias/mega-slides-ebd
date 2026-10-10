@@ -10,9 +10,24 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
   try {
     const clone = JSON.parse(JSON.stringify(lesson)) as any;
     
-    // Remove apenas metadados pesados de análise, mantendo personalizações de layout, fontes e posições
+    // Remove apenas metadados pesados de análise e customização de layout/imagens
     delete clone.checklist;
     delete clone.sourcesSummary;
+    delete clone.projectorSlideImages;
+    delete clone.slideFontScales;
+    delete clone.slideTitleFontScales;
+    delete clone.slideBodyFontScales;
+    delete clone.slideTextOverrides;
+    delete clone.slideTitlePositions;
+    delete clone.slideBodyPositions;
+    delete clone.slideImagePositions;
+    delete clone.slideImageScales;
+    delete clone.slideImageFits;
+    delete clone.slideImageBorders;
+    delete clone.customSlideOrder;
+    delete clone.extraSlides;
+    delete clone.projectorFontSizeScale;
+    delete clone.textHighlights; // if it exists anywhere
 
     // Remove arrays e strings vazios em tópicos e subtópicos
     if (Array.isArray(clone.topicos)) {
@@ -20,6 +35,7 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
         if (!topic.sinopse) delete topic.sinopse;
         if (!topic.frasesEnfase || topic.frasesEnfase.length === 0) delete topic.frasesEnfase;
         if (!topic.imagePrompt) delete topic.imagePrompt;
+        delete topic.textHighlights;
 
         if (Array.isArray(topic.subtopicos)) {
           topic.subtopicos.forEach((sub: any) => {
@@ -34,10 +50,17 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
             if (!sub.aplicacao) delete sub.aplicacao;
             if (!sub.enfase) delete sub.enfase;
             if (!sub.imagePrompt) delete sub.imagePrompt;
+            delete sub.textHighlights;
           });
         }
       });
     }
+    
+    // Also remove from introducao/conclusao
+    if (clone.introducao) delete clone.introducao.textHighlights;
+    if (clone.conclusao) delete clone.conclusao.textHighlights;
+    if (clone.textAureo) delete clone.textAureo.textHighlights;
+    if (clone.verdadePratica) delete clone.verdadePratica.textHighlights;
 
     return clone;
   } catch {
@@ -219,13 +242,23 @@ export function decodeLessonFromUrl(): EBDLessonPreparation | null {
   return null;
 }
 
-/**
- * Tenta encurtar uma URL usando serviços de encurtamento gratuitos
- */
 export async function shortenUrl(longUrl: string): Promise<string> {
+  const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 3000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(id);
+      return response;
+    } catch (err) {
+      clearTimeout(id);
+      throw err;
+    }
+  };
+
   // 1. Tenta TinyURL via POST
   try {
-    const res = await fetch('https://tinyurl.com/api-create.php', {
+    const res = await fetchWithTimeout('https://tinyurl.com/api-create.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ url: longUrl })
@@ -242,7 +275,7 @@ export async function shortenUrl(longUrl: string): Promise<string> {
 
   // 2. Tenta spoo.me
   try {
-    const res = await fetch('https://spoo.me', {
+    const res = await fetchWithTimeout('https://spoo.me', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
       body: new URLSearchParams({ url: longUrl })

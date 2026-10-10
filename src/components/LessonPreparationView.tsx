@@ -945,7 +945,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
 
     const outlineColor = kind === 'title' ? '#f59e0b' : kind === 'body' ? '#06b6d4' : '#8b5cf6';
-    const zIndexVal = kind === 'image' ? (isLayoutEditMode ? 40 : 0) : 50;
+    const zIndexVal = kind === 'image' ? (isLayoutEditMode ? 5 : 0) : 50;
 
     if (kind === 'image') {
       const curScale = slideImageScales[projectorIndex] ?? 1.0;
@@ -3659,7 +3659,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
           <div
             ref={projectorStageRef}
-            className="slide-stage-wrapper rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4"
+            className={`slide-stage-wrapper ${isLayoutEditMode ? 'layout-mode' : ''} rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4`}
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
             onMouseUp={handleSlideMouseUp}
             onTouchEnd={handleSlideMouseUp}
@@ -3839,7 +3839,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         </div>
                       )}
                       {renderSlideImageElement()}
-                      <div className="w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
+                      <div className={`text-layer w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto`}>
                         <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                           {renderHL(currentProjectorItem.title, '#facc15')}
                         </h1>
@@ -3905,7 +3905,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       )}
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
                         {renderSlideImageElement()}
-                        <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[420px] overflow-y-auto no-scrollbar">
+                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[420px] overflow-y-auto no-scrollbar">
                           {currentProjectorItem.projetorText ? (
                             <p className={`font-sans text-center w-full max-w-full break-words leading-relaxed whitespace-pre-line ${
                               (currentProjectorItem.projetorText || '').length > 200
@@ -4048,7 +4048,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     )}
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
                         {renderSlideImageElement()}
-                        <div className="w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
+                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                             const displayRef = currentProjectorItem.reference || parsed.reference;

@@ -547,5 +547,9 @@ body {
   scrollbar-color: rgba(245, 158, 11, 0.85) rgba(15, 23, 42, 0.7) !important;
 }
 
+/* Modo Mover: a camada de texto nao bloqueia cliques na imagem por baixo; o texto em si continua arrastavel */
+.layout-mode .text-layer { pointer-events: none; }
+.layout-mode .text-layer * { pointer-events: auto; }
+
 
 
