@@ -880,7 +880,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const toggleImageFit = useCallback((idx: number) => {
     setSlideImageFits(prev => {
       const current = prev[idx] ?? 'cover';
-      const nextFit = current === 'cover' ? 'contain' : 'cover';
+      const nextFit: 'cover' | 'contain' = current === 'cover' ? 'contain' : 'cover';
       const next = { ...prev, [idx]: nextFit };
       try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, slideImageFits: next }));
