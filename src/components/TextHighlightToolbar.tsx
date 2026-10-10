@@ -2,6 +2,8 @@ import React from 'react';
 import { X } from 'lucide-react';
 
 export const HIGHLIGHT_COLORS = [
+  { name: 'Preto', hex: '#000000', textDark: false },
+  { name: 'Branco', hex: '#ffffff', textDark: true },
   { name: 'Amarelo', hex: '#facc15', textDark: true },
   { name: 'Laranja', hex: '#fb923c', textDark: true },
   { name: 'Vermelho', hex: '#f87171', textDark: false },
@@ -13,7 +15,7 @@ export const HIGHLIGHT_COLORS = [
 interface TextHighlightToolbarProps {
   x: number;
   y: number;
-  onApply: (color: string, style: 'fill' | 'outline') => void;
+  onApply: (color: string, style: 'fill' | 'outline' | 'text') => void;
   onRemove: () => void;
   onClose: () => void;
 }
@@ -52,23 +54,25 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
         }}
       />
 
-      {/* Linha 1 — Preenchido */}
+      {/* Linha 1 — Cor da Letra (apenas muda a cor do texto selecionado sem fundo) */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest w-16 shrink-0 select-none">
-          🖍 Cheio
+        <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest w-16 shrink-0 select-none">
+          🔤 Letra
         </span>
         {HIGHLIGHT_COLORS.map((c) => (
           <button
-            key={`fill-${c.hex}`}
-            title={`${c.name} — preenchido`}
-            onClick={() => onApply(c.hex, 'fill')}
-            className="w-5 h-5 rounded-sm transition-transform hover:scale-125 ring-2 ring-transparent hover:ring-white/70 flex-shrink-0"
-            style={{ background: c.hex }}
-          />
+            key={`text-${c.hex}`}
+            title={`Cor da letra: ${c.name}`}
+            onClick={() => onApply(c.hex, 'text')}
+            className="w-5 h-5 rounded-sm transition-transform hover:scale-125 flex items-center justify-center font-black text-[11px] flex-shrink-0 border border-slate-600"
+            style={{ background: '#0f172a', color: c.hex }}
+          >
+            A
+          </button>
         ))}
         <div className="w-px h-4 bg-slate-700 mx-0.5" />
         <button
-          title="Remover destaque"
+          title="Remover destaque / cor"
           onClick={onRemove}
           className="w-5 h-5 rounded bg-slate-700 hover:bg-rose-600 flex items-center justify-center transition-colors text-slate-400 hover:text-white flex-shrink-0"
         >
@@ -86,7 +90,26 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
       {/* Divider */}
       <div className="w-full border-t border-slate-700/80" />
 
-      {/* Linha 2 — Só contorno */}
+      {/* Linha 2 — Preenchido (Marca-texto completo) */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest w-16 shrink-0 select-none">
+          🖍 Fundo
+        </span>
+        {HIGHLIGHT_COLORS.map((c) => (
+          <button
+            key={`fill-${c.hex}`}
+            title={`Fundo ${c.name} — preenchido`}
+            onClick={() => onApply(c.hex, 'fill')}
+            className="w-5 h-5 rounded-sm transition-transform hover:scale-125 ring-2 ring-transparent hover:ring-white/70 flex-shrink-0 border border-slate-700"
+            style={{ background: c.hex }}
+          />
+        ))}
+      </div>
+
+      {/* Divider */}
+      <div className="w-full border-t border-slate-700/80" />
+
+      {/* Linha 3 — Só contorno */}
       <div className="flex items-center gap-1.5">
         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest w-16 shrink-0 select-none">
           ⬜ Contorno
@@ -94,7 +117,7 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
         {HIGHLIGHT_COLORS.map((c) => (
           <button
             key={`outline-${c.hex}`}
-            title={`${c.name} — contorno`}
+            title={`Contorno ${c.name}`}
             onClick={() => onApply(c.hex, 'outline')}
             className="w-5 h-5 rounded-sm transition-transform hover:scale-125 flex-shrink-0"
             style={{
@@ -104,10 +127,6 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
             }}
           />
         ))}
-        {/* spacers to align with row 1 */}
-        <div className="w-px h-4 bg-slate-700 mx-0.5 opacity-0" />
-        <div className="w-5 h-5 opacity-0 flex-shrink-0" />
-        <div className="w-4 h-4 opacity-0 flex-shrink-0" />
       </div>
     </div>
   );

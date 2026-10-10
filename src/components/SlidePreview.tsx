@@ -553,9 +553,69 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
             <Edit3 className="w-3.5 h-3.5" /> ✏️ Prompt
           </button>
           {currentSlide.imageUrl && (
-            <button onClick={handleRemoveImage} className="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 px-2.5 py-1.5 rounded-xl flex items-center gap-1 font-bold transition-all cursor-pointer">
-              <Trash2 className="w-3.5 h-3.5" /> Remover
-            </button>
+            <>
+              <div className="flex items-center gap-1 bg-slate-800 px-2 py-1 rounded-xl border border-purple-500/50" title="Ajustar tamanho da imagem deste slide">
+                <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                <button
+                  onClick={() => {
+                    const current = currentSlide.imageScale || 1.0;
+                    const next = Math.max(0.2, Math.round((current - 0.05) * 100) / 100);
+                    updateCurrentSlide({ imageScale: next });
+                  }}
+                  disabled={(currentSlide.imageScale || 1.0) <= 0.2}
+                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                  title="Diminuir imagem (-)"
+                >
+                  <ZoomOut className="w-3.5 h-3.5 text-purple-400" />
+                </button>
+
+                <span className="text-xs font-black text-purple-300 px-1 min-w-[36px] text-center font-mono">
+                  {Math.round((currentSlide.imageScale || 1.0) * 100)}%
+                </span>
+
+                <button
+                  onClick={() => {
+                    const current = currentSlide.imageScale || 1.0;
+                    const next = Math.min(3.0, Math.round((current + 0.05) * 100) / 100);
+                    updateCurrentSlide({ imageScale: next });
+                  }}
+                  disabled={(currentSlide.imageScale || 1.0) >= 3.0}
+                  className="p-1 rounded-lg bg-slate-900 hover:bg-slate-700 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                  title="Aumentar imagem (+)"
+                >
+                  <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+                </button>
+
+                {currentSlide.imageScale && currentSlide.imageScale !== 1.0 && (
+                  <button
+                    onClick={() => updateCurrentSlide({ imageScale: 1.0 })}
+                    className="text-[10px] font-extrabold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
+                    title="Restaurar tamanho original (100%)"
+                  >
+                    100%
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    const nextFit = (currentSlide.imageFit || 'cover') === 'cover' ? 'contain' : 'cover';
+                    updateCurrentSlide({ imageFit: nextFit });
+                  }}
+                  className={`px-2 py-0.5 rounded text-[10px] font-extrabold transition-all cursor-pointer border ${
+                    currentSlide.imageFit === 'contain'
+                      ? 'bg-purple-900/60 text-purple-200 border-purple-400'
+                      : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                  }`}
+                  title="Alternar entre Preencher (Cover) ou Ajustar sem cortes (Contain)"
+                >
+                  {currentSlide.imageFit === 'contain' ? '🔍 Conter' : '🖼️ Preencher'}
+                </button>
+              </div>
+
+              <button onClick={handleRemoveImage} className="bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 px-2.5 py-1.5 rounded-xl flex items-center gap-1 font-bold transition-all cursor-pointer">
+                <Trash2 className="w-3.5 h-3.5" /> Remover
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -655,7 +715,12 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       )}
                     </div>
                     <div className="w-[45%] shrink-0 flex items-center justify-center h-full">
-                      <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="max-h-[400px] max-w-full object-contain filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.7)] transition-all" />
+                      <img
+                        src={currentSlide.imageUrl}
+                        alt={currentSlide.title || "Ilustração do Slide"}
+                        style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
+                        className={`max-h-[400px] max-w-full rounded-2xl border-4 border-white ${currentSlide.imageFit === 'cover' ? 'object-cover' : 'object-contain'} shadow-[0_12px_28px_rgba(0,0,0,0.45)] transition-all`}
+                      />
                     </div>
                   </div>
                 ) : (
@@ -695,8 +760,13 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
 
                 {/* Conteúdo perfeitamente centralizado na vertical em toda a tela (FONTES DOBRADAS) */}
                 {currentSlide.imageUrl && (
-                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
-                    <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
+                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 flex items-center justify-center">
+                    <img
+                      src={currentSlide.imageUrl}
+                      alt={currentSlide.title || "Ilustração do Slide"}
+                      style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
+                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] transition-all`}
+                    />
                   </div>
                 )}
                 <div className="flex-1 w-full relative z-10 flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">
@@ -736,8 +806,13 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                   <EbdHeaderBadge label={currentSlide.topicBadge || currentSlide.title || 'TÓPICO DA LIÇÃO'} />
                 </div>
                 {currentSlide.imageUrl && (
-                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
-                    <img src={currentSlide.imageUrl} alt={currentSlide.title || "Ilustração do Slide"} className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
+                  <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 flex items-center justify-center">
+                    <img
+                      src={currentSlide.imageUrl}
+                      alt={currentSlide.title || "Ilustração do Slide"}
+                      style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
+                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] transition-all`}
+                    />
                   </div>
                 )}
                 <div className="flex-1 w-full relative z-10 flex flex-col items-center justify-center text-center px-[4%] my-auto mt-[5%]">

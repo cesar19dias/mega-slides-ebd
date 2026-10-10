@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -13,7 +13,7 @@ import { QrCodeModal } from './QrCodeModal';
 interface TextHighlightEntry {
   text: string;
   color: string;
-  style?: 'fill' | 'outline'; // default 'fill' for backward compat
+  style?: 'fill' | 'outline' | 'text'; // default 'fill' for backward compat
 }
 type SlideHighlights = Record<number, TextHighlightEntry[]>;
 const HL_STORAGE_KEY = 'mega_ebd_text_highlights_v2';
@@ -35,60 +35,91 @@ function persistSlideHighlights(h: SlideHighlights) {
 function applyHighlightsToText(
   text: string,
   entries: TextHighlightEntry[],
+  forcedTextColor: string = '#000000'
 ): React.ReactNode {
-  if (!entries.length || !text) return text;
-
-  const LIGHT = new Set(['#facc15', '#fb923c', '#4ade80']);
+  if (!text) return text;
+  if (!entries || !entries.length) return <span style={{ color: forcedTextColor }}>{text}</span>;
 
   // Build sorted, non-overlapping intervals
-  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' }> = [];
+  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' | 'text' }> = [];
+  const lowerText = text.toLowerCase();
   for (const h of entries) {
     if (!h.text) continue;
-    let pos = 0;
-    while (pos <= text.length - h.text.length) {
-      const idx = text.indexOf(h.text, pos);
-      if (idx === -1) break;
-      const overlaps = intervals.some((iv) => idx < iv.e && idx + h.text.length > iv.s);
-      if (!overlaps) intervals.push({ s: idx, e: idx + h.text.length, color: h.color, style: h.style ?? 'fill' });
-      pos = idx + 1;
+    // O texto selecionado vem como exibido (ex.: CAIXA ALTA via CSS); compara sem diferenciar maiúsculas e espaços
+    const needle = h.text.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!needle) continue;
+    const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'), 'gi');
+    let m: RegExpExecArray | null;
+    while ((m = pattern.exec(lowerText)) !== null) {
+      const idx = m.index;
+      const len = m[0].length;
+      const overlaps = intervals.some((iv) => idx < iv.e && idx + len > iv.s);
+      if (!overlaps) intervals.push({ s: idx, e: idx + len, color: h.color, style: h.style ?? 'fill' });
+      pattern.lastIndex = idx + 1;
     }
   }
-  if (!intervals.length) return text;
+  if (!intervals.length) return <span style={{ color: forcedTextColor }}>{text}</span>;
   intervals.sort((a, b) => a.s - b.s);
 
   const nodes: React.ReactNode[] = [];
   let cursor = 0;
   intervals.forEach((iv, i) => {
-    if (cursor < iv.s) nodes.push(<React.Fragment key={`t${i}`}>{text.slice(cursor, iv.s)}</React.Fragment>);
-    const isFill = iv.style !== 'outline';
-    const isDark = LIGHT.has(iv.color);
-    nodes.push(
-      <mark
-        key={`m${i}`}
-        style={isFill ? {
-          background: iv.color,
-          color: isDark ? '#1e293b' : '#fff',
-          borderRadius: '3px',
-          padding: '2px 5px',
-          fontWeight: 'inherit',
-          display: 'inline',
-        } : {
-          background: 'transparent',
-          color: 'inherit',
-          borderRadius: '3px',
-          padding: '2px 5px',
-          fontWeight: 'inherit',
-          display: 'inline',
-          outline: `4px solid ${iv.color}`,
-          outlineOffset: '1px',
-        }}
-      >
-        {text.slice(iv.s, iv.e)}
-      </mark>,
-    );
+    if (cursor < iv.s) nodes.push(<span key={`t${i}`} style={{ color: forcedTextColor }}>{text.slice(cursor, iv.s)}</span>);
+    
+    if (iv.style === 'text') {
+      nodes.push(
+        <span
+          key={`m${i}`}
+          style={{
+            color: iv.color,
+            fontWeight: 'inherit',
+            display: 'inline',
+          }}
+        >
+          {text.slice(iv.s, iv.e)}
+        </span>
+      );
+    } else {
+      const isFill = iv.style !== 'outline';
+      
+      // Se o highlight for Preto (#000000), o texto interno fica branco. Se for Branco (#ffffff), o texto interno fica preto.
+      let markTextColor = forcedTextColor;
+      if (isFill) {
+        if (iv.color.toLowerCase() === '#000000') {
+          markTextColor = '#ffffff';
+        } else if (iv.color.toLowerCase() === '#ffffff') {
+          markTextColor = '#000000';
+        }
+      }
+
+      nodes.push(
+        <mark
+          key={`m${i}`}
+          style={isFill ? {
+            background: iv.color,
+            color: markTextColor,
+            borderRadius: '3px',
+            padding: '2px 5px',
+            fontWeight: 'inherit',
+            display: 'inline',
+          } : {
+            background: 'transparent',
+            color: forcedTextColor,
+            borderRadius: '3px',
+            padding: '2px 5px',
+            fontWeight: 'inherit',
+            display: 'inline',
+            outline: `4px solid ${iv.color}`,
+            outlineOffset: '1px',
+          }}
+        >
+          {text.slice(iv.s, iv.e)}
+        </mark>,
+      );
+    }
     cursor = iv.e;
   });
-  if (cursor < text.length) nodes.push(<React.Fragment key="tend">{text.slice(cursor)}</React.Fragment>);
+  if (cursor < text.length) nodes.push(<span key="tend" style={{ color: forcedTextColor }}>{text.slice(cursor)}</span>);
   return <>{nodes}</>;
 }
 
@@ -466,6 +497,18 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (lessonData.slideBodyFontScales) {
       setSlideBodyFontScales(lessonData.slideBodyFontScales);
     }
+    if (lessonData.slideImagePositions) {
+      setSlideImagePositions(lessonData.slideImagePositions);
+    }
+    if (lessonData.slideImageScales) {
+      setSlideImageScales(lessonData.slideImageScales);
+    }
+    if (lessonData.slideImageFits) {
+      setSlideImageFits(lessonData.slideImageFits);
+    }
+    if (lessonData.projectorSlideImages) {
+      setProjectorSlideImages(lessonData.projectorSlideImages);
+    }
     if (lessonData.projectorFontSizeScale) {
       setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
     }
@@ -554,15 +597,105 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     } catch { return {}; }
   });
 
+  const [slideImagePositions, setSlideImagePositions] = useState<Record<number, { x: number; y: number }>>(() => {
+    if (lessonData.slideImagePositions && Object.keys(lessonData.slideImagePositions).length > 0) {
+      return lessonData.slideImagePositions;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_positions');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [slideImageScales, setSlideImageScales] = useState<Record<number, number>>(() => {
+    if (lessonData.slideImageScales && Object.keys(lessonData.slideImageScales).length > 0) {
+      return lessonData.slideImageScales;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_scales');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [slideImageFits, setSlideImageFits] = useState<Record<number, 'cover' | 'contain'>>(() => {
+    if (lessonData.slideImageFits && Object.keys(lessonData.slideImageFits).length > 0) {
+      return lessonData.slideImageFits;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_fits');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
+  const imagePos = slideImagePositions[projectorIndex] ?? { x: 0, y: 0 };
+  const imageScale = slideImageScales[projectorIndex] ?? 1.0;
+  const imageFit = slideImageFits[projectorIndex] ?? 'cover';
   const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
+  const isImageMoved = slideImagePositions[projectorIndex] !== undefined;
+  const isImageScaled = slideImageScales[projectorIndex] !== undefined && slideImageScales[projectorIndex] !== 1.0;
+
+  // Ref de redimensionamento interativo por alças nos cantos da imagem
+  const resizeStateRef = useRef<{
+    active: boolean;
+    corner: 'nw' | 'ne' | 'se' | 'sw';
+    startClientX: number;
+    startClientY: number;
+    startCenterX: number;
+    startCenterY: number;
+    startDist: number;
+    startScale: number;
+  } | null>(null);
+
+  const handleImageResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: 'nw' | 'ne' | 'se' | 'sw') => {
+    if (!isLayoutEditMode) return;
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    const stage = projectorStageRef.current;
+    if (!stage) return;
+
+    let clientX = 0;
+    let clientY = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    } else {
+      return;
+    }
+
+    const imgContainer = (e.currentTarget as HTMLElement).closest('.slide-image-container');
+    const rect = imgContainer ? imgContainer.getBoundingClientRect() : stage.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const startDist = Math.max(10, Math.hypot(clientX - centerX, clientY - centerY));
+    const currentScale = slideImageScales[projectorIndex] ?? 1.0;
+
+    resizeStateRef.current = {
+      active: true,
+      corner,
+      startClientX: clientX,
+      startClientY: clientY,
+      startCenterX: centerX,
+      startCenterY: centerY,
+      startDist,
+      startScale: currentScale,
+    };
+  }, [isLayoutEditMode, projectorIndex, slideImageScales]);
 
   // Ref de drag responsivo (suporta mouse e touch com posições em porcentagem)
   const dragStateRef = useRef<{
     active: boolean;
-    kind: 'title' | 'body';
+    kind: 'title' | 'body' | 'image';
     startClientX: number;
     startClientY: number;
     startOffsetXPct: number;
@@ -571,7 +704,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     stageHeight: number;
   } | null>(null);
 
-  const handleElementDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, kind: 'title' | 'body') => {
+  const handleElementDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, kind: 'title' | 'body' | 'image') => {
     if (!isLayoutEditMode) return;
     if ('touches' in e) {
       if (e.cancelable) e.preventDefault();
@@ -599,7 +732,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     const rawPos = kind === 'title'
       ? (slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 })
-      : (slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 });
+      : kind === 'body'
+      ? (slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 })
+      : (slideImagePositions[projectorIndex] ?? { x: 0, y: 0 });
 
     let startXPct = rawPos.x;
     let startYPct = rawPos.y;
@@ -617,11 +752,37 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       stageWidth: stageW,
       stageHeight: stageH,
     };
-  }, [isLayoutEditMode, projectorIndex, slideTitlePositions, slideBodyPositions]);
+  }, [isLayoutEditMode, projectorIndex, slideTitlePositions, slideBodyPositions, slideImagePositions]);
 
-  // Listeners globais de mouse/touch para o drag responsivo
+  // Listeners globais de mouse/touch para o drag responsivo e resize
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
+      // 1. Redimensionamento interativo da imagem (puxando os cantos)
+      if (resizeStateRef.current?.active) {
+        let clientX = 0;
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
+        } else {
+          return;
+        }
+
+        const { startCenterX, startCenterY, startDist, startScale } = resizeStateRef.current;
+        const currentDist = Math.hypot(clientX - startCenterX, clientY - startCenterY);
+        const factor = currentDist / startDist;
+        const rawScale = startScale * factor;
+        const clampedScale = Math.min(3.0, Math.max(0.2, Math.round(rawScale * 100) / 100));
+
+        setSlideImageScales(prev => ({ ...prev, [projectorIndex]: clampedScale }));
+        return;
+      }
+
+      // 2. Movimento dos elementos no slide
       if (!dragStateRef.current?.active) return;
 
       let clientX = 0;
@@ -649,12 +810,23 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
       if (kind === 'title') {
         setSlideTitlePositions(prev => ({ ...prev, [projectorIndex]: { x: newXPct, y: newYPct } }));
-      } else {
+      } else if (kind === 'body') {
         setSlideBodyPositions(prev => ({ ...prev, [projectorIndex]: { x: newXPct, y: newYPct } }));
+      } else {
+        setSlideImagePositions(prev => ({ ...prev, [projectorIndex]: { x: newXPct, y: newYPct } }));
       }
     };
 
     const handleEnd = () => {
+      if (resizeStateRef.current?.active) {
+        resizeStateRef.current.active = false;
+        setSlideImageScales(prev => {
+          try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideImageScales: prev }));
+          return prev;
+        });
+      }
+
       if (!dragStateRef.current?.active) return;
       dragStateRef.current.active = false;
       setSlideTitlePositions(prev => {
@@ -665,6 +837,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       setSlideBodyPositions(prev => {
         try { localStorage.setItem('mega_ebd_body_positions', JSON.stringify(prev)); } catch {}
         updateLesson(l => ({ ...l, slideBodyPositions: prev }));
+        return prev;
+      });
+      setSlideImagePositions(prev => {
+        try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(prev)); } catch {}
+        updateLesson(l => ({ ...l, slideImagePositions: prev }));
         return prev;
       });
     };
@@ -684,8 +861,46 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
   }, [projectorIndex, updateLesson]);
 
+  // Modificação direta de escala da imagem (botões de zoom)
+  const setSingleImageScale = useCallback((idx: number, scale: number | null) => {
+    setSlideImageScales(prev => {
+      const next = { ...prev };
+      if (scale === null || scale === 1.0) {
+        delete next[idx];
+      } else {
+        next[idx] = Math.round(scale * 100) / 100;
+      }
+      try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageScales: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  // Alternador de ajuste da imagem (Preencher/Cover vs Ajustar Inteira/Contain)
+  const toggleImageFit = useCallback((idx: number) => {
+    setSlideImageFits(prev => {
+      const current = prev[idx] ?? 'cover';
+      const nextFit = current === 'cover' ? 'contain' : 'cover';
+      const next = { ...prev, [idx]: nextFit };
+      try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageFits: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  // Reset de escala da imagem no slide atual
+  const resetSlideImageScale = useCallback(() => {
+    setSlideImageScales(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageScales: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
+
   // Reset da posição de um elemento no slide atual
-  const resetSlidePosition = useCallback((kind: 'title' | 'body') => {
+  const resetSlidePosition = useCallback((kind: 'title' | 'body' | 'image') => {
     if (kind === 'title') {
       setSlideTitlePositions(prev => {
         const next = { ...prev };
@@ -694,7 +909,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         updateLesson(l => ({ ...l, slideTitlePositions: next }));
         return next;
       });
-    } else {
+    } else if (kind === 'body') {
       setSlideBodyPositions(prev => {
         const next = { ...prev };
         delete next[projectorIndex];
@@ -702,11 +917,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         updateLesson(l => ({ ...l, slideBodyPositions: next }));
         return next;
       });
+    } else {
+      setSlideImagePositions(prev => {
+        const next = { ...prev };
+        delete next[projectorIndex];
+        try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImagePositions: next }));
+        return next;
+      });
     }
   }, [projectorIndex, updateLesson]);
 
   // Estilos do wrapper de drag para cada elemento (suporta pixels legados e porcentagem responsiva)
-  const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body'): React.CSSProperties => {
+  const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body' | 'image'): React.CSSProperties => {
     const stage = projectorStageRef.current;
     const stageW = stage?.clientWidth || 800;
     const stageH = stage?.clientHeight || 450;
@@ -721,17 +944,38 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       offsetY = (offsetY / 100) * stageH;
     }
 
+    const outlineColor = kind === 'title' ? '#f59e0b' : kind === 'body' ? '#06b6d4' : '#8b5cf6';
+    const zIndexVal = kind === 'image' ? (isLayoutEditMode ? 40 : 0) : 50;
+
+    if (kind === 'image') {
+      const curScale = slideImageScales[projectorIndex] ?? 1.0;
+      return {
+        position: 'absolute',
+        transform: `translate(${offsetX}px, ${offsetY}px) scale(${curScale})`,
+        transformOrigin: 'center center',
+        zIndex: zIndexVal,
+        ...(isLayoutEditMode ? {
+          cursor: 'grab',
+          outline: `2px dashed ${outlineColor}`,
+          outlineOffset: '2px',
+          borderRadius: '16px',
+          userSelect: 'none',
+          touchAction: 'none',
+        } : {}),
+      };
+    }
+
     return {
       transform: `translate(${offsetX}px, ${offsetY}px)`,
       ...(isLayoutEditMode ? {
         cursor: 'grab',
-        outline: kind === 'title' ? '2px dashed #f59e0b' : '2px dashed #06b6d4',
+        outline: `2px dashed ${outlineColor}`,
         outlineOffset: '2px',
         borderRadius: '10px',
         userSelect: 'none',
         touchAction: 'none',
         position: 'relative',
-        zIndex: 50,
+        zIndex: zIndexVal,
       } : {}),
     };
   };
@@ -980,19 +1224,49 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [hlToolbar, setHlToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   void HIGHLIGHT_COLORS; // keep import used
 
+  const [bodyTextColor, setBodyTextColor] = useState<'black' | 'white'>(() => {
+    try {
+      return (localStorage.getItem('mega_ebd_body_text_color') as 'black' | 'white') || 'black';
+    } catch {
+      return 'black';
+    }
+  });
+
+  const [slideImageOpacity, setSlideImageOpacity] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('mega_ebd_slide_image_opacity');
+      return saved !== null ? parseInt(saved, 10) : 100;
+    } catch {
+      return 100;
+    }
+  });
+
+  const changeSlideImageOpacity = useCallback((val: number) => {
+    setSlideImageOpacity(val);
+    try { localStorage.setItem('mega_ebd_slide_image_opacity', String(val)); } catch {}
+  }, []);
+
+  const toggleBodyTextColor = useCallback(() => {
+    setBodyTextColor(prev => {
+      const next = prev === 'black' ? 'white' : 'black';
+      try { localStorage.setItem('mega_ebd_body_text_color', next); } catch {}
+      return next;
+    });
+  }, []);
+
   const saveHighlights = useCallback((next: SlideHighlights) => {
     setSlideHighlights(next);
     persistSlideHighlights(next);
   }, []);
 
   /** Wraps text with inline highlight marks for the current projector slide. */
-  const renderHL = useCallback((text: string | undefined): React.ReactNode => {
+  const renderHL = useCallback((text: string | undefined, forcedColor?: string): React.ReactNode => {
     if (!text) return text;
     const entries = slideHighlights[projectorIndex] || [];
-    return applyHighlightsToText(text, entries);
-  }, [slideHighlights, projectorIndex]);
+    return applyHighlightsToText(text, entries, forcedColor ?? (bodyTextColor === 'black' ? '#000000' : '#ffffff'));
+  }, [slideHighlights, projectorIndex, bodyTextColor]);
 
-  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' = 'fill') => {
+  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' | 'text' = 'fill') => {
     if (!hlToolbar) return;
     const current = slideHighlights[projectorIndex] || [];
     const filtered = current.filter((h) => h.text !== hlToolbar.text);
@@ -1034,7 +1308,17 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
 
-  const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>({});
+  const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>(() => {
+    if (lessonData.projectorSlideImages && Object.keys(lessonData.projectorSlideImages).length > 0) {
+      return lessonData.projectorSlideImages;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_projector_slide_images');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [customBg, setCustomBg] = useState<string | null>(() => {
     try {
       return localStorage.getItem('mega_ebd_custom_bg');
@@ -1043,6 +1327,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
 
+
   const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1050,7 +1335,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     reader.onload = ev => {
       const d = ev.target?.result as string;
       if (d) {
-        setProjectorSlideImages(prev => ({ ...prev, [projectorIndex]: d }));
+        setProjectorSlideImages(prev => {
+          const next = { ...prev, [projectorIndex]: d };
+          try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+          updateLesson(l => ({ ...l, projectorSlideImages: next }));
+          return next;
+        });
       }
     };
     reader.readAsDataURL(file);
@@ -1061,6 +1351,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setProjectorSlideImages(prev => {
       const next = { ...prev };
       delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, projectorSlideImages: next }));
       return next;
     });
   };
@@ -2721,7 +3013,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               <button
                 onClick={() => {
                   const theme = THEMES[0];
-                  exportProjectorItemsToPowerPoint(projectorItems, lesson.metadata.title, theme, customBg);
+                  const itemsWithImages = projectorItems.map((item, idx) => ({
+                    ...item,
+                    imageUrl: projectorSlideImages[idx] || item.imageUrl,
+                    imageScale: slideImageScales[idx] ?? 1.0,
+                    imageFit: slideImageFits[idx] ?? 'cover',
+                  }));
+                  exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
                 }}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all"
                 title="Exportar apresentação completa (.pptx) com todos os slides e edições"
@@ -2870,6 +3168,104 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </button>
                   )}
                 </div>
+
+                {/* Redimensionamento e Ajuste da Imagem deste Slide */}
+                {projectorSlideImages[projectorIndex] && (
+                  <>
+                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/40 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
+                      <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                      <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
+                      <button
+                        onClick={() => {
+                          const next = Math.max(0.2, Math.round((imageScale - 0.05) * 100) / 100);
+                          setSingleImageScale(projectorIndex, next);
+                        }}
+                        disabled={imageScale <= 0.2}
+                        className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                        title="Diminuir imagem (-)"
+                      >
+                        <ZoomOut className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
+                      <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
+                        {Math.round(imageScale * 100)}%
+                      </span>
+                      <button
+                        onClick={() => {
+                          const next = Math.min(3.0, Math.round((imageScale + 0.05) * 100) / 100);
+                          setSingleImageScale(projectorIndex, next);
+                        }}
+                        disabled={imageScale >= 3.0}
+                        className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                        title="Aumentar imagem (+)"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+                      </button>
+                      {isImageScaled && (
+                        <button
+                          onClick={resetSlideImageScale}
+                          className="text-[9px] font-extrabold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
+                          title="Restaurar tamanho original (100%)"
+                        >
+                          ↺ 100%
+                        </button>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => toggleImageFit(projectorIndex)}
+                      className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                        imageFit === 'contain'
+                          ? 'bg-purple-900/60 text-purple-200 border-purple-400 shadow-sm'
+                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                      }`}
+                      title="Alternar entre Preencher o slide (Cover) ou Ajustar inteira sem cortar (Contain)"
+                    >
+                      {imageFit === 'contain' ? '🔍 Ajustar Inteira' : '🖼️ Preencher'}
+                    </button>
+                  </>
+                )}
+
+                {/* Reset de Posições / Escalas no topo */}
+                {(isTitleMoved || isBodyMoved || isImageMoved || isImageScaled) && (
+                  <div className="flex items-center gap-1">
+                    {isTitleMoved && (
+                      <button
+                        onClick={() => resetSlidePosition('title')}
+                        className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-1 rounded-lg bg-amber-950/80 border border-amber-500/40 cursor-pointer"
+                        title="Restaurar posição original do título"
+                      >
+                        ↺ Título
+                      </button>
+                    )}
+                    {isBodyMoved && (
+                      <button
+                        onClick={() => resetSlidePosition('body')}
+                        className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                        title="Restaurar posição original do texto"
+                      >
+                        ↺ Texto
+                      </button>
+                    )}
+                    {isImageMoved && (
+                      <button
+                        onClick={() => resetSlidePosition('image')}
+                        className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                        title="Restaurar posição original da imagem"
+                      >
+                        ↺ Pos. Img
+                      </button>
+                    )}
+                    {isImageScaled && (
+                      <button
+                        onClick={resetSlideImageScale}
+                        className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                        title="Restaurar tamanho original da imagem (100%)"
+                      >
+                        ↺ Tam. Img
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -3034,6 +3430,99 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     )}
                   </div>
 
+                  {/* Cor das Letras do Corpo */}
+                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-cyan-500/50">
+                    <span className="text-[10px] font-black text-cyan-300 uppercase">Cor Letras:</span>
+                    <button
+                      onClick={toggleBodyTextColor}
+                      className="px-2 py-0.5 rounded text-xs font-black transition-all flex items-center gap-1 cursor-pointer border"
+                      style={{
+                        backgroundColor: bodyTextColor === 'black' ? '#0f172a' : '#ffffff',
+                        color: bodyTextColor === 'black' ? '#38bdf8' : '#0f172a',
+                        borderColor: bodyTextColor === 'black' ? '#38bdf8' : '#cbd5e1'
+                      }}
+                      title="Alternar cor das letras do corpo entre Preto e Branco"
+                    >
+                      {bodyTextColor === 'black' ? '⚫ Letras Pretas' : '⚪ Letras Brancas'}
+                    </button>
+                  </div>
+
+                  {/* Opacidade da Imagem do Slide */}
+                  <div className="flex items-center gap-1.5 bg-slate-950/90 px-2 py-1 rounded-xl border border-indigo-500/50">
+                    <span className="text-[10px] font-black text-indigo-300 uppercase shrink-0">Opacidade Imagem:</span>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={slideImageOpacity}
+                      onChange={(e) => changeSlideImageOpacity(parseInt(e.target.value, 10))}
+                      className="w-16 accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
+                      title="Ajustar nitidez/transparência da imagem de fundo do slide"
+                    />
+                    <span className="text-xs font-mono font-black min-w-[32px] text-center text-indigo-200">
+                      {slideImageOpacity}%
+                    </span>
+                  </div>
+
+                  {/* Redimensionamento e Ajuste da Imagem deste Slide */}
+                  {projectorSlideImages[projectorIndex] && (
+                    <>
+                      {/* Zoom / Escala da Imagem */}
+                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
+                        <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Tamanho:</span>
+                        <button
+                          onClick={() => {
+                            const next = Math.max(0.2, Math.round((imageScale - 0.05) * 100) / 100);
+                            setSingleImageScale(projectorIndex, next);
+                          }}
+                          disabled={imageScale <= 0.2}
+                          className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                          title="Diminuir imagem (-)"
+                        >
+                          <ZoomOut className="w-3.5 h-3.5 text-purple-400" />
+                        </button>
+                        <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
+                          {Math.round(imageScale * 100)}%
+                        </span>
+                        <button
+                          onClick={() => {
+                            const next = Math.min(3.0, Math.round((imageScale + 0.05) * 100) / 100);
+                            setSingleImageScale(projectorIndex, next);
+                          }}
+                          disabled={imageScale >= 3.0}
+                          className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                          title="Aumentar imagem (+)"
+                        >
+                          <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+                        </button>
+                        {isImageScaled && (
+                          <button
+                            onClick={resetSlideImageScale}
+                            className="text-[9px] font-extrabold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
+                            title="Restaurar tamanho original (100%)"
+                          >
+                            ↺ 100%
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Alternador de Ajuste: Preencher vs Ajustar Inteira */}
+                      <button
+                        onClick={() => toggleImageFit(projectorIndex)}
+                        className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                          imageFit === 'contain'
+                            ? 'bg-purple-900/60 text-purple-200 border-purple-400 shadow-sm'
+                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }`}
+                        title="Alternar entre Preencher o slide (Cover) ou Ajustar inteira sem cortar (Contain)"
+                      >
+                        {imageFit === 'contain' ? '🔍 Ajustar Inteira' : '🖼️ Preencher'}
+                      </button>
+                    </>
+                  )}
+
                   {(isCurrentTitleCustom || isCurrentBodyCustom) && (
                     <button
                       onClick={applyCurrentScalesToAllSlides}
@@ -3044,8 +3533,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </button>
                   )}
 
-                  {/* Reset de Posição dos Elementos */}
-                  {(isTitleMoved || isBodyMoved) && (
+                  {/* Reset de Posição e Tamanho dos Elementos */}
+                  {(isTitleMoved || isBodyMoved || isImageMoved || isImageScaled) && (
                     <div className="flex items-center gap-1.5">
                       {isTitleMoved && (
                         <button
@@ -3063,6 +3552,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           title="Restaurar posição original do texto"
                         >
                           ↺ Pos. Texto
+                        </button>
+                      )}
+                      {isImageMoved && (
+                        <button
+                          onClick={() => resetSlidePosition('image')}
+                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                          title="Restaurar posição original da imagem"
+                        >
+                          ↺ Pos. Imagem
+                        </button>
+                      )}
+                      {isImageScaled && (
+                        <button
+                          onClick={resetSlideImageScale}
+                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                          title="Restaurar tamanho original da imagem (100%)"
+                        >
+                          ↺ Tam. Imagem
                         </button>
                       )}
                     </div>
@@ -3195,12 +3702,107 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             )}
 
 
+            {/* Renderizador unificado da imagem do slide com alças interativas de redimensionamento */}
+            {(() => null)()}
             {/* Bloco Central do Slide */}
             {(() => {
+              // Função auxiliar para renderizar a imagem do slide com suporte a mover e redimensionar pelos cantos
+              const renderSlideImageElement = () => {
+                const curSlideImg = projectorSlideImages[projectorIndex];
+                if (!curSlideImg) return null;
+
+                return (
+                  <div
+                    className="slide-image-container absolute inset-0 w-full h-full rounded-2xl select-none transition-opacity duration-150"
+                    style={{
+                      ...makeDragStyle(imagePos, 'image'),
+                      opacity: slideImageOpacity / 100,
+                    }}
+                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
+                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
+                  >
+                    {/* Imagem com cantos arredondados */}
+                    <div className={`w-full h-full flex items-center justify-center ${imageFit === 'contain' ? '' : 'rounded-2xl overflow-hidden border-4 border-white shadow-[0_12px_28px_rgba(0,0,0,0.45)]'}`}>
+                      <img
+                        src={curSlideImg}
+                        alt="Ilustração do Slide"
+                        className={`${imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl border-4 border-white shadow-[0_12px_28px_rgba(0,0,0,0.45)]' : 'w-full h-full object-cover'} pointer-events-none transition-all duration-150`}
+                      />
+                    </div>
+
+                    {/* No modo "Mover": Badge e Alças de Redimensionamento Interativo nos 4 Cantos */}
+                    {isLayoutEditMode && (
+                      <>
+                        {/* Badge superior informando escala */}
+                        <div
+                          className="absolute -top-7 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                          style={{
+                            backgroundColor: '#8b5cf6',
+                            color: '#ffffff',
+                            transform: `translateX(-50%) scale(${Math.max(0.65, Math.min(1.3, 1 / imageScale))})`,
+                            transformOrigin: 'bottom center',
+                          }}
+                        >
+                          <span>🖼️ Imagem ({Math.round(imageScale * 100)}%)</span>
+                          <span className="opacity-80">• puxe os cantos para redimensionar</span>
+                        </div>
+
+                        {/* Alça Noroeste (Top-Left) */}
+                        <div
+                          onMouseDown={(e) => handleImageResizeStart(e, 'nw')}
+                          onTouchStart={(e) => handleImageResizeStart(e, 'nw')}
+                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                          className="absolute top-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform"
+                          style={{
+                            transform: `translate(-50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                          }}
+                          title="Arrastar para redimensionar • Duplo clique para 100%"
+                        />
+
+                        {/* Alça Nordeste (Top-Right) */}
+                        <div
+                          onMouseDown={(e) => handleImageResizeStart(e, 'ne')}
+                          onTouchStart={(e) => handleImageResizeStart(e, 'ne')}
+                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                          className="absolute top-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform"
+                          style={{
+                            transform: `translate(50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                          }}
+                          title="Arrastar para redimensionar • Duplo clique para 100%"
+                        />
+
+                        {/* Alça Sudoeste (Bottom-Left) */}
+                        <div
+                          onMouseDown={(e) => handleImageResizeStart(e, 'sw')}
+                          onTouchStart={(e) => handleImageResizeStart(e, 'sw')}
+                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                          className="absolute bottom-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform"
+                          style={{
+                            transform: `translate(-50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                          }}
+                          title="Arrastar para redimensionar • Duplo clique para 100%"
+                        />
+
+                        {/* Alça Sudeste (Bottom-Right) */}
+                        <div
+                          onMouseDown={(e) => handleImageResizeStart(e, 'se')}
+                          onTouchStart={(e) => handleImageResizeStart(e, 'se')}
+                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                          className="absolute bottom-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform"
+                          style={{
+                            transform: `translate(50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                          }}
+                          title="Arrastar para redimensionar • Duplo clique para 100%"
+                        />
+                      </>
+                    )}
+                  </div>
+                );
+              };
+
               // 1. CAPA DA LIÇÃO (SLIDE 1)
               if (currentProjectorItem.type === 'cover') {
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
-                const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
                   <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
@@ -3236,24 +3838,16 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           📄 Texto — arraste
                         </div>
                       )}
-                      {curSlideImg && (
-                        <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30">
-                          <img
-                            src={curSlideImg}
-                            alt="Ilustração do Slide"
-                            className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]"
-                          />
-                        </div>
-                      )}
+                      {renderSlideImageElement()}
                       <div className="w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto">
                         <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                          {currentProjectorItem.title}
+                          {renderHL(currentProjectorItem.title, '#facc15')}
                         </h1>
                         {currentProjectorItem.subtitle && (
                           <>
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
                             <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 w-full max-w-full font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {currentProjectorItem.subtitle}
+                              {renderHL(currentProjectorItem.subtitle, '#e2e8f0')}
                             </p>
                           </>
                         )}
@@ -3267,7 +3861,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
               // 2. SLIDE EXTRA PERSONALIZADO
               if (currentProjectorItem.type === 'extra') {
-                const curSlideImg = projectorSlideImages[projectorIndex];
                 return (
                   <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
@@ -3286,12 +3879,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-14 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
                         {currentProjectorItem.title && (
                           <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
-                            {currentProjectorItem.title}
+                            {renderHL(currentProjectorItem.title, '#ffffff')}
                           </span>
                         )}
                         {currentProjectorItem.reference && (
                           <span className="text-base md:text-xl lg:text-2xl font-bold text-yellow-400 tracking-wider block text-center mt-1" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                            {currentProjectorItem.reference}
+                            {renderHL(currentProjectorItem.reference, '#facc15')}
                           </span>
                         )}
                       </div>
@@ -3311,17 +3904,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         </div>
                       )}
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        {curSlideImg && (
-                          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 select-none">
-                            <img src={curSlideImg} alt="Ilustração do Slide" className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]" />
-                          </div>
-                        )}
+                        {renderSlideImageElement()}
                         <div className="w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[420px] overflow-y-auto no-scrollbar">
                           {currentProjectorItem.projetorText ? (
                             <p className={`font-sans text-center w-full max-w-full break-words leading-relaxed whitespace-pre-line ${
                               (currentProjectorItem.projetorText || '').length > 200
-                                ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
-                                : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-xl')
+                                : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
                             }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               {renderHL(currentProjectorItem.projetorText)}
                             </p>
@@ -3437,9 +4026,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         👑 Título — arraste
                       </div>
                     )}
-                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6 my-auto">
-                      <span className={`text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
-                        {formattedTitle}
+                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-16 md:min-h-20 h-auto py-1 mt-1 md:mt-2 pt-1 pl-[18%] pr-6 my-auto">
+                      <span className={`text-base md:text-2xl lg:text-3xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
+                        {renderHL(formattedTitle, '#ffffff')}
                       </span>
                     </div>
                   </div>
@@ -3457,19 +4046,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         📄 Texto — arraste
                       </div>
                     )}
-                  {(() => {
-                    const curSlideImg = projectorSlideImages[projectorIndex];
-                    return (
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        {curSlideImg && (
-                          <div className="absolute inset-0 w-full h-full rounded-2xl overflow-hidden pointer-events-none z-0 opacity-25 md:opacity-30 select-none">
-                            <img
-                              src={curSlideImg}
-                              alt="Ilustração do Slide"
-                              className="w-full h-full object-cover filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)]"
-                            />
-                          </div>
-                        )}
+                        {renderSlideImageElement()}
                         <div className="w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
@@ -3483,8 +4061,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
                               >
                                 {displayRef && (
-                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    {displayRef}
+                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    {renderHL(displayRef, '#0052cc')}
                                   </h3>
                                 )}
 
@@ -3502,7 +4080,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                       {showSectionHeaders && section.bookHeader && (
                                         <div className="w-full text-center mt-4 mb-3">
                                           <h4 className="text-xl md:text-3xl font-black text-amber-400 tracking-wide font-sans inline-block px-5 py-1.5 bg-amber-500/10 rounded-xl border border-amber-500/40 shadow-sm">
-                                            {section.bookHeader}
+                                            {renderHL(section.bookHeader, '#fbbf24')}
                                           </h4>
                                         </div>
                                       )}
@@ -3537,8 +4115,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             );
                           })() : currentProjectorItem.type === 'conclusao' ? (
                             <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words w-full max-w-full px-2">
-                                "{currentProjectorItem.projetorText}"
+                              <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-center font-sans break-words w-full max-w-full px-2 ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`}>
+                                "{renderHL(currentProjectorItem.projetorText)}"
                               </p>
                             </div>
                           ) : currentProjectorItem.type === 'verdades' ? (
@@ -3547,8 +4125,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 <div key={idx} className="w-full">
                                   <div className="flex items-start gap-3 py-2.5">
                                     <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                                    <p className="text-base md:text-xl lg:text-2xl font-bold leading-snug text-white font-sans text-left break-words">
-                                      {point}
+                                    <p className={`text-base md:text-xl lg:text-2xl font-bold leading-snug font-sans text-left break-words ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
+                                      {renderHL(point)}
                                     </p>
                                   </div>
                                 </div>
@@ -3558,12 +4136,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             /* DEMAIS CARDS */
                             <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
                               {currentProjectorItem.type === 'topic_synopsis' ? (
-                                <p className="text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-white text-center font-sans break-words w-full max-w-full px-2 m-auto" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  "{currentProjectorItem.projetorText}"
+                                <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-center font-sans break-words w-full max-w-full px-2 m-auto ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  "{renderHL(currentProjectorItem.projetorText)}"
                                 </p>
                               ) : currentProjectorItem.type === 'na_licao_anterior' ? (
                                 <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className="font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-white font-extrabold text-lg md:text-2xl lg:text-3xl">
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-lg md:text-2xl lg:text-3xl ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
@@ -3571,32 +4149,32 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
-                                      ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
-                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-2xl')
+                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
                                   }`}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_verses' ? (
                                 <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     📖 VAMOS LER A BÍBLIA
                                   </h2>
                                   <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                                  <p className="text-lg md:text-2xl lg:text-3xl font-black text-white tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`text-lg md:text-2xl lg:text-3xl font-black tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
                                 <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     QUAL O ENSINAMENTO PRA MINHA VIDA?
                                   </h2>
                                   <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 180
-                                      ? 'text-base md:text-xl lg:text-2xl text-slate-100 font-extrabold'
-                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-xl lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-xl lg:text-2xl')
+                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
                                   }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
@@ -3605,8 +4183,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                   <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
                                     (currentProjectorItem.projetorText || '').length > 200
-                                      ? 'text-base md:text-lg lg:text-2xl text-slate-100 font-extrabold'
-                                      : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold'
+                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-2xl')
+                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
                                   }`}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
@@ -3614,12 +4192,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               ) : (
                                 <div className="w-full max-h-[408px] overflow-y-auto no-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                                   {currentProjectorItem.ideiaText && (
-                                    <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.ideiaText}
                                     </h2>
                                   )}
                                   {currentProjectorItem.reference && (
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-yellow-400 tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.reference}
                                     </h3>
                                   )}
@@ -3629,10 +4207,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   {currentProjectorItem.projetorText && (
                                     <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed whitespace-pre-line ${
                                       currentProjectorItem.type === 'enfase_palavra'
-                                        ? 'italic text-yellow-100 text-lg md:text-2xl font-extrabold'
-                                        : (currentProjectorItem.projetorText.length > 200
-                                            ? 'text-base md:text-lg lg:text-xl text-slate-100 font-extrabold'
-                                            : 'text-xl md:text-2xl lg:text-3xl text-white font-extrabold')
+                                        ? (bodyTextColor === 'black' ? 'italic text-black font-black text-lg md:text-2xl' : 'italic text-yellow-100 font-extrabold text-lg md:text-2xl')
+                                        : ((currentProjectorItem.projetorText.length > 200
+                                            ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-xl')
+                                            : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')))
                                     }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
                                       {currentProjectorItem.type === 'enfase_palavra' ? <>“{renderHL(currentProjectorItem.projetorText)}”</> : renderHL(currentProjectorItem.projetorText)}
                                     </p>
@@ -3643,9 +4221,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           )}
                         </div>
                       </div>
-                    );
-                  })()}
-                  </div>{/* /body drag wrapper */}
+                    </div>{/* /body drag wrapper */}
 
                   {/* Spacer inferior para equilibrar o título do topo */}
                   <div className="w-full shrink-0 h-8" />

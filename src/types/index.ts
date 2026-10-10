@@ -134,6 +134,11 @@ export interface EBDLessonPreparation {
   slideTextOverrides?: Record<number, { title?: string; subtitle?: string; text?: string }>;
   slideTitlePositions?: Record<number, { x: number; y: number }>;
   slideBodyPositions?: Record<number, { x: number; y: number }>;
+  slideImagePositions?: Record<number, { x: number; y: number }>;
+  slideImageScales?: Record<number, number>;
+  slideImageFits?: Record<number, 'cover' | 'contain'>;
+  slideImageBorders?: Record<number, 'white' | 'thin' | 'thick' | 'none'>;
+  projectorSlideImages?: Record<number, string>;
   projectorFontSizeScale?: number;
 }
 
@@ -148,6 +153,9 @@ export interface EBDExtraSlide {
   bulletPoints?: string[];
   imagePrompt?: string;
   imageUrl?: string;
+  imageScale?: number;
+  imageFit?: 'cover' | 'contain';
+  imageBorder?: 'white' | 'thin' | 'thick' | 'none';
 }
 
 export interface PreparationOptions {
@@ -189,6 +197,9 @@ export interface Slide {
   imagePrompt?: string;
   imageSource?: 'ai' | 'user' | 'placeholder';
   fontSizeScale?: number;
+  imageScale?: number;
+  imageFit?: 'cover' | 'contain';
+  imageBorder?: 'white' | 'thin' | 'thick' | 'none';
 }
 
 export interface PresentationData {
