@@ -397,6 +397,7 @@ export function exportProjectorItemsToPowerPoint(
     projetorText?: string;
     reference?: string;
     imageUrl?: string;
+    imagePrompt?: string;
   }>,
   lessonTitle: string,
   theme: ThemeConfig,
@@ -418,7 +419,9 @@ export function exportProjectorItemsToPowerPoint(
       layout: layout,
       keyVerse: item.type === 'aureo' ? { reference: item.reference || '', text: item.projetorText?.replace(/^[“"']|[”"']$/g, '') || '' } : undefined,
       takeaway: (item.type === 'pratica' || item.type === 'conclusao' || item.type === 'palavra_chave') ? item.projetorText : undefined,
-      imageUrl: item.imageUrl
+      imageUrl: item.imageUrl,
+      imagePrompt: item.imagePrompt,
+      speakerNotes: item.imagePrompt ? `[Prompt 16:9 Canva/Midjourney]: ${item.imagePrompt}` : undefined
     };
   });
 

@@ -273,11 +273,17 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
   if (lesson.textAureo.reference) {
     addParagraph(`— ${lesson.textAureo.reference}`, 9, true, [37, 99, 235]);
   }
+  if (lesson.textAureo.imagePrompt) {
+    addParagraph(`Prompt Visual 16:9: ${lesson.textAureo.imagePrompt}`, 7.5, true, [14, 116, 144]);
+  }
 
   // 2. Verdade Prática
   if (lesson.verdadePratica?.text) {
     addSectionTitle('2. Verdade Prática');
     addParagraph(`"${lesson.verdadePratica.text}"`, 10, false, [30, 41, 59]);
+    if (lesson.verdadePratica.imagePrompt) {
+      addParagraph(`Prompt Visual 16:9: ${lesson.verdadePratica.imagePrompt}`, 7.5, true, [14, 116, 144]);
+    }
   }
 
   // 2.1 Palavra-Chave da Lição
@@ -285,6 +291,9 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
     addSectionTitle(`Palavra-Chave: ${lesson.palavraChave.palavra.toUpperCase()}`);
     if (lesson.palavraChave.explicacao) {
       addParagraph(lesson.palavraChave.explicacao, 9.5, false, [30, 41, 59]);
+    }
+    if (lesson.palavraChave.imagePrompt) {
+      addParagraph(`Prompt Visual 16:9: ${lesson.palavraChave.imagePrompt}`, 7.5, true, [14, 116, 144]);
     }
   }
 
@@ -308,6 +317,9 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
 
       if (topico.sinopse) {
         addParagraph(`Sinopse: ${topico.sinopse}`, 9.5, true, [30, 41, 59]);
+      }
+      if (topico.imagePrompt) {
+        addParagraph(`Prompt Visual 16:9: ${topico.imagePrompt}`, 7.5, true, [14, 116, 144]);
       }
 
       topico.subtopicos.forEach((sub) => {
@@ -479,6 +491,17 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
           yPos += noteHeight + 5;
         }
 
+
+        // Prompt Visual 16:9 do Subtópico
+        if (sub.imagePrompt) {
+          checkPageBreak(8);
+          pdf.setFont('helvetica', 'italic');
+          pdf.setFontSize(7.5);
+          pdf.setTextColor(14, 116, 144);
+          const prLines = pdf.splitTextToSize(sanitize(`Prompt Visual 16:9: ${sub.imagePrompt}`), contentWidth - 8);
+          pdf.text(prLines, margin + 4, yPos);
+          yPos += prLines.length * 3.2 + 2;
+        }
 
         yPos += 4;
       });

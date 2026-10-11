@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
 import { THEMES } from '../constants/themes';
+import { formatAllPromptsForExport, generateAllLessonPromptsWithAi } from '../services/promptGeneratorService';
 
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
@@ -435,6 +436,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
   const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+  const [isGeneratingAllPrompts, setIsGeneratingAllPrompts] = useState<boolean>(false);
 
   // Estado da Visão do Projetor (Slide atual e escala da fonte)
   const [projectorIndex, setProjectorIndex] = useState(0);
@@ -1273,12 +1275,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }));
   };
 
-  const updatePalavraChave = (field: 'palavra' | 'explicacao', val: string) => {
+  const updateVerdadePraticaPrompt = (val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      verdadePratica: { ...prev.verdadePratica, imagePrompt: val }
+    }));
+  };
+
+  const updatePalavraChave = (field: 'palavra' | 'explicacao' | 'imagePrompt', val: string) => {
     updateLesson(prev => ({
       ...prev,
       palavraChave: {
         palavra: prev.palavraChave?.palavra || '',
         explicacao: prev.palavraChave?.explicacao || '',
+        imagePrompt: prev.palavraChave?.imagePrompt || '',
         [field]: val
       }
     }));
@@ -1309,6 +1319,14 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     updateLesson(prev => {
       const topicos = [...prev.topicos];
       topicos[topicIdx] = { ...topicos[topicIdx], title: val };
+      return { ...prev, topicos };
+    });
+  };
+
+  const updateTopicPrompt = (topicIdx: number, val: string) => {
+    updateLesson(prev => {
+      const topicos = [...prev.topicos];
+      topicos[topicIdx] = { ...topicos[topicIdx], imagePrompt: val };
       return { ...prev, topicos };
     });
   };
@@ -1640,6 +1658,26 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     e.target.value = '';
   };
 
+  // Gerenciamento e Exportação de Prompts Visuais 16:9
+  const handleCopyAllPrompts = () => {
+    const text = formatAllPromptsForExport(lesson);
+    navigator.clipboard.writeText(text);
+    alert('📋 Todos os prompts visuais 16:9 foram copiados com sucesso!\nCole no Canva, Midjourney, DALL-E 3 ou Bing Image Creator.');
+  };
+
+  const handleGenerateAllPrompts = async () => {
+    setIsGeneratingAllPrompts(true);
+    try {
+      const updated = await generateAllLessonPromptsWithAi(lesson);
+      updateLesson(() => updated);
+      alert('✨ Prompts visuais 16:9 gerados com sucesso para o Título da Lição, Texto Áureo, Verdade Prática, Palavra-Chave, Tópicos e Subtópicos!');
+    } catch (err: any) {
+      alert('Aviso: ' + (err.message || 'Erro ao gerar prompts com IA.'));
+    } finally {
+      setIsGeneratingAllPrompts(false);
+    }
+  };
+
   // Gerador de Texto Completo do Roteiro do Professor na Íntegra
   const generateTeacherTextContent = (data: EBDLessonPreparation): string => {
     let text = `========================================================================\n`;
@@ -1648,16 +1686,29 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     text += `Tema do Trimestre: ${data.metadata.themeTopic}\n`;
     text += `========================================================================\n\n`;
 
+    if (data.metadata.imagePrompt) {
+      text += `🖼️ PROMPT VISUAL (CAPA / TÍTULO DA LIÇÃO - 16:9):\n${data.metadata.imagePrompt}\n\n`;
+    }
+
     text += `1. TEXTO ÁUREO\n`;
     text += `"${data.textAureo.text}" (${data.textAureo.reference})\n\n`;
+    if (data.textAureo.imagePrompt) {
+      text += `🖼️ PROMPT VISUAL (TEXTO ÁUREO - 16:9):\n${data.textAureo.imagePrompt}\n\n`;
+    }
 
     text += `2. VERDADE PRÁTICA\n`;
     text += `"${data.verdadePratica.text}"\n\n`;
+    if (data.verdadePratica.imagePrompt) {
+      text += `🖼️ PROMPT VISUAL (VERDADE PRÁTICA - 16:9):\n${data.verdadePratica.imagePrompt}\n\n`;
+    }
 
     if (data.palavraChave?.palavra) {
       text += `🔑 PALAVRA-CHAVE DA LIÇÃO: ${data.palavraChave.palavra.toUpperCase()}\n`;
       if (data.palavraChave.explicacao) {
         text += `💡 Explicação Didática & Teológica:\n${data.palavraChave.explicacao}\n`;
+      }
+      if (data.palavraChave.imagePrompt) {
+        text += `🖼️ PROMPT VISUAL (PALAVRA-CHAVE - 16:9):\n${data.palavraChave.imagePrompt}\n`;
       }
       text += `\n`;
     }
@@ -1701,6 +1752,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         topico.frasesEnfase.forEach((f) => {
           text += `  • "${f}"\n`;
         });
+      }
+      if (topico.imagePrompt) {
+        text += `🖼️ PROMPT VISUAL DO TÓPICO (16:9):\n${topico.imagePrompt}\n`;
       }
       text += `\n`;
 
@@ -1988,6 +2042,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       title: lesson.metadata.title,
       subtitle: lesson.metadata.themeTopic,
       badgeText: lesson.metadata.lessonNumber || 'LIÇÃO EBD',
+      imagePrompt: lesson.metadata.imagePrompt,
       onUpdateTitle: (val: string) => updateMetadata('title', val),
       onUpdateSubtitle: (val: string) => updateMetadata('themeTopic', val),
       onUpdateText: (val: string) => updateMetadata('title', val)
@@ -2001,6 +2056,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       badgeText: 'TEXTO ÁUREO',
       projetorText: `“${lesson.textAureo.text}”`,
       reference: lesson.textAureo.reference,
+      imagePrompt: lesson.textAureo.imagePrompt,
       onUpdateText: (val: string) => updateTextAureo('text', val.replace(/^["'“]/, '').replace(/["'”]$/, '')),
       onUpdateReference: (val: string) => updateTextAureo('reference', val)
     });
@@ -2013,6 +2069,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         title: 'VERDADE PRÁTICA',
         badgeText: 'VERDADE PRÁTICA',
         projetorText: `“${lesson.verdadePratica.text}”`,
+        imagePrompt: lesson.verdadePratica.imagePrompt,
         onUpdateText: (val: string) => updateVerdadePratica(val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
       });
     }
@@ -2026,6 +2083,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         badgeText: 'PALAVRA-CHAVE DA LIÇÃO',
         ideiaText: lesson.palavraChave.palavra.toUpperCase(),
         projetorText: lesson.palavraChave.explicacao || '',
+        imagePrompt: lesson.palavraChave.imagePrompt,
         onUpdateTitle: (val: string) => updatePalavraChave('palavra', val),
         onUpdateText: (val: string) => updatePalavraChave('explicacao', val)
       });
@@ -2079,6 +2137,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         badgeText: `TÓPICO ${topicNum}: ${t.title.toUpperCase()}`,
         ideiaText: `TÓPICO ${topicNum}: ${t.title.toUpperCase()}`,
         projetorText: t.sinopse,
+        imagePrompt: t.imagePrompt,
         onUpdateTitle: (val: string) => updateTopicTitle(tIdx, val.replace(/^TÓPICO\s*[I|V|X|\d]+\s*:\s*/i, '')),
         onUpdateText: (val: string) => updateTopicSinopse(tIdx, val)
       });
@@ -2521,6 +2580,34 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     placeholder="Tema do Trimestre"
                   />
                 </p>
+
+                {/* 🖼️ PROMPT VISUAL 16:9 DA CAPA / TÍTULO DA LIÇÃO */}
+                {(lesson.metadata.imagePrompt || isEditMode) && (
+                  <div className="mt-3 bg-slate-950/90 p-3.5 rounded-2xl border border-slate-800 space-y-1.5 no-print">
+                    <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                      <span className="flex items-center gap-1.5">
+                        <span>🖼️ PROMPT VISUAL 16:9 (CAPA / CANVA / MIDJOURNEY)</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lesson.metadata.imagePrompt || '');
+                          alert('Prompt da Capa copiado para a área de transferência!');
+                        }}
+                        className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        📋 Copiar Prompt
+                      </button>
+                    </div>
+                    <EditableText
+                      value={lesson.metadata.imagePrompt || ''}
+                      onChange={v => updateMetadata('imagePrompt', v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Prompt visual 16:9 cinematográfico para o Título da Lição e Capa dos Slides..."
+                      className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Status das Transcrições Cruzadas */}
@@ -2548,7 +2635,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={handlePrintTeacherGuide}
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
@@ -2557,7 +2644,24 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>Baixar PDF / Imprimir</span>
                 </button>
 
+                <button
+                  onClick={handleCopyAllPrompts}
+                  title="Copiar todos os prompts visuais 16:9 da lição (Canva / Midjourney / DALL-E)"
+                  className="bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/50 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
+                >
+                  <Copy className="w-4 h-4 text-purple-300" />
+                  <span>📋 Copiar Todos os Prompts</span>
+                </button>
 
+                <button
+                  onClick={handleGenerateAllPrompts}
+                  disabled={isGeneratingAllPrompts}
+                  title="Gerar ou regenerar todos os prompts visuais da lição com IA"
+                  className="bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 border border-cyan-500/50 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className={`w-4 h-4 text-cyan-300 ${isGeneratingAllPrompts ? 'animate-spin' : ''}`} />
+                  <span>{isGeneratingAllPrompts ? 'Gerando Prompts...' : '✨ Gerar Prompts com IA'}</span>
+                </button>
 
                 <button
                   onClick={handleCopyTeacherGuide}
@@ -2628,7 +2732,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             {/* Texto Áureo & Verdade Prática */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Texto Áureo */}
-              <div className="bg-[#091b2c] border-2 border-[#cbd5e1] p-5 rounded-2xl shadow-lg space-y-2">
+              <div className="bg-[#091b2c] border-2 border-[#cbd5e1] p-5 rounded-2xl shadow-lg space-y-3">
                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
                   TEXTO ÁUREO
                 </span>
@@ -2650,10 +2754,38 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     className="text-xs text-amber-300 font-bold"
                   />
                 </div>
+
+                {/* 🖼️ Prompt Visual 16:9 do Texto Áureo */}
+                {(lesson.textAureo.imagePrompt || isEditMode) && (
+                  <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800 space-y-1.5 no-print">
+                    <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                      <span className="flex items-center gap-1.5">
+                        <span>🖼️ PROMPT VISUAL 16:9 (TEXTO ÁUREO)</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lesson.textAureo.imagePrompt || '');
+                          alert('Prompt do Texto Áureo copiado!');
+                        }}
+                        className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        📋 Copiar Prompt
+                      </button>
+                    </div>
+                    <EditableText
+                      value={lesson.textAureo.imagePrompt || ''}
+                      onChange={v => updateTextAureo('imagePrompt', v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Prompt visual 16:9 cinematográfico para o Texto Áureo..."
+                      className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Verdade Prática */}
-              <div className="bg-[#091b2c] border-2 border-[#cbd5e1] p-5 rounded-2xl shadow-lg space-y-2">
+              <div className="bg-[#091b2c] border-2 border-[#cbd5e1] p-5 rounded-2xl shadow-lg space-y-3">
                 <span className="text-xs font-black text-amber-300 uppercase tracking-wider block">
                   VERDADE PRÁTICA
                 </span>
@@ -2665,6 +2797,34 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   placeholder="Verdade Prática da lição..."
                   className="text-sm md:text-base font-extrabold text-white leading-relaxed"
                 />
+
+                {/* 🖼️ Prompt Visual 16:9 da Verdade Prática */}
+                {(lesson.verdadePratica.imagePrompt || isEditMode) && (
+                  <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800 space-y-1.5 no-print">
+                    <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                      <span className="flex items-center gap-1.5">
+                        <span>🖼️ PROMPT VISUAL 16:9 (VERDADE PRÁTICA)</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lesson.verdadePratica.imagePrompt || '');
+                          alert('Prompt da Verdade Prática copiado!');
+                        }}
+                        className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        📋 Copiar Prompt
+                      </button>
+                    </div>
+                    <EditableText
+                      value={lesson.verdadePratica.imagePrompt || ''}
+                      onChange={v => updateVerdadePraticaPrompt(v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Prompt visual 16:9 cinematográfico para a Verdade Prática..."
+                      className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -2703,6 +2863,34 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     className="text-sm md:text-base font-medium text-slate-200 leading-relaxed"
                   />
                 </div>
+
+                {/* 🖼️ Prompt Visual 16:9 da Palavra-Chave */}
+                {(lesson.palavraChave?.imagePrompt || isEditMode) && (
+                  <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800 space-y-1.5 no-print">
+                    <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                      <span className="flex items-center gap-1.5">
+                        <span>🖼️ PROMPT VISUAL 16:9 (PALAVRA-CHAVE)</span>
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(lesson.palavraChave?.imagePrompt || '');
+                          alert('Prompt da Palavra-Chave copiado!');
+                        }}
+                        className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        📋 Copiar Prompt
+                      </button>
+                    </div>
+                    <EditableText
+                      value={lesson.palavraChave?.imagePrompt || ''}
+                      onChange={v => updatePalavraChave('imagePrompt', v)}
+                      isEditMode={isEditMode}
+                      multiline
+                      placeholder="Prompt visual 16:9 cinematográfico para a Palavra-Chave..."
+                      className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2773,62 +2961,92 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               {/* Conteúdo Expandido do Tópico */}
               {expandedTopics[topico.number] && (
                 <div className="space-y-6 pt-2">
-                  {/* Sinopse & Frases de Ênfase do Tópico */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {/* Sinopse para Revisão Rápida */}
-                    <div className="md:col-span-2 bg-slate-950/90 p-5 rounded-2xl border border-blue-500/40 space-y-2.5 shadow-md">
-                      <span className="text-sm md:text-base font-black text-blue-400 uppercase tracking-wider block">
-                        📌 SINOPSE DO TÓPICO (REVISÃO RÁPIDA)
-                      </span>
-                      <EditableText
-                        value={topico.sinopse}
-                        onChange={v => updateTopicSinopse(topicIdx, v)}
-                        isEditMode={isEditMode}
-                        multiline
-                        placeholder="Sinopse do tópico..."
-                        className="text-base md:text-lg lg:text-xl text-slate-100 leading-relaxed font-semibold"
-                      />
+                  {/* Sinopse, Frases de Ênfase e Prompt Visual do Tópico */}
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Sinopse para Revisão Rápida */}
+                      <div className="md:col-span-2 bg-slate-950/90 p-5 rounded-2xl border border-blue-500/40 space-y-2.5 shadow-md">
+                        <span className="text-sm md:text-base font-black text-blue-400 uppercase tracking-wider block">
+                          📌 SINOPSE DO TÓPICO (REVISÃO RÁPIDA)
+                        </span>
+                        <EditableText
+                          value={topico.sinopse}
+                          onChange={v => updateTopicSinopse(topicIdx, v)}
+                          isEditMode={isEditMode}
+                          multiline
+                          placeholder="Sinopse do tópico..."
+                          className="text-base md:text-lg lg:text-xl text-slate-100 leading-relaxed font-semibold"
+                        />
+                      </div>
+
+                      {/* Frases para Ênfase */}
+                      <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2.5 no-print">
+                        <span className="text-sm md:text-base font-black text-amber-400 uppercase tracking-wider block">
+                          🗣️ FRASES DE ÊNFASE PARA AULA
+                        </span>
+                        <ul className="space-y-2 text-xs md:text-sm text-slate-200 font-semibold">
+                          {(topico.frasesEnfase || []).map((frase, fIdx) => (
+                            <li key={fIdx} className="flex items-center gap-1.5">
+                              <span className="text-amber-400 font-bold shrink-0">•</span>
+                              <div className="flex-1">
+                                <EditableText
+                                  value={frase}
+                                  onChange={v => updateTopicFraseEnfase(topicIdx, fIdx, v)}
+                                  isEditMode={isEditMode}
+                                  placeholder="Frase de ênfase..."
+                                />
+                              </div>
+                              {isEditMode && (
+                                <button
+                                  onClick={() => removeTopicFraseEnfase(topicIdx, fIdx)}
+                                  className="p-1 text-red-400 hover:text-red-300 shrink-0"
+                                  title="Remover esta frase"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                        {isEditMode && (
+                          <button
+                            onClick={() => addTopicFraseEnfase(topicIdx)}
+                            className="w-full mt-2 py-1.5 px-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>+ Adicionar Frase de Ênfase</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Frases para Ênfase */}
-                    <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 space-y-2.5 no-print">
-                      <span className="text-sm md:text-base font-black text-amber-400 uppercase tracking-wider block">
-                        🗣️ FRASES DE ÊNFASE PARA AULA
-                      </span>
-                      <ul className="space-y-2 text-xs md:text-sm text-slate-200 font-semibold">
-                        {(topico.frasesEnfase || []).map((frase, fIdx) => (
-                          <li key={fIdx} className="flex items-center gap-1.5">
-                            <span className="text-amber-400 font-bold shrink-0">•</span>
-                            <div className="flex-1">
-                              <EditableText
-                                value={frase}
-                                onChange={v => updateTopicFraseEnfase(topicIdx, fIdx, v)}
-                                isEditMode={isEditMode}
-                                placeholder="Frase de ênfase..."
-                              />
-                            </div>
-                            {isEditMode && (
-                              <button
-                                onClick={() => removeTopicFraseEnfase(topicIdx, fIdx)}
-                                className="p-1 text-red-400 hover:text-red-300 shrink-0"
-                                title="Remover esta frase"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                      {isEditMode && (
-                        <button
-                          onClick={() => addTopicFraseEnfase(topicIdx)}
-                          className="w-full mt-2 py-1.5 px-3 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>+ Adicionar Frase de Ênfase</span>
-                        </button>
-                      )}
-                    </div>
+                    {/* 🖼️ Prompt Visual 16:9 do Tópico */}
+                    {(topico.imagePrompt || isEditMode) && (
+                      <div className="bg-slate-950/90 p-4 rounded-2xl border border-slate-800 space-y-1.5 no-print shadow-md">
+                        <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
+                          <span className="flex items-center gap-1.5">
+                            <span>🖼️ PROMPT VISUAL 16:9 DO {topico.number}: {topico.title.toUpperCase()}</span>
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(topico.imagePrompt || '');
+                              alert(`Prompt do ${topico.number} copiado!`);
+                            }}
+                            className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                          >
+                            📋 Copiar Prompt
+                          </button>
+                        </div>
+                        <EditableText
+                          value={topico.imagePrompt || ''}
+                          onChange={v => updateTopicPrompt(topicIdx, v)}
+                          isEditMode={isEditMode}
+                          multiline
+                          placeholder={`Prompt visual 16:9 cinematográfico para o ${topico.number}...`}
+                          className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* SUBTÓPICOS COM EXPLICAÇÃO ÚNICA & CONTEXTO HISTÓRICO INTEGRADO */}
@@ -3110,7 +3328,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           )}
 
                           {/* 7. 🖼️ PROMPT VISUAL 16:9 PARA CANVA / MIDJOURNEY */}
-                          {subtopico.imagePrompt && (
+                          {(subtopico.imagePrompt || isEditMode) && (
                             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-1.5 no-print">
                               <div className="flex items-center justify-between text-cyan-400 font-extrabold text-[11px] uppercase">
                                 <span className="flex items-center gap-1.5">
@@ -3118,7 +3336,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                 </span>
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(subtopico.imagePrompt);
+                                    navigator.clipboard.writeText(subtopico.imagePrompt || '');
                                     alert('Prompt copiado para a área de transferência!');
                                   }}
                                   className="text-slate-400 hover:text-cyan-300 text-[10px] bg-slate-800 px-2 py-0.5 rounded cursor-pointer transition-colors"
@@ -3126,9 +3344,14 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                   📋 Copiar Prompt
                                 </button>
                               </div>
-                              <p className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80">
-                                {subtopico.imagePrompt}
-                              </p>
+                              <EditableText
+                                value={subtopico.imagePrompt || ''}
+                                onChange={v => updateSubtopicField(topicIdx, subIdx, 'imagePrompt', v)}
+                                isEditMode={isEditMode}
+                                multiline
+                                placeholder="Prompt visual 16:9 cinematográfico para este subtópico..."
+                                className="text-[11px] text-slate-300 font-mono italic bg-slate-900/90 p-2.5 rounded-lg border border-slate-800/80 block w-full"
+                              />
                             </div>
                           )}
                         </div>

@@ -83,17 +83,21 @@ export interface EBDLessonPreparation {
     date?: string;
     targetAudience?: string;
     depth: DepthControl;
+    imagePrompt?: string; // 🖼️ Prompt de imagem 16:9 para o Título da Lição (Capa dos Slides / Canva / AI)
   };
   textAureo: {
     text: string;
     reference: string;
+    imagePrompt?: string; // 🖼️ Prompt de imagem 16:9 para o Texto Áureo
   };
   verdadePratica: {
     text: string;
+    imagePrompt?: string; // 🖼️ Prompt de imagem 16:9 para a Verdade Prática
   };
   palavraChave?: {
     palavra: string; // 🔑 PALAVRA-CHAVE DA LIÇÃO (ex: "AUTORIA", "INSPIRAÇÃO")
     explicacao: string; // Explicação didática e teológica da palavra-chave para a aula
+    imagePrompt?: string; // 🖼️ Prompt de imagem 16:9 para a Palavra-Chave
   };
   leituraDiaria?: Array<{
     day: string;

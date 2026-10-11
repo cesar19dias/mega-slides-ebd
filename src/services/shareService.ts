@@ -1,6 +1,7 @@
 import LZString from 'lz-string';
 import QRCode from 'qrcode';
 import type { EBDLessonPreparation } from '../types';
+import { fillMissingLessonPrompts } from './promptGeneratorService';
 
 /**
  * Remove metadados temporários de interface e campos vazios para otimizar o tamanho do compartilhamento
@@ -111,7 +112,7 @@ export function encodeLessonToUrl(lesson: EBDLessonPreparation): string {
  */
 export function sanitizeLessonData(raw: any): EBDLessonPreparation {
   if (!raw) return raw;
-  return {
+  const result: EBDLessonPreparation = {
     metadata: {
       lessonNumber: raw.metadata?.lessonNumber || '',
       title: raw.metadata?.title || 'Lição da EBD',
@@ -120,14 +121,23 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
       date: raw.metadata?.date || '',
       targetAudience: raw.metadata?.targetAudience || 'Adultos',
       depth: raw.metadata?.depth || 'detalhada',
+      imagePrompt: raw.metadata?.imagePrompt || '',
     },
-    textAureo: raw.textAureo || { text: '', reference: '' },
-    verdadePratica: raw.verdadePratica || { text: '' },
+    textAureo: {
+      text: raw.textAureo?.text || '',
+      reference: raw.textAureo?.reference || '',
+      imagePrompt: raw.textAureo?.imagePrompt || '',
+    },
+    verdadePratica: {
+      text: raw.verdadePratica?.text || '',
+      imagePrompt: raw.verdadePratica?.imagePrompt || '',
+    },
     palavraChave: raw.palavraChave ? {
       palavra: raw.palavraChave.palavra || '',
       explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
         ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
-        : (raw.palavraChave.explicacao || '')
+        : (raw.palavraChave.explicacao || ''),
+      imagePrompt: raw.palavraChave.imagePrompt || '',
     } : undefined,
     leituraDiaria: raw.leituraDiaria || [],
     biblicalText: raw.biblicalText || '',
@@ -174,6 +184,8 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
     slideBodyPositions: raw.slideBodyPositions || {},
     projectorFontSizeScale: raw.projectorFontSizeScale || 1.0,
   };
+
+  return fillMissingLessonPrompts(result);
 }
 
 /**

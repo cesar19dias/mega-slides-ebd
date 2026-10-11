@@ -8,9 +8,10 @@
 import type { EBDLessonPreparation, TranscriptionSource, PreparationOptions } from '../types';
 import { callGeminiRaw } from './geminiService';
 import { jsonrepair } from 'jsonrepair';
+import { fillMissingLessonPrompts } from './promptGeneratorService';
 
 function normalizeLessonData(raw: any): EBDLessonPreparation {
-  return {
+  const result: EBDLessonPreparation = {
     metadata: {
       lessonNumber: raw.metadata?.lessonNumber || 'Lição EBD',
       title: raw.metadata?.title || 'Preparação da Lição',
@@ -19,19 +20,23 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
       date: raw.metadata?.date || '',
       targetAudience: raw.metadata?.targetAudience || 'Adultos / EBD',
       depth: raw.metadata?.depth || 'detalhada',
+      imagePrompt: raw.metadata?.imagePrompt || '',
     },
     textAureo: {
       text: raw.textAureo?.text || '',
       reference: raw.textAureo?.reference || '',
+      imagePrompt: raw.textAureo?.imagePrompt || '',
     },
     verdadePratica: {
       text: raw.verdadePratica?.text || '',
+      imagePrompt: raw.verdadePratica?.imagePrompt || '',
     },
     palavraChave: raw.palavraChave ? {
       palavra: raw.palavraChave.palavra || '',
       explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
         ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
-        : (raw.palavraChave.explicacao || '')
+        : (raw.palavraChave.explicacao || ''),
+      imagePrompt: raw.palavraChave.imagePrompt || '',
     } : undefined,
     leituraDiaria: Array.isArray(raw.leituraDiaria) ? raw.leituraDiaria : [],
     biblicalText: raw.biblicalText || '',
@@ -186,6 +191,8 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
     },
     checklist: Array.isArray(raw.checklist) ? raw.checklist : [],
   };
+
+  return fillMissingLessonPrompts(result);
 }
 
 function repairAndParseTruncatedJSON(rawInput: string): EBDLessonPreparation {
@@ -346,6 +353,15 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   6. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
   7. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
 
+--- 🖼️ REQUISITO MANDATÓRIO DE GERAÇÃO DE PROMPTS VISUAIS 16:9 ("imagePrompt") ---
+Você DEVE gerar obrigatoriamente um prompt visual cinematográfico hiperdetalhado em formato 16:9 ("imagePrompt") para:
+1. TÍTULO DA LIÇÃO ("metadata.imagePrompt"): Cena ampla e cinematográfica em formato 16:9 capturando o tema principal da lição e o contexto histórico bíblico para o slide de capa (sem texto, iluminação nobre, fotorrealista).
+2. TEXTO ÁUREO ("textAureo.imagePrompt"): Ilustração bíblica 16:9 que capture com reverência e profundidade espiritual a cena descrita no Texto Áureo.
+3. VERDADE PRÁTICA ("verdadePratica.imagePrompt"): Representação visual/conceitual 16:9 da Verdade Prática aplicada à vida diária de fé do cristão.
+4. PALAVRA-CHAVE ("palavraChave.imagePrompt"): Composição simbólica, monumental e marcante em 16:9 expressando o conceito teológico central da Palavra-Chave.
+5. CADA UM DOS TÓPICOS ("topicos[].imagePrompt"): Prompt 16:9 cinematográfico e imersivo para o Tópico I, Tópico II e Tópico III.
+6. CADA UM DOS SUBTÓPICOS ("topicos[].subtopicos[].imagePrompt"): Cena detalhada 16:9 ilustrando com precisão histórica o subtópico específico.
+
 - PALAVRA-CHAVE DA LIÇÃO COM ORIGEM NO HEBRAICO E NO GREGO ("palavraChave"):
   Identifique a PALAVRA-CHAVE oficial da lição informada na revista (ou a palavra teológica/conceitual mais central da lição, ex: "AUTORIA", "INSPIRAÇÃO", "FIDELIDADE").
   Na EXPLICAÇÃO ("explicacao"), OBRIGATORIAMENTE INCLUA A ORIGEM ETIMOLÓGICA NO HEBRAICO (se for contexto do AT) E/OU NO GREGO (se for NT) sempre que houver essa raiz bíblica, indicando o termo transliterado e seu sentido literal original (ex: 'No hebraico 'emûnāh [raiz 'āman, firmeza, estabilidade] e no grego pistis/pistos'). Forneça uma explicação clara, bíblica e didática (2 a 3 frases) conectando essa raiz no original à mensagem da lição.
@@ -374,18 +390,22 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     "themeTopic": "Tema Geral da Lição",
     "date": "Trimestre Atual",
     "targetAudience": "Adultos / EBD",
-    "depth": "${options.depth}"
+    "depth": "${options.depth}",
+    "imagePrompt": "Cinematic wide-angle 16:9 film still depicting the lesson theme and title. 1st-century ancient Mediterranean landscape, majestic limestone architecture, dramatic golden hour sunbeams, photorealistic, 8k --ar 16:9"
   },
   "textAureo": {
     "text": "Texto do Texto Áureo",
-    "reference": "Atos 22.15"
+    "reference": "Atos 22.15",
+    "imagePrompt": "Cinematic historical 16:9 biblical illustration capturing the solemn spiritual essence of the key verse, Rembrandt chiaroscuro lighting, ancient textured garments, 8k --ar 16:9"
   },
   "verdadePratica": {
-    "text": "Texto da Verdade Prática"
+    "text": "Texto da Verdade Prática",
+    "imagePrompt": "Cinematic 16:9 conceptual depiction illustrating practical Christian faith in everyday life, warm natural sunlight, uplifting atmosphere, fine art photography, 8k --ar 16:9"
   },
   "palavraChave": {
     "palavra": "FIDELIDADE",
-    "explicacao": "No hebraico 'emûnāh (raiz 'āman, firmeza, estabilidade) e no grego pistis/pistos (confiança, lealdade), a palavra evoca solidez inabalável. A fidelidade é a essência do caráter imutável de Deus, que permanece verdadeiro às Suas promessas mesmo diante das fraquezas humanas."
+    "explicacao": "No hebraico 'emûnāh (raiz 'āman, firmeza, estabilidade) e no grego pistis/pistos (confiança, lealdade), a palavra evoca solidez inabalável. A fidelidade é a essência do caráter imutável de Deus, que permanece verdadeiro às Suas promessas mesmo diante das fraquezas humanas.",
+    "imagePrompt": "Cinematic 16:9 symbolic visual representing the theological concept of FIDELIDADE, volumetric god rays, timeless ancient stone, monumental composition, 8k --ar 16:9"
   },
   "leituraDiaria": [
     { "day": "Segunda", "reference": "Atos 21.27", "text": "Resumo" }
