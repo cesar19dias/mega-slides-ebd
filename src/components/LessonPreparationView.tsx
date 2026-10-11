@@ -764,9 +764,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
   const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-  const imageWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
+  const imageWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 92);
+  const imageHeight = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78);
   const imageCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
   const isImageWidthCustom = slideImageWidths[projectorIndex] !== undefined;
+  const isImageHeightCustom = slideImageHeights[projectorIndex] !== undefined;
   const isImageCropCustom = slideImageCrops[projectorIndex] !== undefined && (imageCrop.panX !== 0 || imageCrop.panY !== 0 || imageCrop.zoom !== 1.0);
 
   // Ref de redimensionamento interativo de largura do bloco de texto
@@ -842,7 +844,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
     const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-    const currentW = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
+    const currentW = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 92);
 
     imageWidthResizeStateRef.current = {
       active: true,
@@ -852,6 +854,71 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       stageWidth: stageW,
     };
   }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageWidths]);
+
+  // Ref de redimensionamento da altura e limites (superior/inferior) do recipiente da imagem
+  const imageHeightResizeStateRef = useRef<{
+    active: boolean;
+    side: 'top' | 'bottom';
+    startClientY: number;
+    startHeight: number;
+    startPosY: number;
+    stageHeight: number;
+  } | null>(null);
+
+  const handleImageHeightResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, side: 'top' | 'bottom') => {
+    if (!isLayoutEditMode) return;
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    const stage = projectorStageRef.current;
+    const stageH = stage?.clientHeight || 450;
+
+    let clientY = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientY = (e as React.MouseEvent).clientY;
+    } else {
+      return;
+    }
+
+    const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
+    const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
+    const currentH = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78);
+    const currentPosY = slideImagePositions[projectorIndex]?.y ?? (isSideBySideActive ? 0 : 7.0);
+
+    imageHeightResizeStateRef.current = {
+      active: true,
+      side,
+      startClientY: clientY,
+      startHeight: currentH,
+      startPosY: currentPosY,
+      stageHeight: stageH,
+    };
+  }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageHeights, slideImagePositions]);
+
+  const setSingleImageHeight = useCallback((slideIdx: number, height: number) => {
+    setSlideImageHeights(prev => {
+      const next = { ...prev, [slideIdx]: Math.max(20, Math.min(100, Math.round(height))) };
+      try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageHeights: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  const resetSlideImageHeight = useCallback(() => {
+    setSlideImageHeights(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageHeights: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
 
   // Ref de arraste / pan da imagem dentro do quadro no modo Canva
   const cropPanStateRef = useRef<{
@@ -937,28 +1004,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     });
   }, [projectorIndex, updateLesson]);
 
-  // Força a imagem a ocupar 100% de toda a área do slide (resetando deslocamentos, bordas e alinhamentos)
+  // Força a imagem a ocupar 100% da área branca do slide (estritamente abaixo do cabeçalho)
   const occupyFullArea = useCallback(() => {
-    // 1. Zera a posição da imagem para o centro (x: 0, y: 0)
+    // 1. Posiciona no centro horizontal (x: 0) e centro Y deslocado para baixo (y: 7.0) para encaixar na área branca abaixo do cabeçalho (topo: 18%, base: 96%)
     setSlideImagePositions(prev => {
-      const next = { ...prev };
-      delete next[projectorIndex];
+      const next = { ...prev, [projectorIndex]: { x: 0, y: 7.0 } };
       try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, slideImagePositions: next }));
       return next;
     });
 
-    // 2. Define largura para 100%
+    // 2. Define largura para 92% (encaixe exato na área branca da moldura)
     setSlideImageWidths(prev => {
-      const next = { ...prev, [projectorIndex]: 100 };
+      const next = { ...prev, [projectorIndex]: 92 };
       try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, slideImageWidths: next }));
       return next;
     });
 
-    // 3. Define altura para 100%
+    // 3. Define altura para 78% (encaixa perfeitamente da linha inferior do cabeçalho ~18% até ~96%)
     setSlideImageHeights(prev => {
-      const next = { ...prev, [projectorIndex]: 100 };
+      const next = { ...prev, [projectorIndex]: 78 };
       try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, slideImageHeights: next }));
       return next;
@@ -972,7 +1038,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       return next;
     });
 
-    // 5. Define ajuste para 'cover' (preencher completamente sem deixar faixas brancas)
+    // 5. Define ajuste para 'cover' (preencher completamente sem faixas brancas)
     setSlideImageFits(prev => {
       const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'cover' };
       try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
@@ -985,6 +1051,41 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       const next = { ...prev, [projectorIndex]: { panX: 0, panY: 0, zoom: 1.0 } };
       try { localStorage.setItem('mega_ebd_image_crops', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, slideImageCrops: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
+
+  // Encaixe total na tela inteira (caso queira tela inteira sem respeitar cabeçalho)
+  const occupyEntireStage = useCallback(() => {
+    setSlideImagePositions(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImagePositions: next }));
+      return next;
+    });
+    setSlideImageWidths(prev => {
+      const next = { ...prev, [projectorIndex]: 100 };
+      try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageWidths: next }));
+      return next;
+    });
+    setSlideImageHeights(prev => {
+      const next = { ...prev, [projectorIndex]: 100 };
+      try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageHeights: next }));
+      return next;
+    });
+    setSlideImageScales(prev => {
+      const next = { ...prev, [projectorIndex]: 1.0 };
+      try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageScales: next }));
+      return next;
+    });
+    setSlideImageFits(prev => {
+      const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'cover' };
+      try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageFits: next }));
       return next;
     });
   }, [projectorIndex, updateLesson]);
@@ -1192,6 +1293,36 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return;
       }
 
+      // Redimensionamento interativo da altura e limites do topo/base do recipiente da imagem
+      if (imageHeightResizeStateRef.current?.active) {
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientY = e.touches[0].clientY;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientY = (e as MouseEvent).clientY;
+        } else {
+          return;
+        }
+
+        const { startClientY, startHeight, startPosY, stageHeight, side } = imageHeightResizeStateRef.current;
+        const dyPx = clientY - startClientY;
+        const deltaPct = (dyPx / stageHeight) * 100;
+
+        if (side === 'top') {
+          const newH = Math.min(100, Math.max(20, Math.round(startHeight - deltaPct)));
+          const newPosY = Math.round((startPosY + deltaPct / 2) * 10) / 10;
+          setSlideImageHeights(prev => ({ ...prev, [projectorIndex]: newH }));
+          setSlideImagePositions(prev => ({ ...prev, [projectorIndex]: { ...(prev[projectorIndex] ?? { x: 0 }), y: newPosY } }));
+        } else {
+          const newH = Math.min(100, Math.max(20, Math.round(startHeight + deltaPct)));
+          const newPosY = Math.round((startPosY + deltaPct / 2) * 10) / 10;
+          setSlideImageHeights(prev => ({ ...prev, [projectorIndex]: newH }));
+          setSlideImagePositions(prev => ({ ...prev, [projectorIndex]: { ...(prev[projectorIndex] ?? { x: 0 }), y: newPosY } }));
+        }
+        return;
+      }
+
       // Redimensionamento interativo da largura do bloco de texto
       if (bodyResizeStateRef.current?.active) {
         let clientX = 0;
@@ -1264,6 +1395,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         setSlideImageWidths(prev => {
           try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(prev)); } catch {}
           updateLesson(l => ({ ...l, slideImageWidths: prev }));
+          return prev;
+        });
+      }
+
+      if (imageHeightResizeStateRef.current?.active) {
+        imageHeightResizeStateRef.current = null;
+        setSlideImageHeights(prev => {
+          try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideImageHeights: prev }));
+          return prev;
+        });
+        setSlideImagePositions(prev => {
+          try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideImagePositions: prev }));
           return prev;
         });
       }
@@ -1510,8 +1655,17 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const stageW = stage?.clientWidth || 800;
     const stageH = stage?.clientHeight || 450;
 
+    const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
+    const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
+
     let offsetX = pos.x;
     let offsetY = pos.y;
+
+    // Se a posição Y da imagem ainda não foi personalizada e não é modo lado a lado, posiciona na área branca abaixo do cabeçalho
+    if (kind === 'image' && slideImagePositions[projectorIndex] === undefined && !isSideBySideActive) {
+      offsetY = 7.0;
+    }
+
     // Se o valor estiver entre -100 e 100, trata como porcentagem da largura/altura do palco
     if (Math.abs(offsetX) <= 100) {
       offsetX = (offsetX / 100) * stageW;
@@ -1521,14 +1675,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
 
     const outlineColor = kind === 'title' ? '#f59e0b' : kind === 'body' ? '#06b6d4' : '#8b5cf6';
-    const zIndexVal = kind === 'image' ? (isCanvaCropping ? 60 : isLayoutEditMode ? 5 : 0) : 50;
+    const zIndexVal = kind === 'image' ? (isCanvaCropping ? 60 : 0) : 50;
 
     if (kind === 'image') {
       const curScale = slideImageScales[projectorIndex] ?? 1.0;
-      const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
-      const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-      const curWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
-      const curHeight = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 100);
+      const curWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 92);
+      const curHeight = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78);
 
       return {
         position: 'absolute',
@@ -4513,13 +4665,22 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                   {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                     <>
-                      {/* Botão Especial: Ocupar Toda a Área */}
+                      {/* Botão de Encaixe na Área Branca (Embaixo) */}
                       <button
                         onClick={occupyFullArea}
                         className="px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-950/40 hover:scale-105 active:scale-95"
-                        title="Fazer a imagem ocupar 100% de toda a área deste slide sem deixar faixas brancas"
+                        title="Encaixar a imagem perfeitamente dentro da área branca deste slide (estritamente abaixo do cabeçalho)"
                       >
-                        <span>📐 Ocupar Toda a Área</span>
+                        <span>📐 Área Branca (Embaixo)</span>
+                      </button>
+
+                      {/* Botão Tela Toda (Caso queira preencher o slide inteiro) */}
+                      <button
+                        onClick={occupyEntireStage}
+                        className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700 shadow-sm"
+                        title="Fazer a imagem cobrir a tela inteira (100% de todo o slide)"
+                      >
+                        <span>🖥️ Tela Toda</span>
                       </button>
 
                       {/* Recortar Imagem estilo Canva diretamente no slide */}
@@ -4570,6 +4731,39 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             onClick={resetSlideImageWidth}
                             className="text-[9px] font-bold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
                             title="Restaurar largura padrão do quadro"
+                          >
+                            ↺
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Altura do Quadro / Recipiente */}
+                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Altura do quadro da imagem (ou arraste as alças superior/inferior no modo Mover)">
+                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Altura:</span>
+                        <button
+                          onClick={() => setSingleImageHeight(projectorIndex, Math.max(20, imageHeight - 5))}
+                          disabled={imageHeight <= 20}
+                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
+                          title="Diminuir altura do quadro (-5%)"
+                        >
+                          <ZoomOut className="w-3 h-3 text-purple-400" />
+                        </button>
+                        <span className={`text-xs font-black px-1 min-w-[34px] text-center font-mono ${isImageHeightCustom ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
+                          {imageHeight}%
+                        </span>
+                        <button
+                          onClick={() => setSingleImageHeight(projectorIndex, Math.min(100, imageHeight + 5))}
+                          disabled={imageHeight >= 100}
+                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
+                          title="Aumentar altura do quadro (+5%)"
+                        >
+                          <ZoomIn className="w-3 h-3 text-purple-400" />
+                        </button>
+                        {isImageHeightCustom && (
+                          <button
+                            onClick={resetSlideImageHeight}
+                            className="text-[9px] font-bold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
+                            title="Restaurar altura padrão do quadro"
                           >
                             ↺
                           </button>
@@ -4642,7 +4836,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   )}
 
                   {/* Reset de Posição, Tamanho e Largura dos Elementos */}
-                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled || isImageWidthCustom || isImageCropCustom) && (
+                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled || isImageWidthCustom || isImageHeightCustom || isImageCropCustom) && (
                     <div className="flex items-center gap-1.5">
                       {isTitleMoved && (
                         <button
@@ -4687,6 +4881,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           title="Restaurar largura original do quadro da imagem"
                         >
                           ↺ Larg. Quadro
+                        </button>
+                      )}
+                      {isImageHeightCustom && (
+                        <button
+                          onClick={resetSlideImageHeight}
+                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                          title="Restaurar altura original do quadro da imagem"
+                        >
+                          ↺ Alt. Quadro
                         </button>
                       )}
                       {isImageScaled && (
@@ -4848,13 +5051,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Recorte Canva</span>
                 </div>
 
-                {/* Botão de Encaixe Total / Ocupar Toda a Área */}
+                {/* Botão de Encaixe na Área Branca */}
                 <button
                   onClick={occupyFullArea}
                   className="text-xs font-black text-white px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 shadow-md border border-emerald-400 transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                  title="Fazer a imagem ocupar 100% de toda a área deste slide sem deixar faixas brancas"
+                  title="Encaixar a imagem perfeitamente na área branca abaixo do cabeçalho"
                 >
-                  <span>📐 Ocupar Toda a Área</span>
+                  <span>📐 Área Branca (Embaixo)</span>
+                </button>
+                <button
+                  onClick={occupyEntireStage}
+                  className="text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                  title="Cobrir a tela inteira (100% de todo o slide)"
+                >
+                  <span>🖥️ Tela Toda</span>
                 </button>
 
                 {/* Slider de Zoom no Quadro */}
@@ -4985,7 +5195,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {/* Recipiente / Quadro da Imagem */}
                     <div
                       className={`slide-image-container absolute select-none transition-all duration-150 group ${
-                        isCanvaCropping ? 'z-40 ring-4 ring-cyan-400/80 rounded-2xl shadow-2xl' : 'z-20'
+                        isCanvaCropping ? 'z-40 ring-4 ring-cyan-400/80 rounded-2xl shadow-2xl' : 'z-0'
                       }`}
                       style={{
                         ...makeDragStyle(imagePos, 'image'),
@@ -5059,9 +5269,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               occupyFullArea();
                             }}
                             className="bg-emerald-700/90 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-emerald-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-                            title="Ocupar Toda a Área deste Slide"
+                            title="Encaixar na área branca abaixo do cabeçalho"
                           >
-                            <span>📐 Ocupar Toda a Área</span>
+                            <span>📐 Área Branca</span>
                           </button>
                           <button
                             onClick={(e) => {
@@ -5090,8 +5300,30 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               transformOrigin: 'bottom center',
                             }}
                           >
-                            <span>🖼️ Quadro ({imageWidth}%) • Zoom {Math.round(imageScale * 100)}%</span>
+                            <span>🖼️ Quadro ({imageWidth}% × {slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78)}%) • Zoom {Math.round(imageScale * 100)}%</span>
                             <span className="opacity-80">• Duplo clique para Recorte Canva</span>
+                          </div>
+
+                          {/* Alça Superior para Redimensionar Altura do Recipiente (Topo) */}
+                          <div
+                            onMouseDown={(e) => handleImageHeightResizeStart(e, 'top')}
+                            onTouchStart={(e) => handleImageHeightResizeStart(e, 'top')}
+                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageHeight(); }}
+                            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ns-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
+                            title="Arrastar para ajustar limite superior da foto (altura) • Duplo clique para padrão"
+                          >
+                            <div className="h-0.5 w-5 bg-purple-600 rounded-full" />
+                          </div>
+
+                          {/* Alça Inferior para Redimensionar Altura do Recipiente (Base) */}
+                          <div
+                            onMouseDown={(e) => handleImageHeightResizeStart(e, 'bottom')}
+                            onTouchStart={(e) => handleImageHeightResizeStart(e, 'bottom')}
+                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageHeight(); }}
+                            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-4 w-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ns-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
+                            title="Arrastar para ajustar limite inferior da foto (altura) • Duplo clique para padrão"
+                          >
+                            <div className="h-0.5 w-5 bg-purple-600 rounded-full" />
                           </div>
 
                           {/* Alça Esquerda para Redimensionar Largura do Recipiente */}
@@ -5245,7 +5477,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       className="flex-1 w-full relative"
                     >
                       {renderBodyResizeHandles()}
-                      <div className={`text-layer w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto`}>
+                      <div className={`text-layer w-full relative z-30 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto`}>
                         <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                           {renderHL(currentProjectorItem.title, '#facc15')}
                         </h1>
@@ -5307,7 +5539,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     >
                       {renderBodyResizeHandles()}
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar">
+                        <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar">
                           {currentProjectorItem.projetorText ? (
                             <p className={`font-sans text-center w-full max-w-full break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
                               {renderHL(currentProjectorItem.projetorText)}
@@ -5442,7 +5674,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   >
                     {renderBodyResizeHandles()}
                     <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                      <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
+                      <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-start items-center min-h-0">
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                             const displayRef = currentProjectorItem.reference || parsed.reference;
