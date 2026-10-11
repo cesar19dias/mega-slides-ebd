@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
+import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -583,6 +583,15 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (lessonData.slideImageScales) {
       setSlideImageScales(lessonData.slideImageScales);
     }
+    if (lessonData.slideImageWidths) {
+      setSlideImageWidths(lessonData.slideImageWidths);
+    }
+    if (lessonData.slideImageHeights) {
+      setSlideImageHeights(lessonData.slideImageHeights);
+    }
+    if (lessonData.slideImageCrops) {
+      setSlideImageCrops(lessonData.slideImageCrops);
+    }
     if (lessonData.slideImageFits) {
       setSlideImageFits(lessonData.slideImageFits);
     }
@@ -707,6 +716,41 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     } catch { return {}; }
   });
 
+  // Largura e Altura do Recipiente da Imagem por slide (% da largura/altura do palco)
+  const [slideImageWidths, setSlideImageWidths] = useState<Record<number, number>>(() => {
+    if (lessonData.slideImageWidths && Object.keys(lessonData.slideImageWidths).length > 0) {
+      return lessonData.slideImageWidths;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_widths');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [slideImageHeights, setSlideImageHeights] = useState<Record<number, number>>(() => {
+    if (lessonData.slideImageHeights && Object.keys(lessonData.slideImageHeights).length > 0) {
+      return lessonData.slideImageHeights;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_heights');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Corte Fluido Estilo Canva por slide (panX, panY em %, zoom de 1.0 a 3.0)
+  const [slideImageCrops, setSlideImageCrops] = useState<Record<number, { panX: number; panY: number; zoom: number }>>(() => {
+    if (lessonData.slideImageCrops && Object.keys(lessonData.slideImageCrops).length > 0) {
+      return lessonData.slideImageCrops;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_crops');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  // Modo de Recorte Ativo no Slide (Estilo Canva)
+  const [isCanvaCropping, setIsCanvaCropping] = useState<boolean>(false);
+
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
   const isBodyWidthCustom = slideBodyWidths[projectorIndex] !== undefined && slideBodyWidths[projectorIndex] !== 100;
@@ -717,6 +761,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
   const isImageMoved = slideImagePositions[projectorIndex] !== undefined;
   const isImageScaled = slideImageScales[projectorIndex] !== undefined && slideImageScales[projectorIndex] !== 1.0;
+
+  const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
+  const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
+  const imageWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
+  const imageCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+  const isImageWidthCustom = slideImageWidths[projectorIndex] !== undefined;
+  const isImageCropCustom = slideImageCrops[projectorIndex] !== undefined && (imageCrop.panX !== 0 || imageCrop.panY !== 0 || imageCrop.zoom !== 1.0);
 
   // Ref de redimensionamento interativo de largura do bloco de texto
   const bodyResizeStateRef = useRef<{
@@ -758,6 +809,185 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       stageWidth: stageW,
     };
   }, [isLayoutEditMode, projectorIndex, slideBodyWidths]);
+
+  // Ref de redimensionamento da largura do recipiente da imagem
+  const imageWidthResizeStateRef = useRef<{
+    active: boolean;
+    side: 'left' | 'right';
+    startClientX: number;
+    startWidth: number;
+    stageWidth: number;
+  } | null>(null);
+
+  const handleImageWidthResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, side: 'left' | 'right') => {
+    if (!isLayoutEditMode) return;
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    const stage = projectorStageRef.current;
+    const stageW = stage?.clientWidth || 800;
+
+    let clientX = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+    } else {
+      return;
+    }
+
+    const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
+    const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
+    const currentW = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
+
+    imageWidthResizeStateRef.current = {
+      active: true,
+      side,
+      startClientX: clientX,
+      startWidth: currentW,
+      stageWidth: stageW,
+    };
+  }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageWidths]);
+
+  // Ref de arraste / pan da imagem dentro do quadro no modo Canva
+  const cropPanStateRef = useRef<{
+    active: boolean;
+    startClientX: number;
+    startClientY: number;
+    startPanX: number;
+    startPanY: number;
+    containerWidth: number;
+    containerHeight: number;
+  } | null>(null);
+
+  const handleCropPanStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    const imgContainer = (e.currentTarget as HTMLElement).closest('.slide-image-frame');
+    const rect = imgContainer?.getBoundingClientRect() || { width: 400, height: 300 };
+
+    let clientX = 0;
+    let clientY = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+      clientY = (e as React.MouseEvent).clientY;
+    } else {
+      return;
+    }
+
+    const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+    cropPanStateRef.current = {
+      active: true,
+      startClientX: clientX,
+      startClientY: clientY,
+      startPanX: curCrop.panX,
+      startPanY: curCrop.panY,
+      containerWidth: rect.width || 400,
+      containerHeight: rect.height || 300,
+    };
+  }, [projectorIndex, slideImageCrops]);
+
+  const setSingleImageWidth = useCallback((slideIdx: number, width: number) => {
+    setSlideImageWidths(prev => {
+      const next = { ...prev, [slideIdx]: Math.max(20, Math.min(100, Math.round(width))) };
+      try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageWidths: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  const resetSlideImageWidth = useCallback(() => {
+    setSlideImageWidths(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageWidths: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
+
+  const setSingleImageCrop = useCallback((slideIdx: number, crop: { panX: number; panY: number; zoom: number }) => {
+    setSlideImageCrops(prev => {
+      const next = { ...prev, [slideIdx]: crop };
+      try { localStorage.setItem('mega_ebd_image_crops', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageCrops: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  const resetSlideImageCrop = useCallback(() => {
+    setSlideImageCrops(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_crops', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageCrops: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
+
+  // Força a imagem a ocupar 100% de toda a área do slide (resetando deslocamentos, bordas e alinhamentos)
+  const occupyFullArea = useCallback(() => {
+    // 1. Zera a posição da imagem para o centro (x: 0, y: 0)
+    setSlideImagePositions(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImagePositions: next }));
+      return next;
+    });
+
+    // 2. Define largura para 100%
+    setSlideImageWidths(prev => {
+      const next = { ...prev, [projectorIndex]: 100 };
+      try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageWidths: next }));
+      return next;
+    });
+
+    // 3. Define altura para 100%
+    setSlideImageHeights(prev => {
+      const next = { ...prev, [projectorIndex]: 100 };
+      try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageHeights: next }));
+      return next;
+    });
+
+    // 4. Define escala para 1.0 (100%)
+    setSlideImageScales(prev => {
+      const next = { ...prev, [projectorIndex]: 1.0 };
+      try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageScales: next }));
+      return next;
+    });
+
+    // 5. Define ajuste para 'cover' (preencher completamente sem deixar faixas brancas)
+    setSlideImageFits(prev => {
+      const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'cover' };
+      try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageFits: next }));
+      return next;
+    });
+
+    // 6. Reseta pan e zoom do corte para centralizado
+    setSlideImageCrops(prev => {
+      const next = { ...prev, [projectorIndex]: { panX: 0, panY: 0, zoom: 1.0 } };
+      try { localStorage.setItem('mega_ebd_image_crops', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideImageCrops: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
 
   // Ref de redimensionamento interativo por alças nos cantos da imagem
   const resizeStateRef = useRef<{
@@ -879,6 +1109,42 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Listeners globais de mouse/touch para o drag responsivo e resize
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
+      // 0. Pan/Arraste fluido da foto no modo Canva Crop
+      if (cropPanStateRef.current?.active) {
+        let clientX = 0;
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
+        } else {
+          return;
+        }
+
+        const { startClientX, startClientY, startPanX, startPanY, containerWidth, containerHeight } = cropPanStateRef.current;
+        const dx = clientX - startClientX;
+        const dy = clientY - startClientY;
+        const deltaPanX = (dx / (containerWidth || 400)) * 100;
+        const deltaPanY = (dy / (containerHeight || 300)) * 100;
+
+        const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+        const newPanX = Math.max(-100, Math.min(100, Math.round((startPanX + deltaPanX) * 10) / 10));
+        const newPanY = Math.max(-100, Math.min(100, Math.round((startPanY + deltaPanY) * 10) / 10));
+
+        setSlideImageCrops(prev => ({
+          ...prev,
+          [projectorIndex]: {
+            ...curCrop,
+            panX: newPanX,
+            panY: newPanY,
+          }
+        }));
+        return;
+      }
+
       // 1. Redimensionamento interativo da imagem (puxando os cantos)
       if (resizeStateRef.current?.active) {
         let clientX = 0;
@@ -901,6 +1167,28 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         const clampedScale = Math.min(3.0, Math.max(0.2, Math.round(rawScale * 100) / 100));
 
         setSlideImageScales(prev => ({ ...prev, [projectorIndex]: clampedScale }));
+        return;
+      }
+
+      // Redimensionamento interativo da largura do recipiente da imagem
+      if (imageWidthResizeStateRef.current?.active) {
+        let clientX = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+        } else {
+          return;
+        }
+
+        const { startClientX, startWidth, stageWidth, side } = imageWidthResizeStateRef.current;
+        const dxPx = clientX - startClientX;
+        const deltaPct = (dxPx / stageWidth) * 100;
+        const factor = side === 'left' ? -deltaPct * 2 : deltaPct * 2;
+        const newW = Math.min(100, Math.max(20, Math.round(startWidth + factor)));
+
+        setSlideImageWidths(prev => ({ ...prev, [projectorIndex]: newW }));
         return;
       }
 
@@ -962,6 +1250,24 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
 
     const handleEnd = () => {
+      if (cropPanStateRef.current?.active) {
+        cropPanStateRef.current = null;
+        setSlideImageCrops(prev => {
+          try { localStorage.setItem('mega_ebd_image_crops', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideImageCrops: prev }));
+          return prev;
+        });
+      }
+
+      if (imageWidthResizeStateRef.current?.active) {
+        imageWidthResizeStateRef.current = null;
+        setSlideImageWidths(prev => {
+          try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideImageWidths: prev }));
+          return prev;
+        });
+      }
+
       if (resizeStateRef.current?.active) {
         resizeStateRef.current.active = false;
         setSlideImageScales(prev => {
@@ -1115,7 +1421,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (curWidth <= 65 && curBodyPos.x < -10) {
       // Inverte: Imagem na Esquerda, Texto na Direita
       setSlideBodyWidths(prev => {
-        const next = { ...prev, [projectorIndex]: 50 };
+        const next = { ...prev, [projectorIndex]: 48 };
         try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideBodyWidths: next }));
         return next;
@@ -1126,6 +1432,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         updateLesson(l => ({ ...l, slideBodyPositions: next }));
         return next;
       });
+      setSlideImageWidths(prev => {
+        const next = { ...prev, [projectorIndex]: 48 };
+        try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageWidths: next }));
+        return next;
+      });
       setSlideImagePositions(prev => {
         const next = { ...prev, [projectorIndex]: { x: -25, y: 0 } };
         try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
@@ -1133,13 +1445,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return next;
       });
       setSlideImageScales(prev => {
-        const next = { ...prev, [projectorIndex]: 0.75 };
+        const next = { ...prev, [projectorIndex]: 1.0 };
         try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideImageScales: next }));
         return next;
       });
       setSlideImageFits(prev => {
-        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'contain' };
+        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'cover' };
         try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideImageFits: next }));
         return next;
@@ -1150,10 +1462,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       resetSlidePosition('body');
       resetSlidePosition('image');
       resetSlideImageScale();
+      resetSlideImageWidth();
     } else {
-      // Ativa: Texto na Esquerda (50%), Imagem na Direita (50%)
+      // Ativa: Texto na Esquerda (48%), Imagem na Direita (48%)
       setSlideBodyWidths(prev => {
-        const next = { ...prev, [projectorIndex]: 50 };
+        const next = { ...prev, [projectorIndex]: 48 };
         try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideBodyWidths: next }));
         return next;
@@ -1164,6 +1477,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         updateLesson(l => ({ ...l, slideBodyPositions: next }));
         return next;
       });
+      setSlideImageWidths(prev => {
+        const next = { ...prev, [projectorIndex]: 48 };
+        try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageWidths: next }));
+        return next;
+      });
       setSlideImagePositions(prev => {
         const next = { ...prev, [projectorIndex]: { x: 25, y: 0 } };
         try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
@@ -1171,19 +1490,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return next;
       });
       setSlideImageScales(prev => {
-        const next = { ...prev, [projectorIndex]: 0.75 };
+        const next = { ...prev, [projectorIndex]: 1.0 };
         try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideImageScales: next }));
         return next;
       });
       setSlideImageFits(prev => {
-        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'contain' };
+        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'cover' };
         try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideImageFits: next }));
         return next;
       });
     }
-  }, [projectorIndex, slideBodyWidths, slideBodyPositions, updateLesson, resetSlideBodyWidth, resetSlidePosition, resetSlideImageScale]);
+  }, [projectorIndex, slideBodyWidths, slideBodyPositions, updateLesson, resetSlideBodyWidth, resetSlidePosition, resetSlideImageScale, resetSlideImageWidth]);
 
   // Estilos do wrapper de drag para cada elemento (suporta pixels legados e porcentagem responsiva)
   const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body' | 'image'): React.CSSProperties => {
@@ -1202,17 +1521,25 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
 
     const outlineColor = kind === 'title' ? '#f59e0b' : kind === 'body' ? '#06b6d4' : '#8b5cf6';
-    const zIndexVal = kind === 'image' ? (isLayoutEditMode ? 5 : 0) : 50;
+    const zIndexVal = kind === 'image' ? (isCanvaCropping ? 60 : isLayoutEditMode ? 5 : 0) : 50;
 
     if (kind === 'image') {
       const curScale = slideImageScales[projectorIndex] ?? 1.0;
+      const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
+      const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
+      const curWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 100);
+      const curHeight = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 100);
+
       return {
         position: 'absolute',
-        transform: `translate(${offsetX}px, ${offsetY}px) scale(${curScale})`,
-        transformOrigin: 'center center',
+        width: `${curWidth}%`,
+        height: `${curHeight}%`,
+        left: '50%',
+        top: '50%',
+        transform: `translate(-50%, -50%) translate(${offsetX}px, ${offsetY}px) scale(${curScale})`,
         zIndex: zIndexVal,
         ...(isLayoutEditMode ? {
-          cursor: 'grab',
+          cursor: isCanvaCropping ? 'default' : 'grab',
           borderRadius: '16px',
           userSelect: 'none',
           touchAction: 'none',
@@ -2402,10 +2729,14 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const currentProjectorItem = projectorItems[projectorIndex] || projectorItems[0];
 
-  // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita)
+  // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita e Escape para Sair do Recorte Canva)
   useEffect(() => {
     if (activeTab !== 'projetor') return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isCanvaCropping && e.key === 'Escape') {
+        setIsCanvaCropping(false);
+        return;
+      }
       if (e.key === 'ArrowLeft') {
         setProjectorIndex(prev => Math.max(0, prev - 1));
       } else if (e.key === 'ArrowRight') {
@@ -2414,7 +2745,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, projectorItems.length]);
+  }, [activeTab, projectorItems.length, isCanvaCropping]);
+
+  // Reseta o modo de recorte ao mudar de slide
+  useEffect(() => {
+    setIsCanvaCropping(false);
+  }, [projectorIndex]);
 
   const toggleTopicExpand = (topicNumber: string) => {
     setExpandedTopics(prev => ({
@@ -4177,15 +4513,68 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                   {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                     <>
-                      {/* Recortar Imagem deste slide */}
+                      {/* Botão Especial: Ocupar Toda a Área */}
                       <button
-                        onClick={() => handleOpenCropForSlide()}
-                        className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border bg-pink-950/70 hover:bg-pink-900 text-pink-200 border-pink-500/50 shadow-sm"
-                        title="Recortar imagem deste slide (Crop)"
+                        onClick={occupyFullArea}
+                        className="px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-950/40 hover:scale-105 active:scale-95"
+                        title="Fazer a imagem ocupar 100% de toda a área deste slide sem deixar faixas brancas"
                       >
-                        <Crop className="w-3.5 h-3.5 text-pink-300" />
-                        <span>✂️ Recortar</span>
+                        <span>📐 Ocupar Toda a Área</span>
                       </button>
+
+                      {/* Recortar Imagem estilo Canva diretamente no slide */}
+                      <button
+                        onClick={() => setIsCanvaCropping(prev => !prev)}
+                        className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
+                          isCanvaCropping
+                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 shadow-lg shadow-cyan-600/30 animate-pulse'
+                            : 'bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border-cyan-400/50 shadow-sm'
+                        }`}
+                        title="Recorte Fluido Estilo Canva: reposicione e dê zoom na foto diretamente no slide"
+                      >
+                        {isCanvaCropping ? <Check className="w-3.5 h-3.5" /> : <Crop className="w-3.5 h-3.5 text-cyan-300" />}
+                        <span>{isCanvaCropping ? '✓ Concluir Recorte' : '✂️ Recortar (Canva)'}</span>
+                      </button>
+
+                      {/* Largura do Quadro / Recipiente */}
+                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Largura do quadro/recipiente da imagem neste slide (ou arraste as laterais no modo Mover)">
+                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Quadro:</span>
+                        <button
+                          onClick={() => setSingleImageWidth(projectorIndex, Math.max(20, imageWidth - 5))}
+                          disabled={imageWidth <= 20}
+                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
+                          title="Diminuir largura do quadro (-5%)"
+                        >
+                          <ZoomOut className="w-3 h-3 text-purple-400" />
+                        </button>
+                        <span className={`text-xs font-black px-1 min-w-[34px] text-center font-mono ${isImageWidthCustom ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
+                          {imageWidth}%
+                        </span>
+                        <button
+                          onClick={() => setSingleImageWidth(projectorIndex, Math.min(100, imageWidth + 5))}
+                          disabled={imageWidth >= 100}
+                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
+                          title="Aumentar largura do quadro (+5%)"
+                        >
+                          <ZoomIn className="w-3 h-3 text-purple-400" />
+                        </button>
+                        <button
+                          onClick={() => setSingleImageWidth(projectorIndex, imageWidth === 48 ? 100 : 48)}
+                          className="text-[9px] font-black text-purple-300 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
+                          title="Alternar rapidamente entre 48% (Metade) e 100% (Total)"
+                        >
+                          {imageWidth === 48 ? '100%' : '48%'}
+                        </button>
+                        {isImageWidthCustom && (
+                          <button
+                            onClick={resetSlideImageWidth}
+                            className="text-[9px] font-bold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
+                            title="Restaurar largura padrão do quadro"
+                          >
+                            ↺
+                          </button>
+                        )}
+                      </div>
 
                       {/* Zoom / Escala da Imagem */}
                       <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
@@ -4253,7 +4642,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   )}
 
                   {/* Reset de Posição, Tamanho e Largura dos Elementos */}
-                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled) && (
+                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled || isImageWidthCustom || isImageCropCustom) && (
                     <div className="flex items-center gap-1.5">
                       {isTitleMoved && (
                         <button
@@ -4291,6 +4680,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           ↺ Pos. Imagem
                         </button>
                       )}
+                      {isImageWidthCustom && (
+                        <button
+                          onClick={resetSlideImageWidth}
+                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                          title="Restaurar largura original do quadro da imagem"
+                        >
+                          ↺ Larg. Quadro
+                        </button>
+                      )}
                       {isImageScaled && (
                         <button
                           onClick={resetSlideImageScale}
@@ -4298,6 +4696,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           title="Restaurar tamanho original da imagem (100%)"
                         >
                           ↺ Tam. Imagem
+                        </button>
+                      )}
+                      {isImageCropCustom && (
+                        <button
+                          onClick={resetSlideImageCrop}
+                          className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                          title="Restaurar enquadramento e corte original da imagem"
+                        >
+                          ↺ Recorte
                         </button>
                       )}
                     </div>
@@ -4430,119 +4837,336 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             )}
 
 
-            {/* Renderizador unificado da imagem do slide com alças interativas de redimensionamento */}
-            {(() => null)()}
+            {/* Barra Flutuante de Recorte Fluido Estilo Canva no Palco */}
+            {isCanvaCropping && (
+              <div
+                className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border-2 border-cyan-400 shadow-2xl shadow-cyan-500/30 rounded-2xl px-4 py-2 backdrop-blur-xl flex flex-wrap items-center gap-3 text-white animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center gap-2 pr-2 border-r border-slate-700">
+                  <Crop className="w-4 h-4 text-cyan-400 animate-pulse" />
+                  <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Recorte Canva</span>
+                </div>
+
+                {/* Botão de Encaixe Total / Ocupar Toda a Área */}
+                <button
+                  onClick={occupyFullArea}
+                  className="text-xs font-black text-white px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 shadow-md border border-emerald-400 transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                  title="Fazer a imagem ocupar 100% de toda a área deste slide sem deixar faixas brancas"
+                >
+                  <span>📐 Ocupar Toda a Área</span>
+                </button>
+
+                {/* Slider de Zoom no Quadro */}
+                <div className="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-cyan-500/40">
+                  <span className="text-[10px] font-bold text-slate-300 uppercase">Zoom:</span>
+                  <button
+                    onClick={() => {
+                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+                      const nextZ = Math.max(1.0, Math.round((curCrop.zoom - 0.1) * 10) / 10);
+                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
+                    }}
+                    className="p-1 rounded bg-slate-800 text-cyan-400 hover:bg-slate-700 text-xs font-bold cursor-pointer"
+                    title="Reduzir zoom (-)"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5" />
+                  </button>
+                  <input
+                    type="range"
+                    min="100"
+                    max="300"
+                    step="5"
+                    value={Math.round((slideImageCrops[projectorIndex]?.zoom ?? 1.0) * 100)}
+                    onChange={(e) => {
+                      const zVal = parseFloat(e.target.value) / 100;
+                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: zVal });
+                    }}
+                    className="w-20 md:w-28 accent-cyan-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
+                    title="Ajuste o zoom da imagem no enquadramento"
+                  />
+                  <button
+                    onClick={() => {
+                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+                      const nextZ = Math.min(3.0, Math.round((curCrop.zoom + 0.1) * 10) / 10);
+                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
+                    }}
+                    className="p-1 rounded bg-slate-800 text-cyan-400 hover:bg-slate-700 text-xs font-bold cursor-pointer"
+                    title="Aumentar zoom (+)"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="text-xs font-mono font-black text-cyan-200 min-w-[36px] text-center">
+                    {Math.round((slideImageCrops[projectorIndex]?.zoom ?? 1.0) * 100)}%
+                  </span>
+                </div>
+
+                {/* Preencher vs Ajustar */}
+                <button
+                  onClick={() => toggleImageFit(projectorIndex)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                    imageFit === 'contain'
+                      ? 'bg-purple-900/60 text-purple-200 border-purple-400'
+                      : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                  }`}
+                  title="Alternar entre Preencher o quadro ou Ajustar foto inteira"
+                >
+                  {imageFit === 'contain' ? '🔍 Inteira' : '🖼️ Preencher'}
+                </button>
+
+                {/* Resetar Recorte */}
+                <button
+                  onClick={resetSlideImageCrop}
+                  className="text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
+                  title="Restaurar enquadramento original (centralizado)"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Resetar</span>
+                </button>
+
+                {/* Concluir Recorte */}
+                <button
+                  onClick={() => setIsCanvaCropping(false)}
+                  className="text-xs font-black text-white px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 shadow-lg shadow-cyan-600/30 border border-cyan-300 transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                  title="Concluir e fixar o recorte da imagem (ou pressione ESC)"
+                >
+                  <Check className="w-4 h-4 text-white" />
+                  <span>Concluir</span>
+                </button>
+              </div>
+            )}
+
             {/* Bloco Central do Slide */}
             {(() => {
-              // Função auxiliar para renderizar a imagem do slide com suporte a mover e redimensionar pelos cantos
+              // Função auxiliar para renderizar o recipiente da imagem com recorte fluido estilo Canva
               const renderSlideImageElement = () => {
                 const curSlideImg = projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
                 if (!curSlideImg) return null;
 
-                return (
-                  <div
-                    className="slide-image-container absolute inset-0 w-full h-full rounded-2xl select-none transition-opacity duration-150 group"
-                    style={{
-                      ...makeDragStyle(imagePos, 'image'),
-                      opacity: slideImageOpacity / 100,
-                      pointerEvents: isLayoutEditMode ? 'auto' : 'none',
-                    }}
-                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
-                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
-                  >
-                    {/* Imagem sem contorno e sem sombra */}
-                    <div className={`w-full h-full flex items-center justify-center ${imageFit === 'contain' ? '' : 'rounded-2xl overflow-hidden'}`}>
-                      <img
-                        src={curSlideImg}
-                        alt="Ilustração do Slide"
-                        className={`${imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl' : 'w-full h-full object-cover'} pointer-events-none transition-all duration-150`}
-                      />
-                    </div>
+                const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
 
-                    {/* Botão de recorte rápido no slide no modo Mover */}
-                    {isLayoutEditMode && (
-                      <div className="absolute top-2 right-2 z-50 pointer-events-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenCropForSlide(curSlideImg);
-                          }}
-                          className="bg-slate-950/85 hover:bg-pink-600 text-pink-200 hover:text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-pink-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-                          title="Recortar esta imagem (Crop)"
-                        >
-                          <Crop className="w-3 h-3 text-pink-300" />
-                          <span>✂️ Recortar</span>
-                        </button>
+                // Zoom com scroll do mouse no modo Canva
+                const handleWheelZoom = (e: React.WheelEvent) => {
+                  if (!isCanvaCropping) return;
+                  e.stopPropagation();
+                  e.preventDefault();
+                  const delta = e.deltaY < 0 ? 0.05 : -0.05;
+                  const nextZ = Math.min(3.0, Math.max(1.0, Math.round((curCrop.zoom + delta) * 100) / 100));
+                  setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
+                };
+
+                return (
+                  <>
+                    {/* Ghost unclipped da imagem no modo Canva mostrando o que está além do quadro */}
+                    {isCanvaCropping && (
+                      <div
+                        className="slide-image-ghost absolute pointer-events-none select-none z-10 transition-opacity duration-150"
+                        style={{
+                          ...makeDragStyle(imagePos, 'image'),
+                          opacity: 0.3,
+                          filter: 'brightness(0.9) grayscale(15%)',
+                        }}
+                      >
+                        <div className="w-full h-full flex items-center justify-center overflow-visible">
+                          <img
+                            src={curSlideImg}
+                            alt="Visualização estendida da foto"
+                            draggable={false}
+                            className={`w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} pointer-events-none select-none`}
+                            style={{
+                              transform: `scale(${curCrop.zoom}) translate(${curCrop.panX}%, ${curCrop.panY}%)`,
+                              transformOrigin: 'center center',
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
 
-                    {/* No modo "Mover": Badge e Alças de Redimensionamento Interativo nos 4 Cantos */}
-                    {isLayoutEditMode && (
-                      <>
-                        {/* Badge superior informando escala */}
-                        <div
-                          className="absolute -top-7 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                    {/* Recipiente / Quadro da Imagem */}
+                    <div
+                      className={`slide-image-container absolute select-none transition-all duration-150 group ${
+                        isCanvaCropping ? 'z-40 ring-4 ring-cyan-400/80 rounded-2xl shadow-2xl' : 'z-20'
+                      }`}
+                      style={{
+                        ...makeDragStyle(imagePos, 'image'),
+                        opacity: slideImageOpacity / 100,
+                        pointerEvents: (isLayoutEditMode || isCanvaCropping) ? 'auto' : 'none',
+                      }}
+                      onMouseDown={!isCanvaCropping && isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
+                      onTouchStart={!isCanvaCropping && isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        setIsCanvaCropping(true);
+                      }}
+                      onWheel={handleWheelZoom}
+                    >
+                      {/* Quadro delimitador com corte interno da imagem */}
+                      <div
+                        className={`slide-image-frame w-full h-full relative rounded-2xl overflow-hidden flex items-center justify-center transition-all ${
+                          isCanvaCropping
+                            ? 'cursor-grab active:cursor-grabbing border-2 border-cyan-300 bg-black/20'
+                            : imageFit === 'contain' ? '' : 'rounded-2xl'
+                        }`}
+                        onMouseDown={isCanvaCropping ? handleCropPanStart : undefined}
+                        onTouchStart={isCanvaCropping ? handleCropPanStart : undefined}
+                        title={isCanvaCropping ? 'Arraste a foto para enquadrar ou use o scroll para zoom' : undefined}
+                      >
+                        <img
+                          src={curSlideImg}
+                          alt="Ilustração do Slide"
+                          draggable={false}
+                          className={`${
+                            imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl' : 'w-full h-full object-cover'
+                          } pointer-events-none select-none transition-transform duration-75`}
                           style={{
-                            backgroundColor: '#8b5cf6',
-                            color: '#ffffff',
-                            transform: `translateX(-50%) scale(${Math.max(0.65, Math.min(1.3, 1 / imageScale))})`,
-                            transformOrigin: 'bottom center',
+                            transform: `scale(${curCrop.zoom}) translate(${curCrop.panX}%, ${curCrop.panY}%)`,
+                            transformOrigin: 'center center',
                           }}
-                        >
-                          <span>🖼️ Imagem ({Math.round(imageScale * 100)}%)</span>
-                          <span className="opacity-80">• puxe os cantos para redimensionar</span>
+                        />
+
+                        {/* Grade 3x3 e Cantoneiras do Modo Canva */}
+                        {isCanvaCropping && (
+                          <div className="absolute inset-0 pointer-events-none z-20">
+                            {/* Linhas verticais */}
+                            <div className="absolute top-0 bottom-0 left-1/3 w-[1.5px] bg-white/45 shadow-sm" />
+                            <div className="absolute top-0 bottom-0 left-2/3 w-[1.5px] bg-white/45 shadow-sm" />
+                            {/* Linhas horizontais */}
+                            <div className="absolute left-0 right-0 top-1/3 h-[1.5px] bg-white/45 shadow-sm" />
+                            <div className="absolute left-0 right-0 top-2/3 h-[1.5px] bg-white/45 shadow-sm" />
+
+                            {/* Cantoneiras L do Canva */}
+                            <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-white drop-shadow-md rounded-tl-sm" />
+                            <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-white drop-shadow-md rounded-tr-sm" />
+                            <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-white drop-shadow-md rounded-bl-sm" />
+                            <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-white drop-shadow-md rounded-br-sm" />
+
+                            {/* Dica flutuante */}
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-30 bg-slate-950/85 text-cyan-200 border border-cyan-400/40 px-3 py-1 rounded-full text-[10px] font-black shadow-xl backdrop-blur-md pointer-events-none flex items-center gap-1.5 whitespace-nowrap">
+                              <span>✋ Arraste a foto para enquadrar</span>
+                              <span className="opacity-50">•</span>
+                              <span>Scroll do mouse para zoom</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Botões de Ação Rápida no Modo Mover */}
+                      {isLayoutEditMode && !isCanvaCropping && (
+                        <div className="absolute top-2 right-2 z-50 pointer-events-auto flex items-center gap-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              occupyFullArea();
+                            }}
+                            className="bg-emerald-700/90 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-emerald-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
+                            title="Ocupar Toda a Área deste Slide"
+                          >
+                            <span>📐 Ocupar Toda a Área</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsCanvaCropping(true);
+                            }}
+                            className="bg-slate-950/90 hover:bg-cyan-600 text-cyan-200 hover:text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-cyan-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
+                            title="Recorte Fluido Estilo Canva (reposicionar e dar zoom diretamente no slide)"
+                          >
+                            <Crop className="w-3 h-3 text-cyan-300" />
+                            <span>✂️ Recortar (Canva)</span>
+                          </button>
                         </div>
+                      )}
 
-                        {/* Alça Noroeste (Top-Left) */}
-                        <div
-                          onMouseDown={(e) => handleImageResizeStart(e, 'nw')}
-                          onTouchStart={(e) => handleImageResizeStart(e, 'nw')}
-                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                          className="absolute top-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform"
-                          style={{
-                            transform: `translate(-50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                          }}
-                          title="Arrastar para redimensionar • Duplo clique para 100%"
-                        />
+                      {/* No modo "Mover": Badges e Alças do Recipiente */}
+                      {isLayoutEditMode && !isCanvaCropping && (
+                        <>
+                          {/* Badge superior */}
+                          <div
+                            className="absolute -top-7 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                            style={{
+                              backgroundColor: '#8b5cf6',
+                              color: '#ffffff',
+                              transform: `translateX(-50%) scale(${Math.max(0.65, Math.min(1.3, 1 / imageScale))})`,
+                              transformOrigin: 'bottom center',
+                            }}
+                          >
+                            <span>🖼️ Quadro ({imageWidth}%) • Zoom {Math.round(imageScale * 100)}%</span>
+                            <span className="opacity-80">• Duplo clique para Recorte Canva</span>
+                          </div>
 
-                        {/* Alça Nordeste (Top-Right) */}
-                        <div
-                          onMouseDown={(e) => handleImageResizeStart(e, 'ne')}
-                          onTouchStart={(e) => handleImageResizeStart(e, 'ne')}
-                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                          className="absolute top-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform"
-                          style={{
-                            transform: `translate(50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                          }}
-                          title="Arrastar para redimensionar • Duplo clique para 100%"
-                        />
+                          {/* Alça Esquerda para Redimensionar Largura do Recipiente */}
+                          <div
+                            onMouseDown={(e) => handleImageWidthResizeStart(e, 'left')}
+                            onTouchStart={(e) => handleImageWidthResizeStart(e, 'left')}
+                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageWidth(); }}
+                            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
+                            title="Arrastar para ajustar largura do quadro • Duplo clique para padrão"
+                          >
+                            <div className="w-0.5 h-5 bg-purple-600 rounded-full" />
+                          </div>
 
-                        {/* Alça Sudoeste (Bottom-Left) */}
-                        <div
-                          onMouseDown={(e) => handleImageResizeStart(e, 'sw')}
-                          onTouchStart={(e) => handleImageResizeStart(e, 'sw')}
-                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                          className="absolute bottom-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform"
-                          style={{
-                            transform: `translate(-50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                          }}
-                          title="Arrastar para redimensionar • Duplo clique para 100%"
-                        />
+                          {/* Alça Direita para Redimensionar Largura do Recipiente */}
+                          <div
+                            onMouseDown={(e) => handleImageWidthResizeStart(e, 'right')}
+                            onTouchStart={(e) => handleImageWidthResizeStart(e, 'right')}
+                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageWidth(); }}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
+                            title="Arrastar para ajustar largura do quadro • Duplo clique para padrão"
+                          >
+                            <div className="w-0.5 h-5 bg-purple-600 rounded-full" />
+                          </div>
 
-                        {/* Alça Sudeste (Bottom-Right) */}
-                        <div
-                          onMouseDown={(e) => handleImageResizeStart(e, 'se')}
-                          onTouchStart={(e) => handleImageResizeStart(e, 'se')}
-                          onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                          className="absolute bottom-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform"
-                          style={{
-                            transform: `translate(50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                          }}
-                          title="Arrastar para redimensionar • Duplo clique para 100%"
-                        />
-                      </>
-                    )}
-                  </div>
+                          {/* Alça Noroeste (Top-Left) */}
+                          <div
+                            onMouseDown={(e) => handleImageResizeStart(e, 'nw')}
+                            onTouchStart={(e) => handleImageResizeStart(e, 'nw')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                            className="absolute top-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform pointer-events-auto"
+                            style={{
+                              transform: `translate(-50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                            }}
+                            title="Arrastar para redimensionar • Duplo clique para 100%"
+                          />
+
+                          {/* Alça Nordeste (Top-Right) */}
+                          <div
+                            onMouseDown={(e) => handleImageResizeStart(e, 'ne')}
+                            onTouchStart={(e) => handleImageResizeStart(e, 'ne')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                            className="absolute top-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform pointer-events-auto"
+                            style={{
+                              transform: `translate(50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                            }}
+                            title="Arrastar para redimensionar • Duplo clique para 100%"
+                          />
+
+                          {/* Alça Sudoeste (Bottom-Left) */}
+                          <div
+                            onMouseDown={(e) => handleImageResizeStart(e, 'sw')}
+                            onTouchStart={(e) => handleImageResizeStart(e, 'sw')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                            className="absolute bottom-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform pointer-events-auto"
+                            style={{
+                              transform: `translate(-50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                            }}
+                            title="Arrastar para redimensionar • Duplo clique para 100%"
+                          />
+
+                          {/* Alça Sudeste (Bottom-Right) */}
+                          <div
+                            onMouseDown={(e) => handleImageResizeStart(e, 'se')}
+                            onTouchStart={(e) => handleImageResizeStart(e, 'se')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
+                            className="absolute bottom-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform pointer-events-auto"
+                            style={{
+                              transform: `translate(50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
+                            }}
+                            title="Arrastar para redimensionar • Duplo clique para 100%"
+                          />
+                        </>
+                      )}
+                    </div>
+                  </>
                 );
               };
 

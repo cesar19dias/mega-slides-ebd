@@ -145,6 +145,9 @@ export interface EBDLessonPreparation {
   slideBodyWidths?: Record<number, number>;
   slideImagePositions?: Record<number, { x: number; y: number }>;
   slideImageScales?: Record<number, number>;
+  slideImageWidths?: Record<number, number>;
+  slideImageHeights?: Record<number, number>;
+  slideImageCrops?: Record<number, { panX: number; panY: number; zoom: number }>;
   slideImageFits?: Record<number, 'cover' | 'contain'>;
   slideImageBorders?: Record<number, 'white' | 'thin' | 'thick' | 'none'>;
   projectorSlideImages?: Record<number, string>;
