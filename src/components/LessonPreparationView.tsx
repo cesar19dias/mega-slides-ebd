@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -9,6 +9,7 @@ import { formatAllPromptsForExport, generateAllLessonPromptsWithAi } from '../se
 
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
+import { ImageCropModal } from './ImageCropModal';
 
 // ── Inline Text Highlight System ──────────────────────────────────
 interface TextHighlightEntry {
@@ -1613,6 +1614,45 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
 
+  // ── Controle de Recorte de Imagem (Crop) ──
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropModalImage, setCropModalImage] = useState<string | null>(null);
+  const [cropTarget, setCropTarget] = useState<'slide' | 'bg'>('slide');
+
+  const handleOpenCropForSlide = (imgUrl?: string) => {
+    const url = imgUrl || projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
+    if (!url) {
+      alert('Nenhuma imagem disponível neste slide para recortar.');
+      return;
+    }
+    setCropModalImage(url);
+    setCropTarget('slide');
+    setCropModalOpen(true);
+  };
+
+  const handleOpenCropForBg = () => {
+    if (!customBg) return;
+    setCropModalImage(customBg);
+    setCropTarget('bg');
+    setCropModalOpen(true);
+  };
+
+  const handleApplyCrop = (croppedDataUrl: string) => {
+    if (cropTarget === 'slide') {
+      setProjectorSlideImages(prev => {
+        const next = { ...prev, [projectorIndex]: croppedDataUrl };
+        try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, projectorSlideImages: next }));
+        return next;
+      });
+    } else if (cropTarget === 'bg') {
+      setCustomBg(croppedDataUrl);
+      try { localStorage.setItem('mega_ebd_custom_bg', croppedDataUrl); } catch {}
+    }
+    setCropModalOpen(false);
+    setCropModalImage(null);
+  };
+
   const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1626,6 +1666,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           updateLesson(l => ({ ...l, projectorSlideImages: next }));
           return next;
         });
+        // Abre o modal de recorte para que o usuário possa definir o enquadramento ideal
+        setCropModalImage(d);
+        setCropTarget('slide');
+        setCropModalOpen(true);
       }
     };
     reader.readAsDataURL(file);
@@ -3490,22 +3534,32 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
             {/* Upload Modelo Próprio + Botões de Exportação */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Botão de Adicionar/Remover Imagem Apenas Neste Slide */}
+              {/* Botão de Adicionar/Remover/Recortar Imagem Apenas Neste Slide */}
               <label
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-400/40 text-xs font-bold cursor-pointer transition-all shadow-md"
                 title="Adicionar imagem ilustrativa apenas a este slide"
               >
-                <span>{projectorSlideImages[projectorIndex] ? '📷 Alterar Imagem' : '🖼️ +Imagem neste Slide'}</span>
+                <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Alterar Imagem' : '🖼️ +Imagem neste Slide'}</span>
                 <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
               </label>
-              {projectorSlideImages[projectorIndex] && (
-                <button
-                  onClick={handleRemoveSlideImage}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
-                  title="Remover imagem deste slide e voltar ao texto 100% cheio"
-                >
-                  ✕ Remover Imagem
-                </button>
+              {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
+                <>
+                  <button
+                    onClick={() => handleOpenCropForSlide()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white border border-pink-400/50 text-xs font-black cursor-pointer transition-all shadow-md active:scale-95"
+                    title="Recortar imagem deste slide (ajustar enquadramento e corte 16:9 / livre)"
+                  >
+                    <Crop className="w-3.5 h-3.5 text-white" />
+                    <span>✂️ Recortar (Crop)</span>
+                  </button>
+                  <button
+                    onClick={handleRemoveSlideImage}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
+                    title="Remover imagem deste slide e voltar ao texto 100% cheio"
+                  >
+                    ✕ Remover Imagem
+                  </button>
+                </>
               )}
 
               {/* QR Code Celular */}
@@ -3524,9 +3578,31 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 title="Enviar imagem como fundo de todos os slides do projetor"
               >
                 <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
-                <span>📁 Meu Modelo</span>
+                <span>{customBg ? '📁 Trocar Modelo' : '📁 Meu Modelo'}</span>
                 <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
               </label>
+              {customBg && (
+                <>
+                  <button
+                    onClick={handleOpenCropForBg}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-pink-900/40 hover:bg-pink-900/60 text-pink-200 border border-pink-500/40 text-xs font-bold cursor-pointer transition-all shadow-sm"
+                    title="Recortar imagem de fundo do modelo (16:9)"
+                  >
+                    <Crop className="w-3.5 h-3.5 text-pink-300" />
+                    <span>✂️ Recortar Fundo</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setCustomBg(null);
+                      try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
+                    }}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
+                    title="Remover fundo personalizado do modelo"
+                  >
+                    ✕ Remover Modelo
+                  </button>
+                </>
+              )}
 
               {/* Exportar PPTX com todos os slides */}
               <button
@@ -3739,8 +3815,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </button>
 
                 {/* Redimensionamento e Ajuste da Imagem deste Slide */}
-                {projectorSlideImages[projectorIndex] && (
+                {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                   <>
+                    <button
+                      onClick={() => handleOpenCropForSlide()}
+                      className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border bg-pink-950/70 hover:bg-pink-900 text-pink-200 border-pink-500/50 shadow-sm"
+                      title="Recortar imagem deste slide (Crop)"
+                    >
+                      <Crop className="w-3.5 h-3.5 text-pink-300" />
+                      <span>✂️ Recortar</span>
+                    </button>
+
                     <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/40 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
                       <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                       <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
@@ -4090,8 +4175,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </div>
 
                   {/* Redimensionamento e Ajuste da Imagem deste Slide */}
-                  {projectorSlideImages[projectorIndex] && (
+                  {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                     <>
+                      {/* Recortar Imagem deste slide */}
+                      <button
+                        onClick={() => handleOpenCropForSlide()}
+                        className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border bg-pink-950/70 hover:bg-pink-900 text-pink-200 border-pink-500/50 shadow-sm"
+                        title="Recortar imagem deste slide (Crop)"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-pink-300" />
+                        <span>✂️ Recortar</span>
+                      </button>
+
                       {/* Zoom / Escala da Imagem */}
                       <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
                         <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
@@ -4341,12 +4436,12 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             {(() => {
               // Função auxiliar para renderizar a imagem do slide com suporte a mover e redimensionar pelos cantos
               const renderSlideImageElement = () => {
-                const curSlideImg = projectorSlideImages[projectorIndex];
+                const curSlideImg = projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
                 if (!curSlideImg) return null;
 
                 return (
                   <div
-                    className="slide-image-container absolute inset-0 w-full h-full rounded-2xl select-none transition-opacity duration-150"
+                    className="slide-image-container absolute inset-0 w-full h-full rounded-2xl select-none transition-opacity duration-150 group"
                     style={{
                       ...makeDragStyle(imagePos, 'image'),
                       opacity: slideImageOpacity / 100,
@@ -4363,6 +4458,23 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         className={`${imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl' : 'w-full h-full object-cover'} pointer-events-none transition-all duration-150`}
                       />
                     </div>
+
+                    {/* Botão de recorte rápido no slide no modo Mover */}
+                    {isLayoutEditMode && (
+                      <div className="absolute top-2 right-2 z-50 pointer-events-auto">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenCropForSlide(curSlideImg);
+                          }}
+                          className="bg-slate-950/85 hover:bg-pink-600 text-pink-200 hover:text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-pink-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
+                          title="Recortar esta imagem (Crop)"
+                        >
+                          <Crop className="w-3 h-3 text-pink-300" />
+                          <span>✂️ Recortar</span>
+                        </button>
+                      </div>
+                    )}
 
                     {/* No modo "Mover": Badge e Alças de Redimensionamento Interativo nos 4 Cantos */}
                     {isLayoutEditMode && (
@@ -4890,6 +5002,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
         lesson={lesson}
+      />
+
+      {/* Modal Interativo de Recorte de Imagem (Crop) */}
+      <ImageCropModal
+        isOpen={cropModalOpen}
+        imageUrl={cropModalImage || ''}
+        onClose={() => {
+          setCropModalOpen(false);
+          setCropModalImage(null);
+        }}
+        onCropComplete={handleApplyCrop}
+        title={cropTarget === 'bg' ? 'Recortar Fundo do Modelo' : `Recortar Imagem do Slide ${projectorIndex + 1}`}
+        initialAspectRatio={cropTarget === 'bg' ? '16:9' : '16:9'}
       />
     </div>
   );
