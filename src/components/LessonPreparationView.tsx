@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon } from 'lucide-react';
+import { RefreshCw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -416,7 +416,23 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   onReset,
   onUpdateLesson,
 }) => {
-  const [lesson, setLesson] = useState<EBDLessonPreparation>(lessonData);
+  const [lesson, setLesson] = useState<EBDLessonPreparation>(() => {
+    let initial = { ...lessonData };
+    if (
+      initial?.palavraChave?.palavra?.toUpperCase() === 'FIDELIDADE' &&
+      initial.palavraChave.explicacao &&
+      !initial.palavraChave.explicacao.includes('emûnāh')
+    ) {
+      initial = {
+        ...initial,
+        palavraChave: {
+          ...initial.palavraChave,
+          explicacao: "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
+        }
+      };
+    }
+    return initial;
+  });
   const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
 
@@ -458,6 +474,22 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
 
+  const [bodyTextColor, setBodyTextColor] = useState<'black' | 'white'>(() => {
+    try {
+      return (localStorage.getItem('mega_ebd_body_text_color') as 'black' | 'white') || 'black';
+    } catch {
+      return 'black';
+    }
+  });
+
+  const toggleBodyTextColor = useCallback(() => {
+    setBodyTextColor(prev => {
+      const next = prev === 'black' ? 'white' : 'black';
+      try { localStorage.setItem('mega_ebd_body_text_color', next); } catch {}
+      return next;
+    });
+  }, []);
+
   // Escalas de fonte específicas para o TEXTO / CORPO de cada slide (indexadas pelo projectorIndex)
   const [slideBodyFontScales, setSlideBodyFontScales] = useState<Record<number, number>>(() => {
     if (lessonData.slideBodyFontScales && Object.keys(lessonData.slideBodyFontScales).length > 0) {
@@ -471,20 +503,62 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
 
+  // Largura personalizada da caixa de texto por slide (30% a 100%)
+  const [slideBodyWidths, setSlideBodyWidths] = useState<Record<number, number>>(() => {
+    if (lessonData.slideBodyWidths && Object.keys(lessonData.slideBodyWidths).length > 0) {
+      return lessonData.slideBodyWidths;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_body_widths');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const curBodyWidth = slideBodyWidths[projectorIndex] ?? 100;
+
+  // Escala padrão proporcional à largura da caixa de texto (evita quebrar linhas e esconder texto quando a caixa encolhe)
+  const defaultBodyScale = curBodyWidth <= 55 ? 1.05 : curBodyWidth <= 75 ? 1.3 : curBodyWidth <= 85 ? 1.45 : 1.7;
+  const defaultTitleScale = curBodyWidth <= 65 ? 1.15 : 1.4;
+
   // Escalas efetivas da fonte do slide atual
   const currentSlideScale = slideFontScales[projectorIndex] !== undefined
     ? slideFontScales[projectorIndex]
     : projectorFontSizeScale;
 
-  const currentTitleScale = slideTitleFontScales[projectorIndex] !== undefined
-    ? slideTitleFontScales[projectorIndex]
-    : 1.4;
-  const isCurrentTitleCustom = slideTitleFontScales[projectorIndex] !== undefined;
+  const rawTitleScale = slideTitleFontScales[projectorIndex];
+  const currentTitleScale = rawTitleScale !== undefined
+    ? rawTitleScale
+    : defaultTitleScale;
+  const isCurrentTitleCustom = rawTitleScale !== undefined;
 
-  const currentBodyScale = slideBodyFontScales[projectorIndex] !== undefined
-    ? slideBodyFontScales[projectorIndex]
-    : 1.7;
-  const isCurrentBodyCustom = slideBodyFontScales[projectorIndex] !== undefined;
+  const rawBodyScale = slideBodyFontScales[projectorIndex];
+  const currentBodyScale = rawBodyScale !== undefined
+    ? rawBodyScale
+    : defaultBodyScale;
+  const isCurrentBodyCustom = rawBodyScale !== undefined;
+
+  // Helper de classes responsivas para o corpo do texto de acordo com a densidade (tamanho do texto vs largura da caixa)
+  const getResponsiveBodyTextClass = useCallback((text: string | undefined, isEnfase: boolean = false) => {
+    if (!text) return '';
+    const curW = slideBodyWidths[projectorIndex] ?? 100;
+    const effectiveLen = text.length * (100 / curW);
+    const colorClass = bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold';
+
+    if (isEnfase) {
+      if (effectiveLen > 250) {
+        return `${bodyTextColor === 'black' ? 'italic text-black font-black text-sm md:text-base lg:text-lg' : 'italic text-yellow-100 font-extrabold text-sm md:text-base lg:text-lg'} leading-snug`;
+      }
+      return `${bodyTextColor === 'black' ? 'italic text-black font-black text-base md:text-xl lg:text-2xl' : 'italic text-yellow-100 font-extrabold text-base md:text-xl lg:text-2xl'} leading-normal`;
+    }
+
+    if (effectiveLen > 320) {
+      return `${bodyTextColor === 'black' ? 'text-black font-black' : 'text-slate-100 font-extrabold'} text-sm md:text-base lg:text-lg leading-snug`;
+    }
+    if (effectiveLen > 180) {
+      return `${bodyTextColor === 'black' ? 'text-black font-black' : 'text-slate-100 font-extrabold'} text-base md:text-lg lg:text-xl leading-normal`;
+    }
+    return `${colorClass} text-lg md:text-2xl lg:text-3xl leading-relaxed`;
+  }, [slideBodyWidths, projectorIndex, bodyTextColor]);
 
   useEffect(() => {
     setLesson(lessonData);
@@ -496,6 +570,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
     if (lessonData.slideBodyFontScales) {
       setSlideBodyFontScales(lessonData.slideBodyFontScales);
+    }
+    if (lessonData.slideBodyWidths) {
+      setSlideBodyWidths(lessonData.slideBodyWidths);
     }
     if (lessonData.slideImagePositions) {
       setSlideImagePositions(lessonData.slideImagePositions);
@@ -562,8 +639,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const nextTitles: Record<number, number> = {};
     const nextBodies: Record<number, number> = {};
     for (let i = 0; i < totalSlides; i++) {
-      if (currentTitleScale !== 1.4) nextTitles[i] = currentTitleScale;
-      if (currentBodyScale !== 1.7) nextBodies[i] = currentBodyScale;
+      if (currentTitleScale !== defaultTitleScale) nextTitles[i] = currentTitleScale;
+      if (currentBodyScale !== defaultBodyScale) nextBodies[i] = currentBodyScale;
     }
     setSlideTitleFontScales(nextTitles);
     setSlideBodyFontScales(nextBodies);
@@ -572,7 +649,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(nextBodies));
     } catch {}
     updateLesson(l => ({ ...l, slideTitleFontScales: nextTitles, slideBodyFontScales: nextBodies }));
-  }, [currentTitleScale, currentBodyScale, updateLesson]);
+  }, [currentTitleScale, currentBodyScale, defaultTitleScale, defaultBodyScale, updateLesson]);
 
   // ── POSICIONAMENTO LIVRE DE ELEMENTOS NO SLIDE ──────────────────────────────
   const [isLayoutEditMode, setIsLayoutEditMode] = useState(false);
@@ -629,6 +706,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
+  const isBodyWidthCustom = slideBodyWidths[projectorIndex] !== undefined && slideBodyWidths[projectorIndex] !== 100;
   const imagePos = slideImagePositions[projectorIndex] ?? { x: 0, y: 0 };
   const imageScale = slideImageScales[projectorIndex] ?? 1.0;
   const imageFit = slideImageFits[projectorIndex] ?? 'cover';
@@ -636,6 +714,47 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
   const isImageMoved = slideImagePositions[projectorIndex] !== undefined;
   const isImageScaled = slideImageScales[projectorIndex] !== undefined && slideImageScales[projectorIndex] !== 1.0;
+
+  // Ref de redimensionamento interativo de largura do bloco de texto
+  const bodyResizeStateRef = useRef<{
+    active: boolean;
+    side: 'left' | 'right';
+    startClientX: number;
+    startWidth: number;
+    stageWidth: number;
+  } | null>(null);
+
+  const handleBodyResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, side: 'left' | 'right') => {
+    if (!isLayoutEditMode) return;
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    const stage = projectorStageRef.current;
+    const stageW = stage?.clientWidth || 800;
+
+    let clientX = 0;
+    if ('touches' in e && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+    } else if ('clientX' in e) {
+      clientX = (e as React.MouseEvent).clientX;
+    } else {
+      return;
+    }
+
+    const currentWidth = slideBodyWidths[projectorIndex] ?? 100;
+
+    bodyResizeStateRef.current = {
+      active: true,
+      side,
+      startClientX: clientX,
+      startWidth: currentWidth,
+      stageWidth: stageW,
+    };
+  }, [isLayoutEditMode, projectorIndex, slideBodyWidths]);
 
   // Ref de redimensionamento interativo por alças nos cantos da imagem
   const resizeStateRef = useRef<{
@@ -782,6 +901,28 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return;
       }
 
+      // Redimensionamento interativo da largura do bloco de texto
+      if (bodyResizeStateRef.current?.active) {
+        let clientX = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+        } else {
+          return;
+        }
+
+        const { startClientX, startWidth, stageWidth, side } = bodyResizeStateRef.current;
+        const dxPx = clientX - startClientX;
+        const deltaPct = (dxPx / stageWidth) * 100;
+        const factor = side === 'right' ? deltaPct * 2 : -deltaPct * 2;
+        const newW = Math.min(100, Math.max(30, Math.round(startWidth + factor)));
+
+        setSlideBodyWidths(prev => ({ ...prev, [projectorIndex]: newW }));
+        return;
+      }
+
       // 2. Movimento dos elementos no slide
       if (!dragStateRef.current?.active) return;
 
@@ -823,6 +964,15 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         setSlideImageScales(prev => {
           try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(prev)); } catch {}
           updateLesson(l => ({ ...l, slideImageScales: prev }));
+          return prev;
+        });
+      }
+
+      if (bodyResizeStateRef.current?.active) {
+        bodyResizeStateRef.current.active = false;
+        setSlideBodyWidths(prev => {
+          try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(prev)); } catch {}
+          updateLesson(l => ({ ...l, slideBodyWidths: prev }));
           return prev;
         });
       }
@@ -928,6 +1078,110 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   }, [projectorIndex, updateLesson]);
 
+  // Modificação de largura do corpo do texto (botões)
+  const setSingleBodyWidth = useCallback((idx: number, width: number | null) => {
+    setSlideBodyWidths(prev => {
+      const next = { ...prev };
+      if (width === null || width >= 100) {
+        delete next[idx];
+      } else {
+        next[idx] = Math.max(30, Math.min(100, Math.round(width)));
+      }
+      try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideBodyWidths: next }));
+      return next;
+    });
+  }, [updateLesson]);
+
+  // Reset da largura do corpo do slide atual
+  const resetSlideBodyWidth = useCallback(() => {
+    setSlideBodyWidths(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, slideBodyWidths: next }));
+      return next;
+    });
+  }, [projectorIndex, updateLesson]);
+
+  // Alternador inteligente de layout Lado a Lado (Texto de um lado, Imagem do outro)
+  const toggleSideBySideLayout = useCallback(() => {
+    const curWidth = slideBodyWidths[projectorIndex] ?? 100;
+    const curBodyPos = slideBodyPositions[projectorIndex] ?? { x: 0, y: 0 };
+
+    if (curWidth <= 65 && curBodyPos.x < -10) {
+      // Inverte: Imagem na Esquerda, Texto na Direita
+      setSlideBodyWidths(prev => {
+        const next = { ...prev, [projectorIndex]: 50 };
+        try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyWidths: next }));
+        return next;
+      });
+      setSlideBodyPositions(prev => {
+        const next = { ...prev, [projectorIndex]: { x: 25, y: 0 } };
+        try { localStorage.setItem('mega_ebd_body_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyPositions: next }));
+        return next;
+      });
+      setSlideImagePositions(prev => {
+        const next = { ...prev, [projectorIndex]: { x: -25, y: 0 } };
+        try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImagePositions: next }));
+        return next;
+      });
+      setSlideImageScales(prev => {
+        const next = { ...prev, [projectorIndex]: 0.75 };
+        try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageScales: next }));
+        return next;
+      });
+      setSlideImageFits(prev => {
+        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'contain' };
+        try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageFits: next }));
+        return next;
+      });
+    } else if (curWidth <= 65 && curBodyPos.x > 10) {
+      // Restaura centralizado
+      resetSlideBodyWidth();
+      resetSlidePosition('body');
+      resetSlidePosition('image');
+      resetSlideImageScale();
+    } else {
+      // Ativa: Texto na Esquerda (50%), Imagem na Direita (50%)
+      setSlideBodyWidths(prev => {
+        const next = { ...prev, [projectorIndex]: 50 };
+        try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyWidths: next }));
+        return next;
+      });
+      setSlideBodyPositions(prev => {
+        const next = { ...prev, [projectorIndex]: { x: -25, y: 0 } };
+        try { localStorage.setItem('mega_ebd_body_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideBodyPositions: next }));
+        return next;
+      });
+      setSlideImagePositions(prev => {
+        const next = { ...prev, [projectorIndex]: { x: 25, y: 0 } };
+        try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImagePositions: next }));
+        return next;
+      });
+      setSlideImageScales(prev => {
+        const next = { ...prev, [projectorIndex]: 0.75 };
+        try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageScales: next }));
+        return next;
+      });
+      setSlideImageFits(prev => {
+        const next: Record<number, 'cover' | 'contain'> = { ...prev, [projectorIndex]: 'contain' };
+        try { localStorage.setItem('mega_ebd_image_fits', JSON.stringify(next)); } catch {}
+        updateLesson(l => ({ ...l, slideImageFits: next }));
+        return next;
+      });
+    }
+  }, [projectorIndex, slideBodyWidths, slideBodyPositions, updateLesson, resetSlideBodyWidth, resetSlidePosition, resetSlideImageScale]);
+
   // Estilos do wrapper de drag para cada elemento (suporta pixels legados e porcentagem responsiva)
   const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body' | 'image'): React.CSSProperties => {
     const stage = projectorStageRef.current;
@@ -956,9 +1210,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         zIndex: zIndexVal,
         ...(isLayoutEditMode ? {
           cursor: 'grab',
-          outline: `2px dashed ${outlineColor}`,
-          outlineOffset: '2px',
           borderRadius: '16px',
+          userSelect: 'none',
+          touchAction: 'none',
+        } : {}),
+      };
+    }
+
+    if (kind === 'body') {
+      const curWidth = slideBodyWidths[projectorIndex] ?? 100;
+      return {
+        transform: `translate(${offsetX}px, ${offsetY}px)`,
+        width: `${curWidth}%`,
+        maxWidth: `${curWidth}%`,
+        margin: '0 auto',
+        position: 'relative',
+        zIndex: isLayoutEditMode ? 45 : 30,
+        ...(isLayoutEditMode ? {
+          cursor: 'grab',
+          outline: `2px dashed ${outlineColor}`,
+          outlineOffset: '4px',
+          borderRadius: '12px',
           userSelect: 'none',
           touchAction: 'none',
         } : {}),
@@ -967,6 +1239,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     return {
       transform: `translate(${offsetX}px, ${offsetY}px)`,
+      position: 'relative',
+      zIndex: isLayoutEditMode ? 50 : 30,
       ...(isLayoutEditMode ? {
         cursor: 'grab',
         outline: `2px dashed ${outlineColor}`,
@@ -974,8 +1248,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         borderRadius: '10px',
         userSelect: 'none',
         touchAction: 'none',
-        position: 'relative',
-        zIndex: zIndexVal,
       } : {}),
     };
   };
@@ -998,6 +1270,17 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     updateLesson(prev => ({
       ...prev,
       verdadePratica: { ...prev.verdadePratica, text: val }
+    }));
+  };
+
+  const updatePalavraChave = (field: 'palavra' | 'explicacao', val: string) => {
+    updateLesson(prev => ({
+      ...prev,
+      palavraChave: {
+        palavra: prev.palavraChave?.palavra || '',
+        explicacao: prev.palavraChave?.explicacao || '',
+        [field]: val
+      }
     }));
   };
 
@@ -1150,14 +1433,14 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       const topicos = [...prev.topicos];
       const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
       const list = [...(sub.versiculos || [])];
-      list.push({ reference: 'Referência Bíblica (ex: João 3.16)', text: 'Texto do versículo...' });
+      list.push({ reference: 'Referência Bíblica (ex: João 3.16)', text: 'Texto do versículo...', explicacao: 'Breve explicação didática do versículo...' });
       sub.versiculos = list;
       topicos[topicIdx].subtopicos[subIdx] = sub;
       return { ...prev, topicos };
     });
   };
 
-  const updateVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number, field: 'reference' | 'text', val: string) => {
+  const updateVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number, field: 'reference' | 'text' | 'explicacao', val: string) => {
     updateLesson(prev => {
       const topicos = [...prev.topicos];
       const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
@@ -1224,14 +1507,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [hlToolbar, setHlToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   void HIGHLIGHT_COLORS; // keep import used
 
-  const [bodyTextColor, setBodyTextColor] = useState<'black' | 'white'>(() => {
-    try {
-      return (localStorage.getItem('mega_ebd_body_text_color') as 'black' | 'white') || 'black';
-    } catch {
-      return 'black';
-    }
-  });
-
   const [slideImageOpacity, setSlideImageOpacity] = useState<number>(() => {
     try {
       const saved = localStorage.getItem('mega_ebd_slide_image_opacity');
@@ -1244,14 +1519,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const changeSlideImageOpacity = useCallback((val: number) => {
     setSlideImageOpacity(val);
     try { localStorage.setItem('mega_ebd_slide_image_opacity', String(val)); } catch {}
-  }, []);
-
-  const toggleBodyTextColor = useCallback(() => {
-    setBodyTextColor(prev => {
-      const next = prev === 'black' ? 'white' : 'black';
-      try { localStorage.setItem('mega_ebd_body_text_color', next); } catch {}
-      return next;
-    });
   }, []);
 
   const saveHighlights = useCallback((next: SlideHighlights) => {
@@ -1387,6 +1654,14 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     text += `2. VERDADE PRÁTICA\n`;
     text += `"${data.verdadePratica.text}"\n\n`;
 
+    if (data.palavraChave?.palavra) {
+      text += `🔑 PALAVRA-CHAVE DA LIÇÃO: ${data.palavraChave.palavra.toUpperCase()}\n`;
+      if (data.palavraChave.explicacao) {
+        text += `💡 Explicação Didática & Teológica:\n${data.palavraChave.explicacao}\n`;
+      }
+      text += `\n`;
+    }
+
     if (data.introducao?.ponteContextual?.enabled) {
       const bridge = data.introducao.ponteContextual;
       const licaoAnt = bridge.naLicaoAnterior || bridge.ondeParou;
@@ -1458,6 +1733,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           text += `📖 TEXTOS BÍBLICOS RELEVANTES (ARC):\n`;
           sub.versiculos.forEach((v) => {
             text += `  • ${v.reference}: "${v.text}"\n`;
+            if (v.explicacao) {
+              text += `    💡 Explicação Breve: ${v.explicacao}\n`;
+            }
           });
           text += `\n`;
         }
@@ -1466,9 +1744,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           text += `🔥 APLICAÇÃO PRÁTICA & PENTECOSTAL:\n${sub.aplicacao}\n\n`;
         }
 
-        if (sub.enfase) {
-          text += `💡 ÊNFASE PARA A SALA:\n"${sub.enfase}"\n\n`;
-        }
 
         if (sub.cuidadoDoutrinario) {
           text += `🔥 O QUE NÃO PODE SER DITO (CUIDADO DOUTRINÁRIO):\n⚠️ ${sub.cuidadoDoutrinario}\n\n`;
@@ -1660,7 +1935,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const projectorItems = React.useMemo(() => {
     const items: Array<{
       id: string;
-      type: 'cover' | 'aureo' | 'pratica' | 'na_licao_anterior' | 'ponte_contextual' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'subtopic_explanation' | 'subtopic_verses' | 'subtopic_aplicacao' | 'enfase_palavra' | 'conclusao' | 'verdades' | 'extra';
+      type: 'cover' | 'aureo' | 'pratica' | 'palavra_chave' | 'na_licao_anterior' | 'ponte_contextual' | 'leitura' | 'topic_synopsis' | 'subtopic' | 'subtopic_explanation' | 'subtopic_verses' | 'subtopic_aplicacao' | 'enfase_palavra' | 'conclusao' | 'verdades' | 'extra';
       title: string;
       subtitle?: string;
       bulletPoints?: string[];
@@ -1739,6 +2014,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         badgeText: 'VERDADE PRÁTICA',
         projetorText: `“${lesson.verdadePratica.text}”`,
         onUpdateText: (val: string) => updateVerdadePratica(val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
+      });
+    }
+
+    // 5.1 Palavra-Chave da Lição
+    if (lesson.palavraChave?.palavra) {
+      items.push({
+        id: 'palavra_chave',
+        type: 'palavra_chave',
+        title: 'PALAVRA-CHAVE',
+        badgeText: 'PALAVRA-CHAVE DA LIÇÃO',
+        ideiaText: lesson.palavraChave.palavra.toUpperCase(),
+        projetorText: lesson.palavraChave.explicacao || '',
+        onUpdateTitle: (val: string) => updatePalavraChave('palavra', val),
+        onUpdateText: (val: string) => updatePalavraChave('explicacao', val)
       });
     }
 
@@ -1826,25 +2115,29 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           });
         }
 
-        // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - APENAS REFERÊNCIAS)
+        // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - APENAS OS VERSÍCULOS NO PROJETOR)
         if (s.versiculos && s.versiculos.length > 0) {
-          const textoReferencias = s.versiculos
-            .map(v => v.reference)
+          const textoApenasVersiculos = s.versiculos
+            .map(v => v.reference ? `📖 ${v.reference.replace(/^[📖\s*-]+/, '').trim()}` : '')
             .filter(Boolean)
             .join('\n');
-          if (textoReferencias) {
+          if (textoApenasVersiculos) {
             items.push({
               id: `subtopic_verses_${tIdx}_${sIdx}`,
               type: 'subtopic_verses',
-              title: subtopicTitle,
-              badgeText: subtopicBadge,
+              title: 'VAMOS LER A BÍBLIA',
+              badgeText: 'VAMOS LER A BÍBLIA',
               ideiaText: '📖 VAMOS LER A BÍBLIA',
-              projetorText: textoReferencias,
+              projetorText: textoApenasVersiculos,
               imagePrompt: s.imagePrompt,
-              onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
               onUpdateText: (val: string) => {
                 const refs = val.split('\n').filter(Boolean);
-                const newVerses = refs.map(r => ({ reference: r.trim(), text: '' }));
+                const currentVerses = s.versiculos || [];
+                const newVerses = refs.map((r, i) => ({
+                  reference: r.replace(/^[📖\s*-]+/, '').trim(),
+                  text: currentVerses[i]?.text || '',
+                  explicacao: currentVerses[i]?.explicacao || ''
+                }));
                 updateSubtopicField(tIdx, sIdx, 'versiculos', newVerses);
               }
             });
@@ -1856,38 +2149,15 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           items.push({
             id: `subtopic_aplicacao_${tIdx}_${sIdx}`,
             type: 'subtopic_aplicacao',
-            title: subtopicTitle,
-            badgeText: subtopicBadge,
+            title: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
+            badgeText: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
             ideiaText: 'QUAL O ENSINAMENTO PRA MINHA VIDA?',
             projetorText: s.aplicacao,
             imagePrompt: s.imagePrompt,
-            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
             onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'aplicacao', val)
           });
         }
 
-        // 5. SLIDE DE ÊNFASE / APRENDA COM A PALAVRA (SE HOUVER)
-        if (s.enfase) {
-          const cleanEnfaseText = s.enfase
-            .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
-            .replace(/^["'“]?\s*Ênfase\s*(?:para\s+a\s+sala)?\s*[\:\–\—\-]?\s*/i, '')
-            .replace(/^["'“]?\s*📌\s*/, '')
-            .replace(/^["'“]?\s*💡\s*/, '')
-            .replace(/["'”]?\s*$/, '')
-            .trim();
-
-          items.push({
-            id: `enfase_${tIdx}_${sIdx}`,
-            type: 'enfase_palavra',
-            title: subtopicTitle,
-            badgeText: subtopicBadge,
-            ideiaText: 'APRENDA COM A PALAVRA...',
-            projetorText: cleanEnfaseText ? `“${cleanEnfaseText}”` : s.enfase,
-            imagePrompt: s.imagePrompt,
-            onUpdateTitle: (val: string) => updateSubtopicField(tIdx, sIdx, 'title', val.replace(/^\d+(\.\d+)?\.\s*/, '')),
-            onUpdateText: (val: string) => updateSubtopicField(tIdx, sIdx, 'enfase', val.replace(/^["'“]/, '').replace(/["'”]$/, ''))
-          });
-        }
 
         // FALLBACK PARA DADOS LEGADOS COM ARRAY DE IDEIAS
         if (!textoQuadroAzul && s.ideias && s.ideias.length > 0) {
@@ -2397,6 +2667,44 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 />
               </div>
             </div>
+
+            {/* Palavra-Chave da Lição com Explicação */}
+            {(lesson.palavraChave || isEditMode) && (
+              <div className="bg-[#091b2c] border-2 border-amber-500/40 p-5 rounded-2xl shadow-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                    🔑 PALAVRA-CHAVE DA LIÇÃO
+                  </span>
+                  {isEditMode && !lesson.palavraChave && (
+                    <button
+                      onClick={() => updatePalavraChave('palavra', 'NOVA PALAVRA')}
+                      className="text-xs bg-amber-600/30 text-amber-300 border border-amber-500/50 px-2.5 py-1 rounded-lg hover:bg-amber-600/50 font-bold cursor-pointer"
+                    >
+                      + Adicionar Palavra-Chave
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <EditableText
+                    value={lesson.palavraChave?.palavra || ''}
+                    onChange={v => updatePalavraChave('palavra', v.toUpperCase())}
+                    isEditMode={isEditMode}
+                    placeholder="Palavra-Chave (ex: AUTORIA, INSPIRAÇÃO, REVELAÇÃO)"
+                    label={isEditMode ? 'Palavra-Chave' : undefined}
+                    className="text-lg md:text-xl font-black text-amber-400 tracking-wider uppercase"
+                  />
+                  <EditableText
+                    value={lesson.palavraChave?.explicacao || ''}
+                    onChange={v => updatePalavraChave('explicacao', v)}
+                    isEditMode={isEditMode}
+                    multiline
+                    placeholder="Explicação teológica e didática da Palavra-Chave para a aula..."
+                    label={isEditMode ? 'Explicação Didática / Teológica' : undefined}
+                    className="text-sm md:text-base font-medium text-slate-200 leading-relaxed"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* CHECKLIST DE FIDELIDADE DAS FONTES */}
@@ -2656,7 +2964,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               </span>
                               <div className="space-y-2">
                                 {(subtopico.versiculos || []).map((v, vIdx) => (
-                                  <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl relative">
+                                  <div key={vIdx} className="bg-emerald-950/20 border border-emerald-500/30 p-3 rounded-xl relative space-y-1.5">
                                     {isEditMode && (
                                       <button
                                         onClick={() => removeVersiculoSubtopic(topicIdx, subIdx, vIdx)}
@@ -2681,6 +2989,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                       placeholder="Texto do versículo..."
                                       className="text-xs text-slate-200 leading-relaxed font-medium italic"
                                     />
+                                    {(v.explicacao || isEditMode) && (
+                                      <div className="mt-2 pt-2 border-t border-emerald-500/20 bg-emerald-950/40 p-2.5 rounded-lg">
+                                        <span className="text-[11px] font-bold text-emerald-400 block mb-0.5">
+                                          💡 Breve Explicação do Versículo:
+                                        </span>
+                                        <EditableText
+                                          value={v.explicacao || ''}
+                                          onChange={val => updateVersiculoSubtopic(topicIdx, subIdx, vIdx, 'explicacao', val)}
+                                          isEditMode={isEditMode}
+                                          multiline
+                                          placeholder="Breve explicação teológica e didática do versículo para a aula..."
+                                          className="text-xs text-emerald-100 leading-snug font-normal"
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>
@@ -2746,33 +3069,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             />
                           </div>
 
-                          {/* 4. Frase de Ênfase para o Professor */}
-                          {(isEditMode || subtopico.enfase) && (
-                            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs font-bold text-slate-200 flex items-center gap-2 no-print">
-                              <span className="text-orange-400 font-black text-sm shrink-0">💡</span>
-                              <div className="flex-1">
-                                <EditableText
-                                  value={subtopico.enfase || ''}
-                                  onChange={v => updateSubtopicField(topicIdx, subIdx, 'enfase', v)}
-                                  isEditMode={isEditMode}
-                                  placeholder="Frase de ênfase para a sala..."
-                                  label={isEditMode ? 'Ênfase para a Sala' : undefined}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Nota privada — Ênfase (só aparece no PDF) */}
-                          <div className="flex items-start gap-1.5 mt-1">
-                            <span className="text-slate-500 text-xs mt-0.5 shrink-0" title="Nota privada — só aparece no PDF">✏️</span>
-                            <textarea
-                              value={subtopico.notaEnfase || ''}
-                              onChange={e => updateSubtopicField(topicIdx, subIdx, 'notaEnfase', e.target.value)}
-                              placeholder="Nota pessoal sobre a ênfase (só no PDF)..."
-                              rows={2}
-                              className="w-full bg-yellow-950/20 border border-dashed border-yellow-600/30 rounded-lg px-2.5 py-1.5 text-xs text-yellow-200/70 placeholder-yellow-700/50 resize-none focus:outline-none focus:border-yellow-500/50 transition-colors"
-                            />
-                          </div>
 
                           {/* 5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO */}
                           {(isEditMode || subtopico.cuidadoDoutrinario) && (
@@ -3109,10 +3405,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </span>
                   <button
                     onClick={() => {
-                      const next = Math.min(2.5, Math.round((currentTitleScale + 0.05) * 100) / 100);
+                      const next = Math.min(3.0, Math.round((currentTitleScale + 0.05) * 100) / 100);
                       setSingleTitleScale(projectorIndex, next);
                     }}
-                    disabled={currentTitleScale >= 2.5}
+                    disabled={currentTitleScale >= 3.0}
                     className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
                     title="Aumentar fonte do título (A+)"
                   >
@@ -3122,9 +3418,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => setSingleTitleScale(projectorIndex, null)}
                       className="text-[9px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
-                      title="Restaurar tamanho padrão do título (140%)"
+                      title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
                     >
-                      ↺ 140%
+                      ↺ {Math.round(defaultTitleScale * 100)}%
                     </button>
                   )}
                 </div>
@@ -3149,10 +3445,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </span>
                   <button
                     onClick={() => {
-                      const next = Math.min(2.5, Math.round((currentBodyScale + 0.05) * 100) / 100);
+                      const next = Math.min(3.0, Math.round((currentBodyScale + 0.05) * 100) / 100);
                       setSingleBodyScale(projectorIndex, next);
                     }}
-                    disabled={currentBodyScale >= 2.5}
+                    disabled={currentBodyScale >= 3.0}
                     className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
                     title="Aumentar fonte do texto (A+)"
                   >
@@ -3162,12 +3458,62 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => setSingleBodyScale(projectorIndex, null)}
                       className="text-[9px] font-extrabold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
-                      title="Restaurar tamanho padrão do texto (170%)"
+                      title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
                     >
-                      ↺ 170%
+                      ↺ {Math.round(defaultBodyScale * 100)}%
                     </button>
                   )}
                 </div>
+
+                {/* Largura da Caixa de Texto */}
+                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-sky-500/40 shadow-sm" title="Ajustar largura da caixa de texto (permite colocar texto de um lado e imagem do outro)">
+                  <Columns className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span className="text-[10px] font-black text-sky-300 uppercase tracking-wider">Largura:</span>
+                  <button
+                    onClick={() => {
+                      const cur = slideBodyWidths[projectorIndex] ?? 100;
+                      setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
+                    }}
+                    disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Diminuir largura do texto (-10%)"
+                  >
+                    <ZoomOut className="w-3.5 h-3.5 text-sky-400" />
+                  </button>
+                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200 font-black' : 'text-sky-300'}`}>
+                    {slideBodyWidths[projectorIndex] ?? 100}%
+                  </span>
+                  <button
+                    onClick={() => {
+                      const cur = slideBodyWidths[projectorIndex] ?? 100;
+                      setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
+                    }}
+                    disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    title="Aumentar largura do texto (+10%)"
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 text-sky-400" />
+                  </button>
+                  {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
+                    <button
+                      onClick={resetSlideBodyWidth}
+                      className="text-[9px] font-extrabold text-sky-400 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 transition-colors cursor-pointer"
+                      title="Restaurar largura inteira (100%)"
+                    >
+                      ↺ 100%
+                    </button>
+                  )}
+                </div>
+
+                {/* Atalho Rápido: Lado a Lado (Texto de um lado, imagem do outro) */}
+                <button
+                  onClick={toggleSideBySideLayout}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-sky-900/60 to-purple-900/60 hover:from-sky-800/80 hover:to-purple-800/80 text-sky-200 border border-sky-400/50 text-xs font-extrabold cursor-pointer transition-all shadow-sm"
+                  title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
+                >
+                  <Columns className="w-3.5 h-3.5 text-sky-300" />
+                  <span>🌓 Lado a Lado</span>
+                </button>
 
                 {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                 {projectorSlideImages[projectorIndex] && (
@@ -3225,8 +3571,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </>
                 )}
 
-                {/* Reset de Posições / Escalas no topo */}
-                {(isTitleMoved || isBodyMoved || isImageMoved || isImageScaled) && (
+                {/* Reset de Posições / Escalas / Larguras no topo */}
+                {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled) && (
                   <div className="flex items-center gap-1">
                     {isTitleMoved && (
                       <button
@@ -3244,6 +3590,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         title="Restaurar posição original do texto"
                       >
                         ↺ Texto
+                      </button>
+                    )}
+                    {isBodyWidthCustom && (
+                      <button
+                        onClick={resetSlideBodyWidth}
+                        className="text-[10px] font-bold text-sky-300 hover:text-white px-2 py-1 rounded-lg bg-sky-950/80 border border-sky-500/40 cursor-pointer"
+                        title="Restaurar largura do texto (100%)"
+                      >
+                        ↺ Larg. Texto
                       </button>
                     )}
                     {isImageMoved && (
@@ -3379,8 +3734,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       {Math.round(currentTitleScale * 100)}%
                     </span>
                     <button
-                      onClick={() => setSingleTitleScale(projectorIndex, Math.min(2.5, Math.round((currentTitleScale + 0.05) * 100) / 100))}
-                      disabled={currentTitleScale >= 2.5}
+                      onClick={() => setSingleTitleScale(projectorIndex, Math.min(3.0, Math.round((currentTitleScale + 0.05) * 100) / 100))}
+                      disabled={currentTitleScale >= 3.0}
                       className="p-1 rounded bg-slate-900 text-amber-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
                       title="Aumentar fonte do título"
                     >
@@ -3390,9 +3745,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <button
                         onClick={() => setSingleTitleScale(projectorIndex, null)}
                         className="text-[9px] font-bold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 cursor-pointer"
-                        title="Restaurar tamanho padrão do título (140%)"
+                        title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
                       >
-                        ↺ 140%
+                        ↺ {Math.round(defaultTitleScale * 100)}%
                       </button>
                     )}
                   </div>
@@ -3412,8 +3767,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       {Math.round(currentBodyScale * 100)}%
                     </span>
                     <button
-                      onClick={() => setSingleBodyScale(projectorIndex, Math.min(2.5, Math.round((currentBodyScale + 0.05) * 100) / 100))}
-                      disabled={currentBodyScale >= 2.5}
+                      onClick={() => setSingleBodyScale(projectorIndex, Math.min(3.0, Math.round((currentBodyScale + 0.05) * 100) / 100))}
+                      disabled={currentBodyScale >= 3.0}
                       className="p-1 rounded bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
                       title="Aumentar fonte do texto"
                     >
@@ -3423,9 +3778,55 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       <button
                         onClick={() => setSingleBodyScale(projectorIndex, null)}
                         className="text-[9px] font-bold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 cursor-pointer"
-                        title="Restaurar tamanho padrão do texto (170%)"
+                        title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
                       >
-                        ↺ 170%
+                        ↺ {Math.round(defaultBodyScale * 100)}%
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Largura da Caixa de Texto */}
+                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-sky-500/50">
+                    <span className="text-[10px] font-black text-sky-300 uppercase">Largura:</span>
+                    <button
+                      onClick={() => {
+                        const cur = slideBodyWidths[projectorIndex] ?? 100;
+                        setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
+                      }}
+                      disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
+                      className="p-1 rounded bg-slate-900 text-sky-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Diminuir largura do texto (-10%)"
+                    >
+                      <ZoomOut className="w-3 h-3 text-sky-400" />
+                    </button>
+                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200' : 'text-sky-300'}`}>
+                      {slideBodyWidths[projectorIndex] ?? 100}%
+                    </span>
+                    <button
+                      onClick={() => {
+                        const cur = slideBodyWidths[projectorIndex] ?? 100;
+                        setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
+                      }}
+                      disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
+                      className="p-1 rounded bg-slate-900 text-sky-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
+                      title="Aumentar largura do texto (+10%)"
+                    >
+                      <ZoomIn className="w-3 h-3 text-sky-400" />
+                    </button>
+                    <button
+                      onClick={toggleSideBySideLayout}
+                      className="text-[9px] font-black text-sky-300 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 cursor-pointer flex items-center gap-0.5"
+                      title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
+                    >
+                      🌓 Lado a Lado
+                    </button>
+                    {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
+                      <button
+                        onClick={resetSlideBodyWidth}
+                        className="text-[9px] font-bold text-sky-400 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 cursor-pointer"
+                        title="Restaurar largura inteira (100%)"
+                      >
+                        ↺ 100%
                       </button>
                     )}
                   </div>
@@ -3533,8 +3934,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </button>
                   )}
 
-                  {/* Reset de Posição e Tamanho dos Elementos */}
-                  {(isTitleMoved || isBodyMoved || isImageMoved || isImageScaled) && (
+                  {/* Reset de Posição, Tamanho e Largura dos Elementos */}
+                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled) && (
                     <div className="flex items-center gap-1.5">
                       {isTitleMoved && (
                         <button
@@ -3552,6 +3953,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           title="Restaurar posição original do texto"
                         >
                           ↺ Pos. Texto
+                        </button>
+                      )}
+                      {isBodyWidthCustom && (
+                        <button
+                          onClick={resetSlideBodyWidth}
+                          className="text-[10px] font-bold text-sky-300 hover:text-white px-2 py-0.5 rounded-lg bg-sky-950/80 border border-sky-500/40 cursor-pointer"
+                          title="Restaurar largura original do texto (100%)"
+                        >
+                          ↺ Larg. Texto
                         </button>
                       )}
                       {isImageMoved && (
@@ -3717,16 +4127,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     style={{
                       ...makeDragStyle(imagePos, 'image'),
                       opacity: slideImageOpacity / 100,
+                      pointerEvents: isLayoutEditMode ? 'auto' : 'none',
                     }}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
                     onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
                   >
-                    {/* Imagem com cantos arredondados */}
-                    <div className={`w-full h-full flex items-center justify-center ${imageFit === 'contain' ? '' : 'rounded-2xl overflow-hidden border-4 border-white shadow-[0_12px_28px_rgba(0,0,0,0.45)]'}`}>
+                    {/* Imagem sem contorno e sem sombra */}
+                    <div className={`w-full h-full flex items-center justify-center ${imageFit === 'contain' ? '' : 'rounded-2xl overflow-hidden'}`}>
                       <img
                         src={curSlideImg}
                         alt="Ilustração do Slide"
-                        className={`${imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl border-4 border-white shadow-[0_12px_28px_rgba(0,0,0,0.45)]' : 'w-full h-full object-cover'} pointer-events-none transition-all duration-150`}
+                        className={`${imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl' : 'w-full h-full object-cover'} pointer-events-none transition-all duration-150`}
                       />
                     </div>
 
@@ -3800,11 +4211,53 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 );
               };
 
+              // Função auxiliar para renderizar as alças de largura e badge do texto no modo "Mover"
+              const renderBodyResizeHandles = () => {
+                if (!isLayoutEditMode) return null;
+                const curW = slideBodyWidths[projectorIndex] ?? 100;
+                return (
+                  <>
+                    {/* Badge superior informando largura da caixa de texto */}
+                    <div
+                      className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                      style={{ backgroundColor: '#06b6d4', color: '#0f172a' }}
+                    >
+                      <span>📄 Texto ({curW}%)</span>
+                      <span className="opacity-75">• arraste ou puxe as laterais</span>
+                    </div>
+
+                    {/* Alça Esquerda para Redimensionar Largura */}
+                    <div
+                      onMouseDown={(e) => handleBodyResizeStart(e, 'left')}
+                      onTouchStart={(e) => handleBodyResizeStart(e, 'left')}
+                      onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
+                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
+                      title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
+                    >
+                      <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
+                    </div>
+
+                    {/* Alça Direita para Redimensionar Largura */}
+                    <div
+                      onMouseDown={(e) => handleBodyResizeStart(e, 'right')}
+                      onTouchStart={(e) => handleBodyResizeStart(e, 'right')}
+                      onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
+                      title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
+                    >
+                      <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
+                    </div>
+                  </>
+                );
+              };
+
               // 1. CAPA DA LIÇÃO (SLIDE 1)
               if (currentProjectorItem.type === 'cover') {
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 return (
                   <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                    {renderSlideImageElement()}
+
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
                     <div
                       style={makeDragStyle(titlePos, 'title')}
@@ -3832,13 +4285,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                       className="flex-1 w-full relative"
                     >
-                      {isLayoutEditMode && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                          style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                          📄 Texto — arraste
-                        </div>
-                      )}
-                      {renderSlideImageElement()}
+                      {renderBodyResizeHandles()}
                       <div className={`text-layer w-full relative z-10 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto`}>
                         <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                           {renderHL(currentProjectorItem.title, '#facc15')}
@@ -3863,6 +4310,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               if (currentProjectorItem.type === 'extra') {
                 return (
                   <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                    {renderSlideImageElement()}
+
                     {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
                     <div
                       style={makeDragStyle(titlePos, 'title')}
@@ -3895,23 +4344,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       style={makeDragStyle(bodyPos, 'body')}
                       onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                       onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                      className="w-full flex-1 flex flex-col min-h-0"
+                      className="w-full flex-1 flex flex-col min-h-0 relative"
                     >
-                      {isLayoutEditMode && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                          style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                          📄 Texto — arraste
-                        </div>
-                      )}
+                      {renderBodyResizeHandles()}
                       <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        {renderSlideImageElement()}
-                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[420px] overflow-y-auto no-scrollbar">
+                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar">
                           {currentProjectorItem.projetorText ? (
-                            <p className={`font-sans text-center w-full max-w-full break-words leading-relaxed whitespace-pre-line ${
-                              (currentProjectorItem.projetorText || '').length > 200
-                                ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-xl')
-                                : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
-                            }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                            <p className={`font-sans text-center w-full max-w-full break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
                               {renderHL(currentProjectorItem.projetorText)}
                             </p>
                           ) : (
@@ -4013,12 +4452,14 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
               return (
                 <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                  {renderSlideImageElement()}
+
                   {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
                   <div
                     style={makeDragStyle(titlePos, 'title')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                     onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                    className="w-full shrink-0"
+                    className="w-full shrink-0 relative"
                   >
                     {isLayoutEditMode && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -4038,17 +4479,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     style={makeDragStyle(bodyPos, 'body')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
                     onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                    className="w-full flex-1 flex flex-col min-h-0"
+                    className="w-full flex-1 flex flex-col min-h-0 relative"
                   >
-                    {isLayoutEditMode && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                        style={{ backgroundColor: '#06b6d4', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                        📄 Texto — arraste
-                      </div>
-                    )}
-                      <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        {renderSlideImageElement()}
-                        <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
+                    {renderBodyResizeHandles()}
+                    <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
+                      <div className="text-layer w-full relative z-10 flex-1 flex flex-col justify-start items-center min-h-0">
                           {currentProjectorItem.type === 'leitura' ? (() => {
                             const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                             const displayRef = currentProjectorItem.reference || parsed.reference;
@@ -4114,18 +4549,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               </div>
                             );
                           })() : currentProjectorItem.type === 'conclusao' ? (
-                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-center font-sans break-words w-full max-w-full px-2 ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`}>
+                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                              <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                                 "{renderHL(currentProjectorItem.projetorText)}"
                               </p>
                             </div>
                           ) : currentProjectorItem.type === 'verdades' ? (
-                            <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-[5%]" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                            <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
                               {currentProjectorItem.bulletPoints?.map((point, idx) => (
                                 <div key={idx} className="w-full">
                                   <div className="flex items-start gap-3 py-2.5">
                                     <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                                    <p className={`text-base md:text-xl lg:text-2xl font-bold leading-snug font-sans text-left break-words ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
+                                    <p className={`text-base md:text-xl lg:text-2xl font-bold leading-snug font-sans text-left break-words ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                                       {renderHL(point)}
                                     </p>
                                   </div>
@@ -4134,70 +4569,65 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             </div>
                           ) : (
                             /* DEMAIS CARDS */
-                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-3 py-2 my-auto mt-[4%]">
-                              {currentProjectorItem.type === 'topic_synopsis' ? (
-                                <p className={`text-xl md:text-2xl lg:text-3xl font-extrabold leading-relaxed text-center font-sans break-words w-full max-w-full px-2 m-auto ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-2.5 py-2 my-auto mt-1 md:mt-2">
+                              {currentProjectorItem.type === 'palavra_chave' ? (
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <h2 className={`text-4xl md:text-6xl lg:text-7xl font-black tracking-wider font-sans text-center mb-3 drop-shadow-sm ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
+                                    {renderHL(currentProjectorItem.ideiaText || '')}
+                                  </h2>
+                                  <div className="w-48 h-1.5 bg-amber-400 rounded-full mb-6 mx-auto shadow-sm" />
+                                  <p className={`font-sans text-center w-full max-w-4xl px-2 break-words leading-relaxed font-bold md:font-extrabold ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
+                                    {renderHL(currentProjectorItem.projetorText)}
+                                  </p>
+                                </div>
+                              ) : currentProjectorItem.type === 'topic_synopsis' ? (
+                                <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 m-auto ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
                                   "{renderHL(currentProjectorItem.projetorText)}"
                                 </p>
                               ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed text-lg md:text-2xl lg:text-3xl ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold'}`}>
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
-                                    (currentProjectorItem.projetorText || '').length > 200
-                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-2xl')
-                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
-                                  }`}>
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    📖 VAMOS LER A BÍBLIA
-                                  </h2>
-                                  <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                                  <p className={`text-lg md:text-2xl lg:text-3xl font-black tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line leading-relaxed ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                    {renderHL(currentProjectorItem.projetorText)}
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
+                                  <p className={`tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                                    {renderHL(
+                                      (currentProjectorItem.projetorText || '')
+                                        .split('\n')
+                                        .filter(line => !line.trim().startsWith('💡'))
+                                        .join('\n')
+                                    )}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
-                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto space-y-2 py-2">
-                                  <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    QUAL O ENSINAMENTO PRA MINHA VIDA?
-                                  </h2>
-                                  <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
-                                    (currentProjectorItem.projetorText || '').length > 180
-                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-xl lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-xl lg:text-2xl')
-                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
-                                  }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : currentProjectorItem.type === 'subtopic' ? (
-                                <div className="max-h-[408px] overflow-y-auto no-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed ${
-                                    (currentProjectorItem.projetorText || '').length > 200
-                                      ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-2xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-2xl')
-                                      : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')
-                                  }`}>
+                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                                     {renderHL(currentProjectorItem.projetorText)}
                                   </p>
                                 </div>
                               ) : (
-                                <div className="w-full max-h-[408px] overflow-y-auto no-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
+                                <div className="w-full max-h-[460px] overflow-y-auto custom-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                                   {currentProjectorItem.ideiaText && (
                                     <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.ideiaText}
                                     </h2>
                                   )}
                                   {currentProjectorItem.reference && (
-                                    <h3 className="text-xl md:text-2xl lg:text-3xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                    <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0`} style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                       {currentProjectorItem.reference}
                                     </h3>
                                   )}
@@ -4205,14 +4635,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                                     <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
                                   )}
                                   {currentProjectorItem.projetorText && (
-                                    <p className={`font-sans text-center w-full max-w-full px-2 break-words leading-relaxed whitespace-pre-line ${
-                                      currentProjectorItem.type === 'enfase_palavra'
-                                        ? (bodyTextColor === 'black' ? 'italic text-black font-black text-lg md:text-2xl' : 'italic text-yellow-100 font-extrabold text-lg md:text-2xl')
-                                        : ((currentProjectorItem.projetorText.length > 200
-                                            ? (bodyTextColor === 'black' ? 'text-black font-black text-base md:text-lg lg:text-xl' : 'text-slate-100 font-extrabold text-base md:text-lg lg:text-xl')
-                                            : (bodyTextColor === 'black' ? 'text-black font-black text-xl md:text-2xl lg:text-3xl' : 'text-white font-extrabold text-xl md:text-2xl lg:text-3xl')))
-                                    }`} style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                      {currentProjectorItem.type === 'enfase_palavra' ? <>“{renderHL(currentProjectorItem.projetorText)}”</> : renderHL(currentProjectorItem.projetorText)}
+                                    <p className={`font-sans text-center w-full max-w-full px-2 break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText, currentProjectorItem.type === 'enfase_palavra')}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                                      {renderHL(currentProjectorItem.projetorText)}
                                     </p>
                                   )}
                                 </div>

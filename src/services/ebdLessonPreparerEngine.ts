@@ -27,6 +27,12 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
     verdadePratica: {
       text: raw.verdadePratica?.text || '',
     },
+    palavraChave: raw.palavraChave ? {
+      palavra: raw.palavraChave.palavra || '',
+      explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
+        ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
+        : (raw.palavraChave.explicacao || '')
+    } : undefined,
     leituraDiaria: Array.isArray(raw.leituraDiaria) ? raw.leituraDiaria : [],
     biblicalText: raw.biblicalText || '',
     introducao: {
@@ -90,7 +96,13 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
                     .join('\n\n');
                 }
 
-                let versiculos = Array.isArray(sub.versiculos) ? sub.versiculos : [];
+                let versiculos = Array.isArray(sub.versiculos)
+                  ? sub.versiculos.map((v: any) => ({
+                      reference: v.reference || '',
+                      text: v.text || '',
+                      explicacao: v.explicacao || '',
+                    }))
+                  : [];
                 let aplicacao = sub.aplicacao || '';
                 let enfase = (sub.enfase || '')
                   .replace(/^["'“]?\s*Aprenda\s+com\s+a\s+Palavra\s*[\:\–\—\-]?\s*/i, '')
@@ -319,7 +331,6 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   * "explicacao": Explicação linear do professor em parágrafos fluidos — integre TODAS as referências e alusões das transcrições.
   * "versiculos": 2 versículos de apoio com texto direto ARC que conversem com a aplicação prática.
   * "aplicacao": 2 a 3 frases práticas e pentecostais para a vida diária.
-  * "enfase": 1 frase de alto impacto ("Aprenda com a Palavra...").
   * "cuidadoDoutrinario": 1 frase de alerta teológico.
   * "imagePrompt": 1 descrição cinematográfica nobre de 2 a 3 frases.
 
@@ -329,11 +340,15 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   3. BASE BÍBLICA ("versiculos"):
      * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico para a conduta do crente.
      * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão ARC oficial.
+     * EXPLICAÇÃO BREVE DO VERSÍCULO ("explicacao"): Para CADA versículo de apoio inserido, forneça uma explicação BREVE e concisa (1 a 2 frases) explicando o sentido bíblico. ATENÇÃO: Esta explicação é destinada EXCLUSIVAMENTE ao ROTEIRO DO PROFESSOR (o slide do projetor exibirá apenas os versículos/referências).
   4. APLICAÇÃO PRÁTICA ("aplicacao"): Como essa verdade bíblica e os versículos de apoio se aplicam de forma concreta à vida espiritual e diária do aluno.
-  5. APRENDA COM A PALAVRA... ("enfase"): Frase forte de destaque pedagógico e espiritual ("Aprenda com a Palavra...").
-  6. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
-  7. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
-  8. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
+  5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
+  6. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
+  7. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
+
+- PALAVRA-CHAVE DA LIÇÃO COM ORIGEM NO HEBRAICO E NO GREGO ("palavraChave"):
+  Identifique a PALAVRA-CHAVE oficial da lição informada na revista (ou a palavra teológica/conceitual mais central da lição, ex: "AUTORIA", "INSPIRAÇÃO", "FIDELIDADE").
+  Na EXPLICAÇÃO ("explicacao"), OBRIGATORIAMENTE INCLUA A ORIGEM ETIMOLÓGICA NO HEBRAICO (se for contexto do AT) E/OU NO GREGO (se for NT) sempre que houver essa raiz bíblica, indicando o termo transliterado e seu sentido literal original (ex: 'No hebraico 'emûnāh [raiz 'āman, firmeza, estabilidade] e no grego pistis/pistos'). Forneça uma explicação clara, bíblica e didática (2 a 3 frases) conectando essa raiz no original à mensagem da lição.
 
 - LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão ARC. A primeira linha deve conter a referência COMPLETA (ex: "Mateus 28.18-20; Atos 1.8; Efésios 2.13-18.") seguida de travessão ("—"). Caso haja múltiplos livros ou capítulos, separe cada livro/capítulo em sua própria linha como título (ex: "Mateus 28", "Atos 1", "Efésios 2") seguido de cada versículo numerado.
 
@@ -368,6 +383,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
   "verdadePratica": {
     "text": "Texto da Verdade Prática"
   },
+  "palavraChave": {
+    "palavra": "FIDELIDADE",
+    "explicacao": "No hebraico 'emûnāh (raiz 'āman, firmeza, estabilidade) e no grego pistis/pistos (confiança, lealdade), a palavra evoca solidez inabalável. A fidelidade é a essência do caráter imutável de Deus, que permanece verdadeiro às Suas promessas mesmo diante das fraquezas humanas."
+  },
   "leituraDiaria": [
     { "day": "Segunda", "reference": "Atos 21.27", "text": "Resumo" }
   ],
@@ -401,10 +420,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "projetor": "Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo.",
           "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia para acusar Paulo diante do procurador romano Antônio Félix. A presença de Tértulo — um orador treinado no direito romano provincial — revela a estratégia da liderança religiosa de revestir a acusação com linguagem jurídica romana, enquadrando Paulo como agitador político e herege religioso. Essa manobra combinava o prestígio do Sinédrio com a autoridade imperial, numa tentativa coordenada de sufocar o Evangelho por dentro do sistema de poder.",
           "versiculos": [
-            { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois..." }
+            { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois...", "explicacao": "Breve explicação bíblica de como este versículo fundamenta o subtópico..." }
           ],
           "aplicacao": "O crente diante de calúnias no trabalho deve manter serenidade, oração e testemunho irrepreensível.",
-          "enfase": "A resposta do servo de Deus diante da calúnia não é o revide carnal, mas uma consciência pura.",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário: Não afirmar que toda oposição é perseguição por causa da fé.",
           "palavrasOriginais": [
             {
@@ -426,7 +444,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
             { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
-          "enfase": "Aprenda com a Palavra: ensinamento de destaque...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário para a sala de aula...",
           "imagePrompt": "Cinematic 16:9 visual prompt..."
         },
@@ -439,7 +456,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
             { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
-          "enfase": "Aprenda com a Palavra...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário...",
           "imagePrompt": "Cinematic 16:9 visual prompt..."
         }
@@ -460,7 +476,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "explicacao": "Explicação didática com contexto histórico integrado...",
           "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
           "aplicacao": "Aplicação prática...",
-          "enfase": "Aprenda com a Palavra...",
           "cuidadoDoutrinario": "Cuidado doutrinário...",
           "imagePrompt": "Cinematic 16:9 prompt..."
         },
@@ -471,7 +486,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "explicacao": "Explicação didática com contexto histórico...",
           "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
           "aplicacao": "Aplicação...",
-          "enfase": "Ênfase...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
         },
@@ -482,7 +496,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "explicacao": "Explicação didática...",
           "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
           "aplicacao": "Aplicação...",
-          "enfase": "Ênfase...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
         }
@@ -503,7 +516,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "explicacao": "Explicação didática com contexto histórico...",
           "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
           "aplicacao": "Aplicação...",
-          "enfase": "Ênfase...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
         },
@@ -514,22 +526,18 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "explicacao": "Explicação didática...",
           "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
           "aplicacao": "Aplicação...",
-          "enfase": "Ênfase...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
         },
         {
           "number": "3",
           "title": "Título do Subtópico 3 do Tópico III",
-                  { "reference": "Referência 2", "text": "Texto..." }
-                ],
-                "aplicacao": "Aplicação...",
-                "enfase": "Aprenda com a Palavra...",
-                "cuidadoDoutrinario": "Alerta..."
-              },
-              "imagePrompt": "Cinematic 16:9 prompt..."
-            }
-          ]
+          "projetor": "Frase síntese...",
+          "explicacao": "Explicação didática...",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "aplicacao": "Aplicação...",
+          "cuidadoDoutrinario": "Alerta...",
+          "imagePrompt": "Cinematic 16:9 prompt..."
         }
       ]
     }
@@ -556,7 +564,6 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     { "item": "Absolutamente todas as referências e alusões das transcrições integradas na Explicação Linear", "status": true },
     { "item": "Versículos de apoio conectados à aplicação prática (distintos da leitura)", "status": true },
     { "item": "Explicação Didática Linear do Professor em parágrafos fluidos", "status": true },
-    { "item": "Card Aprenda com a Palavra estruturado", "status": true },
     { "item": "Prompts Visuais 16:9 ultra-elaborados e cinematográficos", "status": true },
     { "item": "O Que Não Pode Ser Dito / Cuidado Doutrinário incluído", "status": true },
     { "item": "Vocabulário original no Grego/Hebraico sugerido e explicado", "status": true }

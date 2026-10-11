@@ -280,6 +280,14 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
     addParagraph(`"${lesson.verdadePratica.text}"`, 10, false, [30, 41, 59]);
   }
 
+  // 2.1 Palavra-Chave da Lição
+  if (lesson.palavraChave?.palavra) {
+    addSectionTitle(`Palavra-Chave: ${lesson.palavraChave.palavra.toUpperCase()}`);
+    if (lesson.palavraChave.explicacao) {
+      addParagraph(lesson.palavraChave.explicacao, 9.5, false, [30, 41, 59]);
+    }
+  }
+
   // 3. Leitura Bíblica em Classe
   if (lesson.biblicalText) {
     addSectionTitle('3. Leitura Bíblica em Classe');
@@ -401,6 +409,17 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
             pdf.setTextColor(51, 65, 85);
             pdf.text(vLines, margin + 4, yPos);
             yPos += vHeight + 2;
+
+            if (v.explicacao) {
+              const expLines = pdf.splitTextToSize(sanitize(`  Explicacao: ${v.explicacao}`), contentWidth - 10);
+              const expHeight = expLines.length * 3.4;
+              checkPageBreak(expHeight + 2);
+              pdf.setFont('helvetica', 'italic');
+              pdf.setFontSize(7.5);
+              pdf.setTextColor(5, 150, 105);
+              pdf.text(expLines, margin + 6, yPos);
+              yPos += expHeight + 2;
+            }
           });
           yPos += 2;
         }
@@ -460,42 +479,6 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
           yPos += noteHeight + 5;
         }
 
-        // Ênfase para a Aula
-        if (sub.enfase) {
-          checkPageBreak(10);
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(8);
-          pdf.setTextColor(234, 88, 12);
-          pdf.text('ENFASE PARA A AULA:', margin, yPos);
-          yPos += 4;
-
-          const enfLines = pdf.splitTextToSize(sanitize(sub.enfase), contentWidth - 6);
-          const enfHeight = enfLines.length * 3.6;
-          checkPageBreak(enfHeight + 2);
-          pdf.setFont('helvetica', 'normal');
-          pdf.setFontSize(8);
-          pdf.setTextColor(51, 65, 85);
-          pdf.text(enfLines, margin + 4, yPos);
-          yPos += enfHeight + 4;
-        }
-
-        // Nota privada do Professor — Ênfase (somente no PDF)
-        if (sub.notaEnfase && sub.notaEnfase.trim()) {
-          checkPageBreak(8);
-          pdf.setFont('helvetica', 'italic');
-          pdf.setFontSize(7.5);
-          pdf.setTextColor(146, 64, 14);
-          const noteLines = pdf.splitTextToSize(sanitize(`Nota: ${sub.notaEnfase.trim()}`), contentWidth - 8);
-          const noteHeight = noteLines.length * 3.4;
-          checkPageBreak(noteHeight + 4);
-          pdf.setFillColor(254, 252, 232);
-          pdf.roundedRect(margin + 2, yPos - 1, contentWidth - 4, noteHeight + 3, 1, 1, 'F');
-          pdf.setDrawColor(217, 119, 6);
-          pdf.setLineWidth(0.3);
-          pdf.roundedRect(margin + 2, yPos - 1, contentWidth - 4, noteHeight + 3, 1, 1, 'S');
-          pdf.text(noteLines, margin + 5, yPos + 2.5);
-          yPos += noteHeight + 5;
-        }
 
         yPos += 4;
       });
@@ -548,11 +531,12 @@ export function exportTeacherGuideHTML(lesson: EBDLessonPreparation): void {
       ${esc(text)}
     </div>`;
 
-  const greenVerses = (versiculos: { reference: string; text?: string }[]) => {
+  const greenVerses = (versiculos: { reference: string; text?: string; explicacao?: string }[]) => {
     const items = versiculos.map(v => {
       const ref = esc(v.reference);
       const txt = v.text ? `: <em>${esc(v.text)}</em>` : '';
-      return `<li style="margin-bottom:4px;">✅ <strong>${ref}</strong>${txt}</li>`;
+      const exp = v.explicacao ? `<div style="color:#047857;font-size:8.5pt;margin-top:2px;font-style:italic;">💡 <strong>Explicação:</strong> ${esc(v.explicacao)}</div>` : '';
+      return `<li style="margin-bottom:6px;">✅ <strong>${ref}</strong>${txt}${exp}</li>`;
     }).join('');
     return `
     <div style="color:#059669;font-weight:bold;font-size:8.5pt;margin-top:8px;">📖 TEXTOS BÍBLICOS RELEVANTES:</div>
@@ -594,6 +578,13 @@ export function exportTeacherGuideHTML(lesson: EBDLessonPreparation): void {
   if (lesson.verdadePratica?.text) {
     sections.push(sectionBox('2. Verdade Prática',
       `<p style="color:#1e293b;font-size:9.5pt;line-height:1.6;margin:4px 0 10px;font-style:italic;">"${esc(lesson.verdadePratica.text)}"</p>`
+    ));
+  }
+
+  // ── 2.1 Palavra-Chave da Lição ──
+  if (lesson.palavraChave?.palavra) {
+    sections.push(sectionBox(`🔑 Palavra-Chave: ${esc(lesson.palavraChave.palavra.toUpperCase())}`,
+      `<p style="color:#1e293b;font-size:9.5pt;line-height:1.6;margin:4px 0 10px;">${esc(lesson.palavraChave.explicacao || '')}</p>`
     ));
   }
 

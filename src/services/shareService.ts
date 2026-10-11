@@ -20,6 +20,7 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
     delete clone.slideTextOverrides;
     delete clone.slideTitlePositions;
     delete clone.slideBodyPositions;
+    delete clone.slideBodyWidths;
     delete clone.slideImagePositions;
     delete clone.slideImageScales;
     delete clone.slideImageFits;
@@ -122,6 +123,12 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
     },
     textAureo: raw.textAureo || { text: '', reference: '' },
     verdadePratica: raw.verdadePratica || { text: '' },
+    palavraChave: raw.palavraChave ? {
+      palavra: raw.palavraChave.palavra || '',
+      explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
+        ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
+        : (raw.palavraChave.explicacao || '')
+    } : undefined,
     leituraDiaria: raw.leituraDiaria || [],
     biblicalText: raw.biblicalText || '',
     introducao: {

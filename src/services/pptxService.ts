@@ -405,7 +405,7 @@ export function exportProjectorItemsToPowerPoint(
   const slides: Slide[] = items.map((item, idx) => {
     let layout: SlideLayout = 'standard';
     if (item.type === 'cover') layout = 'title';
-    else if (item.type === 'aureo' || item.type === 'pratica') layout = 'verse';
+    else if (item.type === 'aureo' || item.type === 'pratica' || item.type === 'palavra_chave') layout = 'verse';
     else if (item.type === 'conclusao' || item.type === 'verdades') layout = 'conclusion';
     else if (item.type === 'subtopic_verses' || item.type === 'leitura') layout = 'verse';
 
@@ -417,7 +417,7 @@ export function exportProjectorItemsToPowerPoint(
       bulletPoints: item.bulletPoints || (item.projetorText ? [item.projetorText] : []),
       layout: layout,
       keyVerse: item.type === 'aureo' ? { reference: item.reference || '', text: item.projetorText?.replace(/^[“"']|[”"']$/g, '') || '' } : undefined,
-      takeaway: (item.type === 'pratica' || item.type === 'conclusao') ? item.projetorText : undefined,
+      takeaway: (item.type === 'pratica' || item.type === 'conclusao' || item.type === 'palavra_chave') ? item.projetorText : undefined,
       imageUrl: item.imageUrl
     };
   });

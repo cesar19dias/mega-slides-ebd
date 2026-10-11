@@ -719,7 +719,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                         src={currentSlide.imageUrl}
                         alt={currentSlide.title || "Ilustração do Slide"}
                         style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
-                        className={`max-h-[400px] max-w-full rounded-2xl border-4 border-white ${currentSlide.imageFit === 'cover' ? 'object-cover' : 'object-contain'} shadow-[0_12px_28px_rgba(0,0,0,0.45)] transition-all`}
+                        className={`max-h-[400px] max-w-full rounded-2xl ${currentSlide.imageFit === 'cover' ? 'object-cover' : 'object-contain'} transition-all`}
                       />
                     </div>
                   </div>
@@ -765,7 +765,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       src={currentSlide.imageUrl}
                       alt={currentSlide.title || "Ilustração do Slide"}
                       style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
-                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] transition-all`}
+                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} transition-all`}
                     />
                   </div>
                 )}
@@ -811,7 +811,7 @@ export const SlidePreview: React.FC<SlidePreviewProps> = ({ data, selectedThemeI
                       src={currentSlide.imageUrl}
                       alt={currentSlide.title || "Ilustração do Slide"}
                       style={{ transform: `scale(${currentSlide.imageScale || 1.0})` }}
-                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} filter drop-shadow-[0_12px_24px_rgba(0,0,0,0.8)] transition-all`}
+                      className={`w-full h-full ${currentSlide.imageFit === 'contain' ? 'object-contain' : 'object-cover'} transition-all`}
                     />
                   </div>
                 )}

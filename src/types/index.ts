@@ -51,7 +51,7 @@ export interface EBDSubtopicPreparation {
   /** @deprecated Exemplos foram removidos do sistema */
   exemploAlusao?: string;
   contexto?: string; // Mantido como opcional por compatibilidade
-  versiculos?: Array<{ reference: string; text: string }>; // Base Bíblica (ARC)
+  versiculos?: Array<{ reference: string; text: string; explicacao?: string }>; // Base Bíblica (ARC) com breve explicação
   aplicacao?: string; // Aplicação cristã e pentecostal
   enfase?: string; // Frase de destaque ("Aprenda com a Palavra...")
   cuidadoDoutrinario?: string; // 🔥 O QUE NÃO PODE SER DITO (Cuidado Doutrinário)
@@ -90,6 +90,10 @@ export interface EBDLessonPreparation {
   };
   verdadePratica: {
     text: string;
+  };
+  palavraChave?: {
+    palavra: string; // 🔑 PALAVRA-CHAVE DA LIÇÃO (ex: "AUTORIA", "INSPIRAÇÃO")
+    explicacao: string; // Explicação didática e teológica da palavra-chave para a aula
   };
   leituraDiaria?: Array<{
     day: string;
@@ -134,6 +138,7 @@ export interface EBDLessonPreparation {
   slideTextOverrides?: Record<number, { title?: string; subtitle?: string; text?: string }>;
   slideTitlePositions?: Record<number, { x: number; y: number }>;
   slideBodyPositions?: Record<number, { x: number; y: number }>;
+  slideBodyWidths?: Record<number, number>;
   slideImagePositions?: Record<number, { x: number; y: number }>;
   slideImageScales?: Record<number, number>;
   slideImageFits?: Record<number, 'cover' | 'contain'>;
