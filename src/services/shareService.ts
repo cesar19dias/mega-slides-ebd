@@ -11,33 +11,49 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
   try {
     const clone = JSON.parse(JSON.stringify(lesson)) as any;
     
-    // Remove apenas metadados pesados de análise e customização de layout/imagens
+    // Remove apenas metadados pesados de análise e checklist interno
     delete clone.checklist;
     delete clone.sourcesSummary;
-    delete clone.projectorSlideImages;
-    delete clone.slideFontScales;
-    delete clone.slideTitleFontScales;
-    delete clone.slideBodyFontScales;
-    delete clone.slideTextOverrides;
-    delete clone.slideTitlePositions;
-    delete clone.slideBodyPositions;
-    delete clone.slideBodyWidths;
-    delete clone.slideImagePositions;
-    delete clone.slideImageScales;
-    delete clone.slideImageFits;
-    delete clone.slideImageBorders;
-    delete clone.customSlideOrder;
-    delete clone.extraSlides;
-    delete clone.projectorFontSizeScale;
-    delete clone.textHighlights; // if it exists anywhere
 
-    // Remove arrays e strings vazios em tópicos e subtópicos
+    // Filtra imagens base64 muito gigantes (> 60KB) para não estourar limite de URL,
+    // mas PRESERVA URLs web (http/https) e imagens compactas
+    if (clone.projectorSlideImages && typeof clone.projectorSlideImages === 'object') {
+      const cleanedImages: Record<number, string> = {};
+      for (const [k, v] of Object.entries(clone.projectorSlideImages)) {
+        if (typeof v === 'string') {
+          if (v.startsWith('http://') || v.startsWith('https://')) {
+            cleanedImages[Number(k)] = v;
+          } else if (v.startsWith('data:') && v.length < 60000) {
+            cleanedImages[Number(k)] = v;
+          }
+        }
+      }
+      clone.projectorSlideImages = cleanedImages;
+    }
+
+    if (clone.customBg && typeof clone.customBg === 'string') {
+      if (!clone.customBg.startsWith('http') && clone.customBg.length >= 60000) {
+        delete clone.customBg;
+      }
+    }
+
+    // Filtra imagens base64 muito gigantes em extraSlides (> 60KB)
+    if (Array.isArray(clone.extraSlides)) {
+      clone.extraSlides = clone.extraSlides.map((s: any) => {
+        const item = { ...s };
+        if (item.imageUrl && item.imageUrl.startsWith('data:') && item.imageUrl.length >= 60000) {
+          delete item.imageUrl;
+        }
+        return item;
+      });
+    }
+
+    // Limpa arrays e strings vazios em tópicos e subtópicos para economizar espaço
     if (Array.isArray(clone.topicos)) {
       clone.topicos.forEach((topic: any) => {
         if (!topic.sinopse) delete topic.sinopse;
         if (!topic.frasesEnfase || topic.frasesEnfase.length === 0) delete topic.frasesEnfase;
         if (!topic.imagePrompt) delete topic.imagePrompt;
-        delete topic.textHighlights;
 
         if (Array.isArray(topic.subtopicos)) {
           topic.subtopicos.forEach((sub: any) => {
@@ -52,17 +68,10 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
             if (!sub.aplicacao) delete sub.aplicacao;
             if (!sub.enfase) delete sub.enfase;
             if (!sub.imagePrompt) delete sub.imagePrompt;
-            delete sub.textHighlights;
           });
         }
       });
     }
-    
-    // Also remove from introducao/conclusao
-    if (clone.introducao) delete clone.introducao.textHighlights;
-    if (clone.conclusao) delete clone.conclusao.textHighlights;
-    if (clone.textAureo) delete clone.textAureo.textHighlights;
-    if (clone.verdadePratica) delete clone.verdadePratica.textHighlights;
 
     return clone;
   } catch {
@@ -176,13 +185,40 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
     },
     sourcesSummary: raw.sourcesSummary || { revistaDetected: true, transcriptionsCount: 0, sourcesUsed: [] },
     checklist: raw.checklist || [],
+    extraSlides: Array.isArray(raw.extraSlides || raw.xs)
+      ? (raw.extraSlides || raw.xs).map((s: any) => ({
+          id: s.id || `extra-${Math.random().toString(36).substring(2, 9)}`,
+          type: 'extra' as const,
+          title: s.title || s.t || '',
+          badgeText: s.badgeText || s.b || 'SLIDE EXTRA',
+          projetorText: s.projetorText || s.p || '',
+          subtitle: s.subtitle || s.s || '',
+          reference: s.reference || s.r || '',
+          imageUrl: s.imageUrl || s.u,
+          imagePrompt: s.imagePrompt,
+          bulletPoints: Array.isArray(s.bulletPoints || s.bp) ? (s.bulletPoints || s.bp) : undefined,
+        }))
+      : [],
+    customSlideOrder: Array.isArray(raw.customSlideOrder || raw.so) ? (raw.customSlideOrder || raw.so) : [],
     slideFontScales: raw.slideFontScales || {},
     slideTitleFontScales: raw.slideTitleFontScales || {},
     slideBodyFontScales: raw.slideBodyFontScales || {},
     slideTextOverrides: raw.slideTextOverrides || {},
     slideTitlePositions: raw.slideTitlePositions || {},
     slideBodyPositions: raw.slideBodyPositions || {},
-    projectorFontSizeScale: raw.projectorFontSizeScale || 1.0,
+    slideBodyWidths: raw.slideBodyWidths || {},
+    slideImagePositions: raw.slideImagePositions || {},
+    slideImageScales: raw.slideImageScales || {},
+    slideImageWidths: raw.slideImageWidths || {},
+    slideImageHeights: raw.slideImageHeights || {},
+    slideImageCrops: raw.slideImageCrops || {},
+    slideImageFits: raw.slideImageFits || {},
+    slideImageBorders: raw.slideImageBorders || {},
+    projectorSlideImages: raw.projectorSlideImages || {},
+    projectorFontSizeScale: typeof raw.projectorFontSizeScale === 'number' ? raw.projectorFontSizeScale : 1.0,
+    customBg: raw.customBg || null,
+    bodyTextColor: raw.bodyTextColor === 'white' ? 'white' : 'black',
+    textHighlights: raw.textHighlights || {},
   };
 
   return fillMissingLessonPrompts(result);
@@ -251,7 +287,35 @@ export function decodeLessonFromUrl(): EBDLessonPreparation | null {
           takeaway: parsed.c?.p || '',
           bulletPoints: [],
           projetor: parsed.c?.p || ''
-        }
+        },
+        extraSlides: (parsed.xs || []).map((s: any) => ({
+          id: s.id || `extra-${Math.random()}`,
+          type: 'extra' as const,
+          title: s.t || '',
+          badgeText: s.b || 'SLIDE EXTRA',
+          projetorText: s.p || '',
+          subtitle: s.s || '',
+          reference: s.r || '',
+          imageUrl: s.u,
+          bulletPoints: s.bp,
+        })),
+        customSlideOrder: parsed.so || [],
+        slideTitlePositions: parsed.tp || {},
+        slideBodyPositions: parsed.bp || {},
+        slideBodyWidths: parsed.bw || {},
+        slideImagePositions: parsed.ip || {},
+        slideImageWidths: parsed.iw || {},
+        slideImageHeights: parsed.ih || {},
+        slideImageScales: parsed.is || {},
+        slideImageCrops: parsed.ic || {},
+        slideImageFits: parsed.if || {},
+        slideFontScales: parsed.fs || {},
+        slideTitleFontScales: parsed.tfs || {},
+        slideBodyFontScales: parsed.bfs || {},
+        slideTextOverrides: parsed.to || {},
+        projectorSlideImages: parsed.psi || {},
+        customBg: parsed.bg || null,
+        bodyTextColor: parsed.tc || 'black',
       });
     }
   } catch (err) {
@@ -309,6 +373,21 @@ export async function shortenUrl(longUrl: string): Promise<string> {
     console.warn('Falha no encurtador spoo.me:', e);
   }
 
+  // 3. Tenta is.gd
+  try {
+    const res = await fetchWithTimeout(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`, {
+      method: 'GET'
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.shorturl && data.shorturl.startsWith('http')) {
+        return data.shorturl;
+      }
+    }
+  } catch (e) {
+    console.warn('Falha no encurtador is.gd:', e);
+  }
+
   return longUrl;
 }
 
@@ -357,7 +436,7 @@ export async function generateQrCodeDataUrl(
     }
   }
 
-  // 3. Fallback Offline: Se o encurtador falhar (ex: sem internet), cria payload super compacto
+  // 3. Fallback Offline: Se o encurtador falhar (ex: sem internet), cria payload super compacto preservando slides extras e visual
   if (lesson) {
     try {
       const compactLesson = {
@@ -379,6 +458,35 @@ export async function generateQrCodeDataUrl(
           })),
         })),
         c: { p: lesson.conclusao.projetor || lesson.conclusao.takeaway },
+        xs: (lesson.extraSlides || []).map((s) => ({
+          id: s.id,
+          t: s.title,
+          b: s.badgeText,
+          p: s.projetorText,
+          s: s.subtitle,
+          r: s.reference,
+          u: (s.imageUrl && (s.imageUrl.startsWith('http://') || s.imageUrl.startsWith('https://'))) ? s.imageUrl : undefined,
+          bp: s.bulletPoints,
+        })),
+        so: lesson.customSlideOrder,
+        tp: lesson.slideTitlePositions,
+        bp: lesson.slideBodyPositions,
+        bw: lesson.slideBodyWidths,
+        ip: lesson.slideImagePositions,
+        iw: lesson.slideImageWidths,
+        ih: lesson.slideImageHeights,
+        is: lesson.slideImageScales,
+        ic: lesson.slideImageCrops,
+        if: lesson.slideImageFits,
+        fs: lesson.slideFontScales,
+        tfs: lesson.slideTitleFontScales,
+        bfs: lesson.slideBodyFontScales,
+        to: lesson.slideTextOverrides,
+        psi: Object.fromEntries(
+          Object.entries(lesson.projectorSlideImages || {}).filter(([_, v]) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://')))
+        ),
+        bg: (lesson.customBg && (lesson.customBg.startsWith('http://') || lesson.customBg.startsWith('https://'))) ? lesson.customBg : null,
+        tc: lesson.bodyTextColor,
       };
 
       const compactJson = JSON.stringify(compactLesson);

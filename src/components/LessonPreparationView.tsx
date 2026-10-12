@@ -435,6 +435,15 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
     return initial;
   });
+
+  const updateLesson = useCallback((updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => {
+    setLesson(prev => {
+      const next = updater(prev);
+      onUpdateLesson(next);
+      return next;
+    });
+  }, [onUpdateLesson]);
+
   const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isGeneratingAllPrompts, setIsGeneratingAllPrompts] = useState<boolean>(false);
@@ -478,6 +487,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const [bodyTextColor, setBodyTextColor] = useState<'black' | 'white'>(() => {
+    if (lessonData.bodyTextColor) return lessonData.bodyTextColor;
     try {
       return (localStorage.getItem('mega_ebd_body_text_color') as 'black' | 'white') || 'black';
     } catch {
@@ -489,9 +499,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setBodyTextColor(prev => {
       const next = prev === 'black' ? 'white' : 'black';
       try { localStorage.setItem('mega_ebd_body_text_color', next); } catch {}
+      updateLesson(l => ({ ...l, bodyTextColor: next }));
       return next;
     });
-  }, []);
+  }, [updateLesson]);
 
   // Escalas de fonte específicas para o TEXTO / CORPO de cada slide (indexadas pelo projectorIndex)
   const [slideBodyFontScales, setSlideBodyFontScales] = useState<Record<number, number>>(() => {
@@ -500,6 +511,18 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
     try {
       const saved = localStorage.getItem('mega_ebd_slide_body_font_scales');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [slideTextOverrides, setSlideTextOverrides] = useState<Record<number, { title?: string; subtitle?: string; text?: string }>>(() => {
+    if (lessonData.slideTextOverrides && Object.keys(lessonData.slideTextOverrides).length > 0) {
+      return lessonData.slideTextOverrides;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_slide_text_overrides');
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -565,51 +588,25 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   useEffect(() => {
     setLesson(lessonData);
-    if (lessonData.slideFontScales) {
-      setSlideFontScales(lessonData.slideFontScales);
-    }
-    if (lessonData.slideTitleFontScales) {
-      setSlideTitleFontScales(lessonData.slideTitleFontScales);
-    }
-    if (lessonData.slideBodyFontScales) {
-      setSlideBodyFontScales(lessonData.slideBodyFontScales);
-    }
-    if (lessonData.slideBodyWidths) {
-      setSlideBodyWidths(lessonData.slideBodyWidths);
-    }
-    if (lessonData.slideImagePositions) {
-      setSlideImagePositions(lessonData.slideImagePositions);
-    }
-    if (lessonData.slideImageScales) {
-      setSlideImageScales(lessonData.slideImageScales);
-    }
-    if (lessonData.slideImageWidths) {
-      setSlideImageWidths(lessonData.slideImageWidths);
-    }
-    if (lessonData.slideImageHeights) {
-      setSlideImageHeights(lessonData.slideImageHeights);
-    }
-    if (lessonData.slideImageCrops) {
-      setSlideImageCrops(lessonData.slideImageCrops);
-    }
-    if (lessonData.slideImageFits) {
-      setSlideImageFits(lessonData.slideImageFits);
-    }
-    if (lessonData.projectorSlideImages) {
-      setProjectorSlideImages(lessonData.projectorSlideImages);
-    }
-    if (lessonData.projectorFontSizeScale) {
-      setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
-    }
+    if (lessonData.slideFontScales) setSlideFontScales(lessonData.slideFontScales);
+    if (lessonData.slideTitleFontScales) setSlideTitleFontScales(lessonData.slideTitleFontScales);
+    if (lessonData.slideBodyFontScales) setSlideBodyFontScales(lessonData.slideBodyFontScales);
+    if (lessonData.slideBodyWidths) setSlideBodyWidths(lessonData.slideBodyWidths);
+    if (lessonData.slideTitlePositions) setSlideTitlePositions(lessonData.slideTitlePositions);
+    if (lessonData.slideBodyPositions) setSlideBodyPositions(lessonData.slideBodyPositions);
+    if (lessonData.slideImagePositions) setSlideImagePositions(lessonData.slideImagePositions);
+    if (lessonData.slideImageScales) setSlideImageScales(lessonData.slideImageScales);
+    if (lessonData.slideImageWidths) setSlideImageWidths(lessonData.slideImageWidths);
+    if (lessonData.slideImageHeights) setSlideImageHeights(lessonData.slideImageHeights);
+    if (lessonData.slideImageCrops) setSlideImageCrops(lessonData.slideImageCrops);
+    if (lessonData.slideImageFits) setSlideImageFits(lessonData.slideImageFits);
+    if (lessonData.slideImageBorders) setSlideImageBorders(lessonData.slideImageBorders);
+    if (lessonData.slideTextOverrides) setSlideTextOverrides(lessonData.slideTextOverrides);
+    if (lessonData.projectorSlideImages) setProjectorSlideImages(lessonData.projectorSlideImages);
+    if (lessonData.projectorFontSizeScale) setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
+    if (lessonData.customBg !== undefined) setCustomBg(lessonData.customBg || null);
+    if (lessonData.bodyTextColor) setBodyTextColor(lessonData.bodyTextColor);
   }, [lessonData]);
-
-  const updateLesson = useCallback((updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => {
-    setLesson(prev => {
-      const next = updater(prev);
-      onUpdateLesson(next);
-      return next;
-    });
-  }, [onUpdateLesson]);
 
   // Define a escala de fonte específica para o TÍTULO do slide
   const setSingleTitleScale = useCallback((slideIdx: number, scale: number | null) => {
@@ -744,6 +741,16 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
     try {
       const saved = localStorage.getItem('mega_ebd_image_crops');
+      return saved ? JSON.parse(saved) : {};
+    } catch { return {}; }
+  });
+
+  const [slideImageBorders, setSlideImageBorders] = useState<Record<number, 'white' | 'thin' | 'thick' | 'none'>>(() => {
+    if (lessonData.slideImageBorders && Object.keys(lessonData.slideImageBorders).length > 0) {
+      return lessonData.slideImageBorders;
+    }
+    try {
+      const saved = localStorage.getItem('mega_ebd_image_borders');
       return saved ? JSON.parse(saved) : {};
     } catch { return {}; }
   });
@@ -2085,6 +2092,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
   const [customBg, setCustomBg] = useState<string | null>(() => {
+    if (lessonData.customBg) return lessonData.customBg;
     try {
       return localStorage.getItem('mega_ebd_custom_bg');
     } catch {
@@ -2127,6 +2135,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     } else if (cropTarget === 'bg') {
       setCustomBg(croppedDataUrl);
       try { localStorage.setItem('mega_ebd_custom_bg', croppedDataUrl); } catch {}
+      updateLesson(l => ({ ...l, customBg: croppedDataUrl }));
     }
     setCropModalOpen(false);
     setCropModalImage(null);
@@ -2174,6 +2183,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       if (d) {
         setCustomBg(d);
         try { localStorage.setItem('mega_ebd_custom_bg', d); } catch {}
+        updateLesson(l => ({ ...l, customBg: d }));
       }
     };
     reader.readAsDataURL(file);
@@ -2957,6 +2967,50 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
       setRegeneratingId(null);
     }
   };
+
+  const fullSyncedLesson = React.useMemo<EBDLessonPreparation>(() => ({
+    ...lesson,
+    extraSlides: lesson.extraSlides || [],
+    customSlideOrder: lesson.customSlideOrder || [],
+    slideTitlePositions,
+    slideBodyPositions,
+    slideBodyWidths,
+    slideImagePositions,
+    slideImageScales,
+    slideImageWidths,
+    slideImageHeights,
+    slideImageCrops,
+    slideImageFits,
+    slideImageBorders,
+    slideFontScales,
+    slideTitleFontScales,
+    slideBodyFontScales,
+    slideTextOverrides,
+    projectorSlideImages,
+    projectorFontSizeScale,
+    customBg,
+    bodyTextColor,
+  }), [
+    lesson,
+    slideTitlePositions,
+    slideBodyPositions,
+    slideBodyWidths,
+    slideImagePositions,
+    slideImageScales,
+    slideImageWidths,
+    slideImageHeights,
+    slideImageCrops,
+    slideImageFits,
+    slideImageBorders,
+    slideFontScales,
+    slideTitleFontScales,
+    slideBodyFontScales,
+    slideTextOverrides,
+    projectorSlideImages,
+    projectorFontSizeScale,
+    customBg,
+    bodyTextColor,
+  ]);
 
   return (
     <div className="preparation-view-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
@@ -3981,6 +4035,49 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               )}
             </div>
           </div>
+
+          {/* SLIDES EXTRAS ADICIONADOS PELO PROFESSOR */}
+          {(lesson.extraSlides && lesson.extraSlides.length > 0) && (
+            <div className="bg-slate-900 border border-amber-500/40 p-6 rounded-3xl shadow-xl space-y-4">
+              <h2 className="text-xl md:text-2xl font-black text-amber-300 flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-400" />
+                  <span>SLIDES EXTRAS PERSONALIZADOS ({lesson.extraSlides.length})</span>
+                </div>
+                <span className="text-xs font-bold text-amber-400/80 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/30">
+                  Visíveis no Projetor e Celular
+                </span>
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {lesson.extraSlides.map((slide, sIdx) => (
+                  <div key={slide.id || sIdx} className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        {slide.badgeText || `Slide Extra ${sIdx + 1}`}
+                      </span>
+                      {slide.reference && (
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {slide.reference}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-base font-bold text-white">
+                      {slide.title}
+                    </h3>
+                    {slide.subtitle && (
+                      <p className="text-xs text-slate-400">{slide.subtitle}</p>
+                    )}
+                    {slide.projetorText && (
+                      <p className="text-xs md:text-sm text-slate-200 leading-relaxed whitespace-pre-line border-t border-slate-800/80 pt-2">
+                        {slide.projetorText}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -4083,6 +4180,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     onClick={() => {
                       setCustomBg(null);
                       try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
+                      updateLesson(l => ({ ...l, customBg: null }));
                     }}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
                     title="Remover fundo personalizado do modelo"
@@ -5857,7 +5955,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
       <QrCodeModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
-        lesson={lesson}
+        lesson={fullSyncedLesson}
       />
 
       {/* Modal Interativo de Recorte de Imagem (Crop) */}

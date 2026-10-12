@@ -42,12 +42,22 @@ export function App() {
     }
   }, [lessonData]);
 
-  // Carrega lição da URL se a página for aberta via QR Code enquanto já estiver rodando
+  // Carrega lição da URL se a página for aberta via QR Code ou quando a URL mudar
   useEffect(() => {
-    const fromUrl = decodeLessonFromUrl();
-    if (fromUrl) {
-      setLessonData(fromUrl);
-    }
+    const handleUrlChange = () => {
+      const fromUrl = decodeLessonFromUrl();
+      if (fromUrl) {
+        setLessonData(fromUrl);
+      }
+    };
+
+    handleUrlChange();
+    window.addEventListener('hashchange', handleUrlChange);
+    window.addEventListener('popstate', handleUrlChange);
+    return () => {
+      window.removeEventListener('hashchange', handleUrlChange);
+      window.removeEventListener('popstate', handleUrlChange);
+    };
   }, []);
 
   // Carrega a chave do localStorage ao iniciar

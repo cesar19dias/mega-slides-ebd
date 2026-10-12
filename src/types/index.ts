@@ -152,6 +152,9 @@ export interface EBDLessonPreparation {
   slideImageBorders?: Record<number, 'white' | 'thin' | 'thick' | 'none'>;
   projectorSlideImages?: Record<number, string>;
   projectorFontSizeScale?: number;
+  customBg?: string | null;
+  bodyTextColor?: 'black' | 'white';
+  textHighlights?: Record<string, any>;
 }
 
 export interface EBDExtraSlide {
