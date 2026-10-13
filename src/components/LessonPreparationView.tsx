@@ -3072,6 +3072,238 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             </div>
           )}
 
+          {/* Botões de Ação do Projetor: Slide Extra, QR Code, Modelo, PPTX, ZIP, Editar, Mover */}
+          {activeTab === 'projetor' && (
+            <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+              {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
+              <div className="relative inline-block" ref={slideMenuRef}>
+                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden">
+                  <button
+                    onClick={handleAddExtraSlide}
+                    className="hover:bg-emerald-500 text-white font-black px-3 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
+                    title="Adicionar um novo slide extra personalizado nesta lição"
+                  >
+                    <PlusCircle className="w-4 h-4 text-emerald-100" />
+                    <span>➕ Adicionar Slide Extra</span>
+                  </button>
+                  <button
+                    onClick={() => setIsSlideMenuOpen(prev => !prev)}
+                    className="hover:bg-emerald-500 text-white font-black px-2 py-1.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all"
+                    title="Mais ações do slide (Duplicar, Mover, Excluir)"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
+
+                {isSlideMenuOpen && (
+                  <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                    <button
+                      onClick={() => { handleAddExtraSlide(); setIsSlideMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
+                    >
+                      <PlusCircle className="w-4 h-4 text-emerald-400" />
+                      <span>➕ Novo Slide Extra</span>
+                    </button>
+
+                    <button
+                      onClick={() => { handleDuplicateSlide(); setIsSlideMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-4 h-4 text-cyan-400" />
+                      <span>📋 Duplicar Slide Atual</span>
+                    </button>
+
+                    <div className="border-t border-slate-800 my-1" />
+
+                    <button
+                      onClick={() => { handleMoveSlideLeft(); setIsSlideMenuOpen(false); }}
+                      disabled={projectorIndex === 0}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-amber-400" />
+                      <span>⬅️ Mover para Esquerda</span>
+                    </button>
+
+                    <button
+                      onClick={() => { handleMoveSlideRight(); setIsSlideMenuOpen(false); }}
+                      disabled={projectorIndex === projectorItems.length - 1}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4 text-amber-400" />
+                      <span>➡️ Mover para Direita</span>
+                    </button>
+
+                    {projectorItems.length > 1 && (
+                      <>
+                        <div className="border-t border-slate-800 my-1" />
+                        <button
+                          onClick={() => { handleDeleteSlide(); setIsSlideMenuOpen(false); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                          <span>🗑️ Excluir Slide Atual</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* QR Code Celular */}
+              <button
+                onClick={() => setIsQrModalOpen(true)}
+                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+              >
+                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                <span>📱 QR Code Celular</span>
+              </button>
+
+              {/* Upload do Meu Modelo / Gerenciador de Modelo */}
+              <div className="relative inline-block" ref={modelMenuRef}>
+                {!customBg ? (
+                  <label
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                    title="Enviar imagem como fundo de todos os slides do projetor"
+                  >
+                    <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                    <span>📁 Meu Modelo</span>
+                    <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
+                  </label>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setIsModelMenuOpen(prev => !prev)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                      title="Gerenciar imagem de fundo do modelo (Trocar, Recortar, Remover)"
+                    >
+                      <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                      <span>📁 Modelo de Fundo</span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isModelMenuOpen && (
+                      <div className="absolute left-0 top-full mt-2 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                        <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
+                          <LayoutTemplate className="w-4 h-4 text-indigo-400" />
+                          <span>📁 Trocar Modelo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              handleCustomBgUpload(e);
+                              setIsModelMenuOpen(false);
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <button
+                          onClick={() => {
+                            handleOpenCropForBg();
+                            setIsModelMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Crop className="w-4 h-4 text-pink-400" />
+                          <span>✂️ Recortar Fundo (16:9)</span>
+                        </button>
+
+                        <div className="border-t border-slate-800 my-1" />
+
+                        <button
+                          onClick={() => {
+                            setCustomBg(null);
+                            try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
+                            updateLesson(l => ({ ...l, customBg: null }));
+                            setIsModelMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                          <span>✕ Remover Modelo</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Exportar PPTX com todos os slides */}
+              <button
+                onClick={() => {
+                  const theme = THEMES[0];
+                  const itemsWithImages = projectorItems.map((item, idx) => ({
+                    ...item,
+                    imageUrl: projectorSlideImages[idx] || item.imageUrl,
+                    imageScale: slideImageScales[idx] ?? 1.0,
+                    imageFit: slideImageFits[idx] ?? 'cover',
+                  }));
+                  exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                title="Exportar apresentação completa (.pptx) com todos os slides e edições"
+              >
+                <Download className="w-3.5 h-3.5 text-white" />
+                <span>PowerPoint (.pptx)</span>
+              </button>
+
+              {/* TODOS OS SLIDES - PNG/ZIP */}
+              <button
+                onClick={async () => {
+                  if (isExporting) return;
+                  setIsExporting('png');
+                  const origIdx = projectorIndex;
+                  try {
+                    await exportAllSlidesPNGZipFromStage(
+                      projectorItems.length,
+                      (i) => setProjectorIndex(i),
+                      () => projectorStageRef.current,
+                      lesson.metadata.title || 'mega-ebd'
+                    );
+                  } finally {
+                    setProjectorIndex(origIdx);
+                    setIsExporting(null);
+                  }
+                }}
+                disabled={!!isExporting}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-all shadow-sm hover:scale-105 active:scale-95"
+                title="Exportar todos os slides como ZIP com PNGs"
+              >
+                {isExporting === 'png' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
+                <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
+              </button>
+
+              {/* BOTÃO DE EDITAR SLIDE (MODO PROJETOR) */}
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                  isEditMode
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 ring-2 ring-amber-400/50'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                }`}
+                title="Ativar/desativar modo de edição livre de texto do slide"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-current" />
+                <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
+              </button>
+
+              {/* BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) */}
+              <button
+                onClick={() => setIsLayoutEditMode(prev => !prev)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                  isLayoutEditMode
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
+                    : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
+                }`}
+                title="Arrastar título e texto livremente no slide para reposicioná-los"
+              >
+                <Move className="w-3.5 h-3.5 text-current" />
+                <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
+              </button>
+            </div>
+          )}
+
           {/* Chave de Alternância: PROFESSOR vs PROJETOR */}
           <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
             <button
@@ -4106,11 +4338,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               {currentProjectorItem.title}
             </div>
 
-            {/* Upload Modelo Próprio + Botões de Exportação */}
+            {/* Botão de Adicionar/Remover/Recortar Imagem Apenas Neste Slide */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              {/* Botão de Adicionar/Remover/Recortar Imagem Apenas Neste Slide */}
               <label
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-400/40 text-xs font-bold cursor-pointer transition-all shadow-md"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-400/40 text-xs font-bold cursor-pointer transition-all shadow-md hover:scale-105 active:scale-95"
                 title="Adicionar imagem ilustrativa apenas a este slide"
               >
                 <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Alterar Imagem' : '🖼️ +Imagem neste Slide'}</span>
@@ -4120,7 +4351,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <>
                   <button
                     onClick={() => handleOpenCropForSlide()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white border border-pink-400/50 text-xs font-black cursor-pointer transition-all shadow-md active:scale-95"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white border border-pink-400/50 text-xs font-black cursor-pointer transition-all shadow-md active:scale-95 hover:scale-105"
                     title="Recortar imagem deste slide (ajustar enquadramento e corte 16:9 / livre)"
                   >
                     <Crop className="w-3.5 h-3.5 text-white" />
@@ -4128,174 +4359,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </button>
                   <button
                     onClick={handleRemoveSlideImage}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all hover:scale-105 active:scale-95"
                     title="Remover imagem deste slide e voltar ao texto 100% cheio"
                   >
                     ✕ Remover Imagem
                   </button>
                 </>
               )}
+            </div>
+          </div>
 
-              {/* QR Code Celular */}
-              <button
-                onClick={() => setIsQrModalOpen(true)}
-                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
-                <span>📱 QR Code Celular</span>
-              </button>
-
-              {/* Upload do Meu Modelo / Gerenciador de Modelo */}
-              <div className="relative inline-block" ref={modelMenuRef}>
-                {!customBg ? (
-                  <label
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
-                    title="Enviar imagem como fundo de todos os slides do projetor"
-                  >
-                    <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
-                    <span>📁 Meu Modelo</span>
-                    <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
-                  </label>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setIsModelMenuOpen(prev => !prev)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
-                      title="Gerenciar imagem de fundo do modelo (Trocar, Recortar, Remover)"
-                    >
-                      <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
-                      <span>📁 Modelo de Fundo</span>
-                      <ChevronDown className={`w-3.5 h-3.5 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isModelMenuOpen && (
-                      <div className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                        <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
-                          <LayoutTemplate className="w-4 h-4 text-indigo-400" />
-                          <span>📁 Trocar Modelo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              handleCustomBgUpload(e);
-                              setIsModelMenuOpen(false);
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-
-                        <button
-                          onClick={() => {
-                            handleOpenCropForBg();
-                            setIsModelMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Crop className="w-4 h-4 text-pink-400" />
-                          <span>✂️ Recortar Fundo (16:9)</span>
-                        </button>
-
-                        <div className="border-t border-slate-800 my-1" />
-
-                        <button
-                          onClick={() => {
-                            setCustomBg(null);
-                            try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
-                            updateLesson(l => ({ ...l, customBg: null }));
-                            setIsModelMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                          <span>✕ Remover Modelo</span>
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Exportar PPTX com todos os slides */}
-              <button
-                onClick={() => {
-                  const theme = THEMES[0];
-                  const itemsWithImages = projectorItems.map((item, idx) => ({
-                    ...item,
-                    imageUrl: projectorSlideImages[idx] || item.imageUrl,
-                    imageScale: slideImageScales[idx] ?? 1.0,
-                    imageFit: slideImageFits[idx] ?? 'cover',
-                  }));
-                  exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
-                }}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all"
-                title="Exportar apresentação completa (.pptx) com todos os slides e edições"
-              >
-                <Download className="w-3.5 h-3.5 text-white" />
-                <span>PowerPoint (.pptx)</span>
-              </button>
-
-
-
-
-              {/* TODOS OS SLIDES - PNG/ZIP */}
-              <button
-                onClick={async () => {
-                  if (isExporting) return;
-                  setIsExporting('png');
-                  const origIdx = projectorIndex;
-                  try {
-                    await exportAllSlidesPNGZipFromStage(
-                      projectorItems.length,
-                      (i) => setProjectorIndex(i),
-                      () => projectorStageRef.current,
-                      lesson.metadata.title || 'mega-ebd'
-                    );
-                  } finally {
-                    setProjectorIndex(origIdx);
-                    setIsExporting(null);
-                  }
-                }}
-                disabled={!!isExporting}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-colors shadow-sm"
-                title="Exportar todos os slides como ZIP com PNGs"
-              >
-                {isExporting === 'png' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
-                <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
-              </button>
-
-
-
-              {/* ── BOTÃO DE EDITAR SLIDE (MODO PROJETOR) ── */}
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
-                  isEditMode
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 ring-2 ring-amber-400/50'
-                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
-                }`}
-                title="Ativar/desativar modo de edição livre de texto do slide"
-              >
-                <Edit3 className="w-3.5 h-3.5 text-current" />
-                <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
-              </button>
-
-              {/* ── BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) ── */}
-              <button
-                onClick={() => setIsLayoutEditMode(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
-                  isLayoutEditMode
-                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
-                    : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
-                }`}
-                title="Arrastar título e texto livremente no slide para reposicioná-los"
-              >
-                <Move className="w-3.5 h-3.5 text-current" />
-                <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
-              </button>
-
-              {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
-              <div className="flex items-center gap-1.5 flex-wrap">
+          {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
+          <div className="flex items-center gap-1.5 flex-wrap">
                 {/* Fonte do Título */}
                 <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-amber-500/40 shadow-sm" title="Ajustar tamanho da fonte do TÍTULO deste slide">
                   <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
@@ -4537,91 +4612,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 )}
               </div>
             </div>
-          </div>
-        </div>
-
-          {/* ── FERRAMENTAS DE GESTÃO DE SLIDES: +ADICIONAR EXTRA COM SUBMENU DE AÇÕES ── */}
-          <div className="flex items-center justify-between gap-2.5 flex-wrap bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-sans">
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
-              <div className="relative inline-block" ref={slideMenuRef}>
-                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden">
-                  <button
-                    onClick={handleAddExtraSlide}
-                    className="hover:bg-emerald-500 text-white font-black px-3.5 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
-                    title="Adicionar um novo slide extra personalizado nesta lição"
-                  >
-                    <PlusCircle className="w-4 h-4 text-emerald-100" />
-                    <span>➕ Adicionar Slide Extra</span>
-                  </button>
-                  <button
-                    onClick={() => setIsSlideMenuOpen(prev => !prev)}
-                    className="hover:bg-emerald-500 text-white font-black px-2.5 py-1.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all"
-                    title="Mais ações do slide (Duplicar, Mover, Excluir)"
-                  >
-                    <ChevronDown className={`w-3.5 h-3.5 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {isSlideMenuOpen && (
-                  <div className="absolute left-0 bottom-full mb-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { handleAddExtraSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
-                    >
-                      <PlusCircle className="w-4 h-4 text-emerald-400" />
-                      <span>➕ Novo Slide Extra</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleDuplicateSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
-                    >
-                      <Copy className="w-4 h-4 text-cyan-400" />
-                      <span>📋 Duplicar Slide Atual</span>
-                    </button>
-
-                    <div className="border-t border-slate-800 my-1" />
-
-                    <button
-                      onClick={() => { handleMoveSlideLeft(); setIsSlideMenuOpen(false); }}
-                      disabled={projectorIndex === 0}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
-                    >
-                      <ArrowLeft className="w-4 h-4 text-amber-400" />
-                      <span>⬅️ Mover para Esquerda</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleMoveSlideRight(); setIsSlideMenuOpen(false); }}
-                      disabled={projectorIndex === projectorItems.length - 1}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
-                    >
-                      <ArrowRight className="w-4 h-4 text-amber-400" />
-                      <span>➡️ Mover para Direita</span>
-                    </button>
-
-                    {projectorItems.length > 1 && (
-                      <>
-                        <div className="border-t border-slate-800 my-1" />
-                        <button
-                          onClick={() => { handleDeleteSlide(); setIsSlideMenuOpen(false); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                          <span>🗑️ Excluir Slide Atual</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold font-mono">
-              <span>Slide {projectorIndex + 1} de {projectorItems.length}</span>
-            </div>
-          </div>
 
           {/* ── BARRA DE MINIATURAS VISUAIS DOS SLIDES ── */}
           <div className="slides-navigation-bar flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 overflow-x-auto custom-scrollbar">
