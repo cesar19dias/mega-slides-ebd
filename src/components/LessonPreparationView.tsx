@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop, Crosshair } from 'lucide-react';
+import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Eraser, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop, Crosshair } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -21,19 +21,43 @@ interface TextHighlightEntry {
 type SlideHighlights = Record<number, TextHighlightEntry[]>;
 const HL_STORAGE_KEY = 'mega_ebd_text_highlights_v2';
 
-function loadSlideHighlights(): SlideHighlights {
+function getLessonHighlightKey(lesson?: EBDLessonPreparation | null): string {
+  if (!lesson) return HL_STORAGE_KEY;
+  const idOrTitle = lesson.metadata?.title || lesson.metadata?.lessonNumber || 'active_lesson';
+  return `mega_ebd_hl_${idOrTitle.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+}
+
+function loadSlideHighlights(lesson?: EBDLessonPreparation | null): SlideHighlights {
+  // 1. Prioridade absoluta: textHighlights embutido no próprio objeto da lição
+  if (lesson?.textHighlights && typeof lesson.textHighlights === 'object' && Object.keys(lesson.textHighlights).length > 0) {
+    return lesson.textHighlights as SlideHighlights;
+  }
+  // 2. Storage local específico da lição (não compartilhado com outras lições)
+  try {
+    const key = getLessonHighlightKey(lesson);
+    const s = localStorage.getItem(key);
+    if (s) return JSON.parse(s);
+  } catch { /* ignore */ }
+  // 3. Fallback controlado do storage legado apenas se for a lição ativa e tiver chave legada
   try {
     const s = localStorage.getItem(HL_STORAGE_KEY);
     return s ? JSON.parse(s) : {};
   } catch { return {}; }
 }
-function persistSlideHighlights(h: SlideHighlights) {
-  localStorage.setItem(HL_STORAGE_KEY, JSON.stringify(h));
+
+function persistSlideHighlights(h: SlideHighlights, lesson?: EBDLessonPreparation | null) {
+  try {
+    const key = getLessonHighlightKey(lesson);
+    localStorage.setItem(key, JSON.stringify(h));
+  } catch {}
+  try {
+    localStorage.setItem(HL_STORAGE_KEY, JSON.stringify(h));
+  } catch {}
 }
 
 /**
  * Returns React nodes with highlight <mark> elements injected inline.
- * Matching is case-sensitive and marks ALL occurrences.
+ * Matching marks occurrences safely, avoiding fragmentation of words for short needles.
  */
 function applyHighlightsToText(
   text: string,
@@ -51,7 +75,18 @@ function applyHighlightsToText(
     // O texto selecionado vem como exibido (ex.: CAIXA ALTA via CSS); compara sem diferenciar maiúsculas e espaços
     const needle = h.text.toLowerCase().replace(/\s+/g, ' ').trim();
     if (!needle) continue;
-    const pattern = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+'), 'gi');
+
+    const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+');
+    // Se for uma única palavra curta (ex: 'a', 'da', 'd', 'no' <= 4 letras sem espaços),
+    // usa limites de palavras unicode para NÃO fatiar letras dentro de outras palavras (ex: 'incredulidade' virando 'incre[d]uli[da][d]e')
+    let pattern: RegExp;
+    const isSingleWord = !needle.includes(' ');
+    if (isSingleWord && needle.length <= 4) {
+      pattern = new RegExp(`(?<=^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, 'gui');
+    } else {
+      pattern = new RegExp(escaped, 'gi');
+    }
+
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(lowerText)) !== null) {
       const idx = m.index;
@@ -2128,7 +2163,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
 
   // ── Inline Text Highlight State ──────────────────────────────────
-  const [slideHighlights, setSlideHighlights] = useState<SlideHighlights>(loadSlideHighlights);
+  const [slideHighlights, setSlideHighlights] = useState<SlideHighlights>(() => loadSlideHighlights(lessonData));
   const [hlToolbar, setHlToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
   void HIGHLIGHT_COLORS; // keep import used
 
@@ -2148,8 +2183,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const saveHighlights = useCallback((next: SlideHighlights) => {
     setSlideHighlights(next);
-    persistSlideHighlights(next);
-  }, []);
+    persistSlideHighlights(next, lessonData);
+    updateLesson(prev => ({
+      ...prev,
+      textHighlights: next,
+    }));
+  }, [lessonData, updateLesson]);
+
+  // Sincroniza se a lição mudar externamente ou carregar com textHighlights
+  useEffect(() => {
+    if (lessonData?.textHighlights && typeof lessonData.textHighlights === 'object') {
+      setSlideHighlights(lessonData.textHighlights as SlideHighlights);
+    }
+  }, [lessonData]);
 
   /** Wraps text with inline highlight marks for the current projector slide. */
   const renderHL = useCallback((text: string | undefined, forcedColor?: string): React.ReactNode => {
@@ -2174,6 +2220,31 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setHlToolbar(null);
     window.getSelection()?.removeAllRanges();
   }, [hlToolbar, slideHighlights, projectorIndex, saveHighlights]);
+
+  /**
+   * Limpa TODAS as cores e marcações de texto exclusivamente do slide atual.
+   * Não altera nem limpa nenhum dos outros slides da lição.
+   */
+  const clearCurrentSlideHighlights = useCallback(() => {
+    const next = { ...slideHighlights };
+    delete next[projectorIndex];
+    saveHighlights(next);
+
+    // Limpa também do storage legado para não reaparecer
+    try {
+      const legacy = localStorage.getItem(HL_STORAGE_KEY);
+      if (legacy) {
+        const parsed = JSON.parse(legacy);
+        delete parsed[projectorIndex];
+        localStorage.setItem(HL_STORAGE_KEY, JSON.stringify(parsed));
+      }
+    } catch {}
+
+    setHlToolbar(null);
+    window.getSelection()?.removeAllRanges();
+  }, [slideHighlights, projectorIndex, saveHighlights]);
+
+  const hasSlideHighlights = Boolean(slideHighlights[projectorIndex] && slideHighlights[projectorIndex].length > 0);
 
   const handleSlideMouseUp = useCallback(() => {
     const sel = window.getSelection();
@@ -4648,9 +4719,19 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </>
                 )}
 
-                {/* Reset de Posições e Enquadramentos (quando arrastado livremente) */}
-                {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom) && (
+                {/* Reset de Posições, Enquadramentos e Destaques (quando arrastado livremente ou cores ativas) */}
+                {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom || hasSlideHighlights) && (
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    {hasSlideHighlights && (
+                      <button
+                        onClick={clearCurrentSlideHighlights}
+                        className="text-xs font-black text-rose-200 hover:text-white px-3.5 py-1.5 rounded-xl bg-rose-950/90 border border-rose-500/70 hover:bg-rose-900 transition-all cursor-pointer min-h-[38px] active:scale-95 flex items-center gap-1.5 shadow-lg shadow-rose-950/50"
+                        title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
+                      >
+                        <Eraser className="w-4 h-4 text-rose-400" />
+                        <span>🧹 Limpar Cores deste Slide</span>
+                      </button>
+                    )}
                     {isTitleMoved && (
                       <button
                         onClick={() => resetSlidePosition('title')}
@@ -4752,6 +4833,18 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       {bodyTextColor === 'black' ? '⚫ Letras Pretas' : '⚪ Letras Brancas'}
                     </button>
                   </div>
+
+                  {/* Limpar Cores deste Slide */}
+                  {hasSlideHighlights && (
+                    <button
+                      onClick={clearCurrentSlideHighlights}
+                      className="text-xs font-black text-rose-300 hover:text-white px-2.5 py-1 rounded-xl bg-rose-950/90 border border-rose-500/60 hover:bg-rose-900 transition-all cursor-pointer flex items-center gap-1 shrink-0"
+                      title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
+                    >
+                      <Eraser className="w-3.5 h-3.5 text-rose-400" />
+                      <span>Limpar Cores deste Slide</span>
+                    </button>
+                  )}
 
                   {/* Opacidade da Imagem do Slide */}
                   <div className="flex items-center gap-1.5 bg-slate-950/90 px-2 py-1 rounded-xl border border-indigo-500/50">
@@ -4881,7 +4974,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 onApply={applyHighlight}
                 onRemove={removeHighlight}
                 onClose={() => { setHlToolbar(null); window.getSelection()?.removeAllRanges(); }}
+                onClearSlide={hasSlideHighlights ? clearCurrentSlideHighlights : undefined}
               />
+            )}
+
+            {/* Botão Flutuante Rápido de Limpar Cores deste Slide no Palco */}
+            {!isExporting && hasSlideHighlights && (
+              <button
+                onClick={clearCurrentSlideHighlights}
+                className="absolute top-4 right-4 z-40 bg-rose-950/90 hover:bg-rose-900 text-rose-200 hover:text-white px-3 py-1.5 rounded-xl border border-rose-500/70 shadow-2xl backdrop-blur-md text-xs font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer group"
+                title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
+              >
+                <Eraser className="w-3.5 h-3.5 text-rose-400 group-hover:text-rose-200" />
+                <span>🧹 Limpar Cores do Slide</span>
+              </button>
             )}
 
             {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}

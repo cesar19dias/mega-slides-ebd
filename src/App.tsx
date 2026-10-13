@@ -136,6 +136,7 @@ export function App() {
     setError(null);
     // 🗑️ Limpa a preparação salva ao recomeçar
     localStorage.removeItem(LESSON_STORAGE_KEY);
+    localStorage.removeItem('mega_ebd_text_highlights_v2');
   };
 
   return (

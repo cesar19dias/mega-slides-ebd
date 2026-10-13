@@ -18,6 +18,7 @@ interface TextHighlightToolbarProps {
   onApply: (color: string, style: 'fill' | 'outline' | 'text') => void;
   onRemove: () => void;
   onClose: () => void;
+  onClearSlide?: () => void;
 }
 
 export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
@@ -26,6 +27,7 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
   onApply,
   onRemove,
   onClose,
+  onClearSlide,
 }) => {
   return (
     <div
@@ -72,16 +74,25 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
         ))}
         <div className="w-px h-4 bg-slate-700 mx-0.5" />
         <button
-          title="Remover destaque / cor"
+          title="Remover destaque / cor deste trecho"
           onClick={onRemove}
-          className="w-5 h-5 rounded bg-slate-700 hover:bg-rose-600 flex items-center justify-center transition-colors text-slate-400 hover:text-white flex-shrink-0"
+          className="w-5 h-5 rounded bg-slate-700 hover:bg-rose-600 flex items-center justify-center transition-colors text-slate-400 hover:text-white flex-shrink-0 cursor-pointer"
         >
           <X className="w-3 h-3" />
         </button>
+        {onClearSlide && (
+          <button
+            title="Limpar todas as cores deste slide específico"
+            onClick={onClearSlide}
+            className="px-2 py-0.5 rounded bg-rose-950/90 hover:bg-rose-700 text-rose-300 hover:text-white flex items-center gap-1 text-[10px] font-black transition-colors flex-shrink-0 border border-rose-500/60 cursor-pointer"
+          >
+            <span>🧹 Limpar slide</span>
+          </button>
+        )}
         <button
           title="Fechar"
           onClick={onClose}
-          className="w-4 h-4 rounded bg-slate-800 hover:bg-slate-600 flex items-center justify-center transition-colors text-slate-600 hover:text-white flex-shrink-0"
+          className="w-4 h-4 rounded bg-slate-800 hover:bg-slate-600 flex items-center justify-center transition-colors text-slate-600 hover:text-white flex-shrink-0 cursor-pointer"
         >
           <X className="w-2.5 h-2.5" />
         </button>
