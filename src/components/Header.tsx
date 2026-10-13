@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 <UserCheck className="w-3.5 h-3.5 text-amber-300" />
-                <span>VISÃO DO PROFESSOR</span>
+                <span>PROFESSOR</span>
               </button>
 
               <button
@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
                 }`}
               >
                 <Monitor className="w-3.5 h-3.5 text-cyan-300" />
-                <span>VISÃO DO PROJETOR</span>
+                <span>PROJETOR</span>
               </button>
             </div>
           )}

@@ -766,8 +766,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Menus suspensos de opções consolidadas
   const [isSlideMenuOpen, setIsSlideMenuOpen] = useState<boolean>(false);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState<boolean>(false);
+  const [isImageMenuOpen, setIsImageMenuOpen] = useState<boolean>(false);
   const slideMenuRef = useRef<HTMLDivElement>(null);
   const modelMenuRef = useRef<HTMLDivElement>(null);
+  const imageMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -776,6 +778,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       }
       if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
         setIsModelMenuOpen(false);
+      }
+      if (imageMenuRef.current && !imageMenuRef.current.contains(event.target as Node)) {
+        setIsImageMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -3072,9 +3077,60 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             </div>
           )}
 
-          {/* Botões de Ação do Projetor: Slide Extra, QR Code, Modelo, PPTX, ZIP, Editar, Mover */}
+          {/* Botões de Ação do Projetor: Imagem (1 Botão), Slide Extra, QR Code, Modelo, PPTX, ZIP, Editar, Mover */}
           {activeTab === 'projetor' && (
             <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+              {/* 1 BOTÃO UNIFICADO: IMAGEM DO SLIDE */}
+              <div className="relative inline-block" ref={imageMenuRef}>
+                <div className="inline-flex items-center rounded-xl shadow-md border border-purple-400/50 bg-purple-700 overflow-hidden">
+                  <label
+                    className="hover:bg-purple-600 text-white font-black px-3 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
+                    title="Adicionar ou alterar imagem ilustrativa neste slide"
+                  >
+                    <ImageIcon className="w-4 h-4 text-purple-200" />
+                    <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Imagem' : '🖼️ + Imagem'}</span>
+                    <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
+                  </label>
+                  {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
+                    <button
+                      onClick={() => setIsImageMenuOpen(prev => !prev)}
+                      className="hover:bg-purple-600 text-white font-black px-2 py-1.5 border-l border-purple-500/80 flex items-center justify-center cursor-pointer transition-all"
+                      title="Mais opções da imagem (Recortar, Remover)"
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 text-purple-100 transition-transform duration-200 ${isImageMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                  )}
+                </div>
+
+                {isImageMenuOpen && (projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
+                  <div className="absolute left-0 top-full mt-2 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                    <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-purple-200 hover:bg-purple-950/60 font-bold transition-colors cursor-pointer">
+                      <ImageIcon className="w-4 h-4 text-purple-400" />
+                      <span>📷 Alterar Imagem</span>
+                      <input type="file" accept="image/*" onChange={(e) => { handleSlideImageUpload(e); setIsImageMenuOpen(false); }} className="hidden" />
+                    </label>
+
+                    <button
+                      onClick={() => { handleOpenCropForSlide(); setIsImageMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
+                    >
+                      <Crop className="w-4 h-4 text-pink-400" />
+                      <span>✂️ Recortar (Crop)</span>
+                    </button>
+
+                    <div className="border-t border-slate-800 my-1" />
+
+                    <button
+                      onClick={() => { handleRemoveSlideImage(); setIsImageMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                      <span>🗑️ Remover Imagem</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
               <div className="relative inline-block" ref={slideMenuRef}>
                 <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden">
@@ -4282,67 +4338,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
       {/* ========================================================= */}
       {activeTab === 'projetor' && (
         <div className="space-y-5">
-          {/* Barra de Navegação do Projetor e Controles do Slide */}
-          <div className="bg-slate-900 p-3.5 rounded-2xl border border-slate-700/80 shadow-lg space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setProjectorIndex(prev => Math.max(0, prev - 1))}
-                  disabled={projectorIndex === 0}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Anterior</span>
-                </button>
-
-                <span className="text-xs text-slate-300 font-bold bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-                  Slide {projectorIndex + 1} de {projectorItems.length}
-                </span>
-
-                <button
-                  onClick={() => setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1))}
-                  disabled={projectorIndex === projectorItems.length - 1}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white disabled:opacity-30 cursor-pointer font-bold flex items-center gap-1 text-xs"
-                >
-                  <span>Próximo</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-
-            <div className="text-xs text-slate-300 font-extrabold truncate max-w-sm">
-              {currentProjectorItem.title}
-            </div>
-
-            {/* Botão de Adicionar/Remover/Recortar Imagem Apenas Neste Slide */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <label
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/40 hover:bg-purple-600/60 text-purple-200 border border-purple-400/40 text-xs font-bold cursor-pointer transition-all shadow-md hover:scale-105 active:scale-95"
-                title="Adicionar imagem ilustrativa apenas a este slide"
-              >
-                <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Alterar Imagem' : '🖼️ +Imagem neste Slide'}</span>
-                <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
-              </label>
-              {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                <>
-                  <button
-                    onClick={() => handleOpenCropForSlide()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-500 hover:to-rose-500 text-white border border-pink-400/50 text-xs font-black cursor-pointer transition-all shadow-md active:scale-95 hover:scale-105"
-                    title="Recortar imagem deste slide (ajustar enquadramento e corte 16:9 / livre)"
-                  >
-                    <Crop className="w-3.5 h-3.5 text-white" />
-                    <span>✂️ Recortar (Crop)</span>
-                  </button>
-                  <button
-                    onClick={handleRemoveSlideImage}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all hover:scale-105 active:scale-95"
-                    title="Remover imagem deste slide e voltar ao texto 100% cheio"
-                  >
-                    ✕ Remover Imagem
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          {/* Barra de Ajustes Finos do Slide (Fontes, Larguras e Posicionamentos) */}
+          <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg">
 
           {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
           <div className="flex items-center gap-1.5 flex-wrap">
