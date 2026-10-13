@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, UserCheck, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
+import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -412,12 +412,15 @@ interface LessonPreparationViewProps {
   lessonData: EBDLessonPreparation;
   onReset: () => void;
   onUpdateLesson: (updated: EBDLessonPreparation) => void;
+  activeTab?: 'professor' | 'projetor';
+  setActiveTab?: (tab: 'professor' | 'projetor') => void;
 }
 
 export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   lessonData,
-  onReset,
+  onReset: _onReset,
   onUpdateLesson,
+  activeTab: activeTabProp,
 }) => {
   const [lesson, setLesson] = useState<EBDLessonPreparation>(() => {
     let initial = { ...lessonData };
@@ -445,7 +448,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     });
   }, [onUpdateLesson]);
 
-  const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('professor');
+  const [internalActiveTab] = useState<'professor' | 'projetor'>('projetor');
+  const activeTab = activeTabProp ?? internalActiveTab;
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isGeneratingAllPrompts, setIsGeneratingAllPrompts] = useState<boolean>(false);
 
@@ -3018,17 +3022,13 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
   return (
     <div className="preparation-view-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
-      {/* Barra de Ferramentas Superior & Alternador de Visão */}
-      <div className="bg-slate-900/90 border border-slate-700/90 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 backdrop-blur-md no-print">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onReset}
-            className="btn-secondary text-xs flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl border border-slate-600 font-extrabold transition-all cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
-            Nova Lição EBD
-          </button>
-          <div className="text-white text-sm md:text-base font-black truncate max-w-xs md:max-w-sm">
+      {/* Barra de Ferramentas da Lição */}
+      <div className="bg-slate-900/90 border border-slate-700/90 p-3.5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 backdrop-blur-md no-print">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg shrink-0">
+            {activeTab === 'projetor' ? 'Projetor' : 'Roteiro'}
+          </span>
+          <div className="text-white text-sm md:text-base font-black truncate max-w-sm md:max-w-md">
             {lesson.metadata.title}
           </div>
         </div>
@@ -3304,32 +3304,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
             </div>
           )}
 
-          {/* Chave de Alternância: PROFESSOR vs PROJETOR */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
-            <button
-              onClick={() => setActiveTab('professor')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                activeTab === 'professor'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <UserCheck className="w-4 h-4 text-amber-300" />
-              <span>👨‍🏫 VISÃO DO PROFESSOR</span>
-            </button>
 
-            <button
-              onClick={() => setActiveTab('projetor')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
-                activeTab === 'projetor'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-purple-600/30'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Monitor className="w-4 h-4 text-cyan-300" />
-              <span>🖥️ VISÃO DO PROJETOR</span>
-            </button>
-          </div>
         </div>
       </div>
 

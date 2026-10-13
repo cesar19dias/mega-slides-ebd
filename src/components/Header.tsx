@@ -1,17 +1,28 @@
 import React from 'react';
-import { BookOpen, Key } from 'lucide-react';
+import { BookOpen, Key, RefreshCw, UserCheck, Monitor } from 'lucide-react';
 
 interface HeaderProps {
   hasApiKey: boolean;
   onOpenApiKeyModal: () => void;
+  hasLesson?: boolean;
+  onReset?: () => void;
+  activeTab?: 'professor' | 'projetor';
+  onTabChange?: (tab: 'professor' | 'projetor') => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ hasApiKey, onOpenApiKeyModal }) => {
+export const Header: React.FC<HeaderProps> = ({
+  hasApiKey,
+  onOpenApiKeyModal,
+  hasLesson,
+  onReset,
+  activeTab,
+  onTabChange,
+}) => {
   return (
     <header className="header-container font-['Gotham']">
-      <div className="header-content">
-        <div className="logo-brand">
-          <div className="logo-icon bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+      <div className="header-content flex flex-wrap items-center justify-between gap-4">
+        <div className="logo-brand flex items-center gap-3">
+          <div className="logo-icon bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20 shrink-0">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -29,7 +40,50 @@ export const Header: React.FC<HeaderProps> = ({ hasApiKey, onOpenApiKeyModal }) 
           </div>
         </div>
 
-        <div className="header-actions">
+        {/* Centro: Nova Lição EBD */}
+        {hasLesson && onReset && (
+          <div className="header-center-actions">
+            <button
+              onClick={onReset}
+              className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl border border-slate-600 hover:border-slate-400 font-extrabold text-xs transition-all shadow-md cursor-pointer active:scale-95"
+              title="Iniciar uma nova lição EBD"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+              <span>Nova Lição EBD</span>
+            </button>
+          </div>
+        )}
+
+        {/* Direita: Visão Professor/Projetor + Configurar Chave */}
+        <div className="header-actions flex flex-wrap items-center gap-3">
+          {hasLesson && activeTab && onTabChange && (
+            <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800 shadow-inner">
+              <button
+                onClick={() => onTabChange('professor')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                  activeTab === 'professor'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <UserCheck className="w-3.5 h-3.5 text-amber-300" />
+                <span>VISÃO DO PROFESSOR</span>
+              </button>
+
+              <button
+                onClick={() => onTabChange('projetor')}
+                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs transition-all cursor-pointer ${
+                  activeTab === 'projetor'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-purple-600/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5 text-cyan-300" />
+                <span>VISÃO DO PROJETOR</span>
+              </button>
+            </div>
+          )}
+
           <button
             onClick={onOpenApiKeyModal}
             className={`api-key-btn ${hasApiKey ? 'api-configured' : 'api-missing'} font-['Gotham']`}

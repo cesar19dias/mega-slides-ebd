@@ -26,6 +26,7 @@ export function App() {
     return false;
   });
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'professor' | 'projetor'>('projetor');
   
   const [lessonData, setLessonData] = useState<EBDLessonPreparation | null>(() => {
     // 🔗 Tenta primeiro carregar lição recebida via URL direta/QR Code
@@ -142,6 +143,10 @@ export function App() {
       <Header
         hasApiKey={Boolean(apiKey)}
         onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+        hasLesson={Boolean(lessonData)}
+        onReset={handleReset}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
       />
 
       <main>
@@ -172,6 +177,8 @@ export function App() {
             lessonData={lessonData}
             onReset={handleReset}
             onUpdateLesson={(updated) => setLessonData(updated)}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
           />
         )}
         {isSyncingSharedLesson && (
