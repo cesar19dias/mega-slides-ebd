@@ -62,10 +62,10 @@ export const Header: React.FC<HeaderProps> = ({
                 if (onOpenQrCode) onOpenQrCode();
                 window.dispatchEvent(new CustomEvent('mega-ebd-open-qr'));
               }}
-              className="w-11 h-11 flex items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border border-purple-400/50 shadow-lg shadow-purple-500/20 transition-all cursor-pointer active:scale-90 hover:scale-105 shrink-0"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] max-h-[44px] p-1 flex items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border border-purple-400/50 shadow-lg shadow-purple-500/25 transition-all cursor-pointer active:scale-90 hover:scale-105 shrink-0"
               title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
             >
-              <QrCode className="w-6 h-6 text-white" />
+              <QrCode className="w-7.5 h-7.5 text-white" />
             </button>
           </div>
         )}

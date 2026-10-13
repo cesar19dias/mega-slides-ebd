@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
+import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop, Crosshair } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -668,6 +668,41 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // ── POSICIONAMENTO LIVRE DE ELEMENTOS NO SLIDE ──────────────────────────────
   const [isLayoutEditMode, setIsLayoutEditMode] = useState(false);
 
+  // ── LINHAS-GUIA DE ALINHAMENTO (HORIZONTAL E VERTICAL) ──────────────────────
+  const [showAlignmentGuides, setShowAlignmentGuides] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('mega_ebd_show_guides') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const [guideHPos, setGuideHPos] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('mega_ebd_guide_h');
+      return saved !== null ? Number(saved) : 50;
+    } catch {
+      return 50;
+    }
+  });
+
+  const [guideVPos, setGuideVPos] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('mega_ebd_guide_v');
+      return saved !== null ? Number(saved) : 50;
+    } catch {
+      return 50;
+    }
+  });
+
+  const toggleAlignmentGuides = useCallback(() => {
+    setShowAlignmentGuides(prev => {
+      const next = !prev;
+      try { localStorage.setItem('mega_ebd_show_guides', String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
   const [slideTitlePositions, setSlideTitlePositions] = useState<Record<number, { x: number; y: number }>>(() => {
     if (lessonData.slideTitlePositions && Object.keys(lessonData.slideTitlePositions).length > 0) {
       return lessonData.slideTitlePositions;
@@ -1229,9 +1264,62 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
   }, [isLayoutEditMode, projectorIndex, slideTitlePositions, slideBodyPositions, slideImagePositions]);
 
+  // Ref e handler para arrastar as Linhas Guia (Horizontal e Vertical)
+  const guideDragRef = useRef<{
+    active: boolean;
+    axis: 'h' | 'v';
+  } | null>(null);
+
+  const handleGuideDragStart = useCallback((e: React.MouseEvent | React.TouchEvent, axis: 'h' | 'v') => {
+    if ('touches' in e) {
+      if (e.cancelable) e.preventDefault();
+    } else {
+      e.preventDefault();
+    }
+    e.stopPropagation();
+
+    guideDragRef.current = {
+      active: true,
+      axis,
+    };
+  }, []);
+
   // Listeners globais de mouse/touch para o drag responsivo e resize
   useEffect(() => {
     const handleMove = (e: MouseEvent | TouchEvent) => {
+      // -1. Arraste interativo das Linhas Guia (Horizontal e Vertical)
+      if (guideDragRef.current?.active) {
+        let clientX = 0;
+        let clientY = 0;
+        if ('touches' in e && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+          if (e.cancelable) e.preventDefault();
+        } else if ('clientX' in e) {
+          clientX = (e as MouseEvent).clientX;
+          clientY = (e as MouseEvent).clientY;
+        } else {
+          return;
+        }
+
+        const stage = projectorStageRef.current;
+        if (!stage) return;
+        const rect = stage.getBoundingClientRect();
+        const stageW = rect.width || 800;
+        const stageH = rect.height || 450;
+
+        if (guideDragRef.current.axis === 'h') {
+          const relY = clientY - rect.top;
+          const pct = Math.max(3, Math.min(97, Math.round((relY / stageH) * 1000) / 10));
+          setGuideHPos(pct);
+        } else {
+          const relX = clientX - rect.left;
+          const pct = Math.max(3, Math.min(97, Math.round((relX / stageW) * 1000) / 10));
+          setGuideVPos(pct);
+        }
+        return;
+      }
+
       // 0. Pan/Arraste fluido da foto no modo Canva Crop
       if (cropPanStateRef.current?.active) {
         let clientX = 0;
@@ -1442,6 +1530,23 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           updateLesson(l => ({ ...l, slideImageScales: prev }));
           return prev;
         });
+      }
+
+      if (guideDragRef.current?.active) {
+        const axis = guideDragRef.current.axis;
+        guideDragRef.current = null;
+        if (axis === 'h') {
+          setGuideHPos(cur => {
+            try { localStorage.setItem('mega_ebd_guide_h', String(cur)); } catch {}
+            return cur;
+          });
+        } else {
+          setGuideVPos(cur => {
+            try { localStorage.setItem('mega_ebd_guide_v', String(cur)); } catch {}
+            return cur;
+          });
+        }
+        return;
       }
 
       if (bodyResizeStateRef.current?.active) {
@@ -3343,6 +3448,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <Move className="w-4 h-4 text-current" />
                 <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
               </button>
+
+              {/* BOTÃO DE LINHAS GUIA HORIZONTAL E VERTICAL */}
+              <button
+                onClick={toggleAlignmentGuides}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
+                  showAlignmentGuides
+                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
+                    : 'bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border-cyan-500/40'
+                }`}
+                title="Linhas-guia de alinhamento: exibe réguas e guias na horizontal e vertical para posicionar textos com perfeição"
+              >
+                <Crosshair className="w-4 h-4 text-current" />
+                <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
+              </button>
             </div>
           )}
 
@@ -4459,6 +4578,20 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>🌓 Lado a Lado</span>
                 </button>
 
+                {/* Atalho Rápido: Linhas Guia H / V */}
+                <button
+                  onClick={toggleAlignmentGuides}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] border active:scale-95 ${
+                    showAlignmentGuides
+                      ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
+                      : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40'
+                  }`}
+                  title="Exibir réguas e linhas-guia na horizontal e vertical para posicionar e alinhar textos e títulos"
+                >
+                  <Crosshair className="w-4 h-4 text-cyan-300" />
+                  <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
+                </button>
+
                 {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                 {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                   <>
@@ -4878,6 +5011,119 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <Check className="w-4 h-4 text-white" />
                   <span>Concluir</span>
                 </button>
+              </div>
+            )}
+
+            {/* LINHAS-GUIA DE ALINHAMENTO HORIZONTAL E VERTICAL (TEXTOS E TÍTULOS) */}
+            {!isExporting && (showAlignmentGuides || isLayoutEditMode) && (
+              <div className="absolute inset-0 pointer-events-none z-35 overflow-hidden no-print select-none">
+                {/* Linhas centrais de referência sutis (50% X e 50% Y) */}
+                <div
+                  className="absolute left-0 right-0 border-t border-dashed border-cyan-400/20 pointer-events-none"
+                  style={{ top: '50%' }}
+                />
+                <div
+                  className="absolute top-0 bottom-0 border-l border-dashed border-amber-400/20 pointer-events-none"
+                  style={{ left: '50%' }}
+                />
+
+                {/* Margem Segura do Projetor (Safe Margin 8%) */}
+                <div
+                  className="absolute inset-[8%] border border-dashed border-slate-400/20 rounded-2xl pointer-events-none"
+                />
+
+                {/* LINHA GUIA HORIZONTAL (EIXO Y) */}
+                <div
+                  className="absolute left-0 right-0 z-40 transition-none pointer-events-none"
+                  style={{ top: `${guideHPos}%` }}
+                >
+                  <div className="w-full border-t-2 border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
+
+                  {/* Alça arrastável interativa da Linha Horizontal */}
+                  <div
+                    onMouseDown={(e) => handleGuideDragStart(e, 'h')}
+                    onTouchStart={(e) => handleGuideDragStart(e, 'h')}
+                    onDoubleClick={() => setGuideHPos(50)}
+                    className="absolute left-4 -translate-y-1/2 pointer-events-auto bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full shadow-lg border border-cyan-300 flex items-center gap-1.5 cursor-ns-resize backdrop-blur-md active:scale-95 group transition-transform"
+                    title="Arrastar Guia Horizontal (Y) para cima/baixo • Duplo clique para 50%"
+                  >
+                    <span>↔ Guia H: {guideHPos}%</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setGuideHPos(50); }}
+                      className="opacity-75 hover:opacity-100 hover:text-cyan-200 text-[9px] bg-cyan-800/80 px-1 rounded cursor-pointer"
+                      title="Centralizar em 50%"
+                    >
+                      50%
+                    </button>
+                  </div>
+                </div>
+
+                {/* LINHA GUIA VERTICAL (EIXO X) */}
+                <div
+                  className="absolute top-0 bottom-0 z-40 transition-none pointer-events-none"
+                  style={{ left: `${guideVPos}%` }}
+                >
+                  <div className="h-full border-l-2 border-dashed border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.9)]" />
+
+                  {/* Alça arrastável interativa da Linha Vertical */}
+                  <div
+                    onMouseDown={(e) => handleGuideDragStart(e, 'v')}
+                    onTouchStart={(e) => handleGuideDragStart(e, 'v')}
+                    onDoubleClick={() => setGuideVPos(50)}
+                    className="absolute top-4 -translate-x-1/2 pointer-events-auto bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full shadow-lg border border-amber-300 flex items-center gap-1.5 cursor-ew-resize backdrop-blur-md active:scale-95 group transition-transform"
+                    title="Arrastar Guia Vertical (X) para esquerda/direita • Duplo clique para 50%"
+                  >
+                    <span>↕ Guia V: {guideVPos}%</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setGuideVPos(50); }}
+                      className="opacity-75 hover:opacity-100 hover:text-amber-900 text-[9px] bg-amber-600/60 px-1 rounded cursor-pointer font-bold"
+                      title="Centralizar em 50%"
+                    >
+                      50%
+                    </button>
+                  </div>
+                </div>
+
+                {/* Mini Menu Flutuante de Alinhamento Rápido das Guias */}
+                <div
+                  className="absolute bottom-3 left-4 pointer-events-auto z-45 bg-slate-950/90 border border-cyan-500/50 rounded-2xl px-3 py-1.5 shadow-2xl backdrop-blur-md flex items-center gap-2 text-white text-[11px] font-bold"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <span className="text-cyan-300 font-black flex items-center gap-1">
+                    <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Guias:</span>
+                  </span>
+                  <button
+                    onClick={() => { setGuideHPos(50); setGuideVPos(50); }}
+                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
+                    title="Centralizar ambas as guias no meio exato do slide"
+                  >
+                    Centro (50%)
+                  </button>
+                  <button
+                    onClick={() => setGuideHPos(22)}
+                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
+                    title="Posicionar guia horizontal na altura típica do Título (22%)"
+                  >
+                    Topo (22%)
+                  </button>
+                  <button
+                    onClick={() => setGuideHPos(48)}
+                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
+                    title="Posicionar guia horizontal no Corpo de Texto (48%)"
+                  >
+                    Texto (48%)
+                  </button>
+                  <button
+                    onClick={toggleAlignmentGuides}
+                    className="text-slate-400 hover:text-rose-400 px-1.5 py-0.5 cursor-pointer text-xs"
+                    title="Ocultar guias"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
 
