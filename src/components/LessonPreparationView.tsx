@@ -761,7 +761,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
-  const isBodyWidthCustom = slideBodyWidths[projectorIndex] !== undefined && slideBodyWidths[projectorIndex] !== 100;
   const imagePos = slideImagePositions[projectorIndex] ?? { x: 0, y: 0 };
   const imageScale = slideImageScales[projectorIndex] ?? 1.0;
   const imageFit = slideImageFits[projectorIndex] ?? 'cover';
@@ -909,15 +908,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
   }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageHeights, slideImagePositions]);
 
-  const setSingleImageHeight = useCallback((slideIdx: number, height: number) => {
-    setSlideImageHeights(prev => {
-      const next = { ...prev, [slideIdx]: Math.max(20, Math.min(100, Math.round(height))) };
-      try { localStorage.setItem('mega_ebd_image_heights', JSON.stringify(next)); } catch {}
-      updateLesson(l => ({ ...l, slideImageHeights: next }));
-      return next;
-    });
-  }, [updateLesson]);
-
   const resetSlideImageHeight = useCallback(() => {
     setSlideImageHeights(prev => {
       const next = { ...prev };
@@ -973,15 +963,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       containerHeight: rect.height || 300,
     };
   }, [projectorIndex, slideImageCrops]);
-
-  const setSingleImageWidth = useCallback((slideIdx: number, width: number) => {
-    setSlideImageWidths(prev => {
-      const next = { ...prev, [slideIdx]: Math.max(20, Math.min(100, Math.round(width))) };
-      try { localStorage.setItem('mega_ebd_image_widths', JSON.stringify(next)); } catch {}
-      updateLesson(l => ({ ...l, slideImageWidths: next }));
-      return next;
-    });
-  }, [updateLesson]);
 
   const resetSlideImageWidth = useCallback(() => {
     setSlideImageWidths(prev => {
@@ -3055,23 +3036,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>📱 QR Code Celular</span>
               </button>
 
-              <button
-                onClick={handleCopyTeacherGuide}
-                title="Copiar Roteiro Completo (com Prompts e Metadados)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all cursor-pointer"
-              >
-                {copiedToast === 'full' ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400">Completo Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Copiar Completo</span>
-                  </>
-                )}
-              </button>
+
 
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
@@ -3228,10 +3193,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={handlePrintTeacherGuide}
+                  title="Imprimir roteiro da lição ou abrir janela de impressão do navegador"
                   className="bg-amber-500 hover:bg-amber-600 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer"
                 >
                   <Printer className="w-4 h-4" />
-                  <span>Baixar PDF / Imprimir</span>
+                  <span>🖨️ Imprimir Roteiro</span>
                 </button>
 
                 <button
@@ -4407,15 +4373,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                 {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                   <>
-                    <button
-                      onClick={() => handleOpenCropForSlide()}
-                      className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border bg-pink-950/70 hover:bg-pink-900 text-pink-200 border-pink-500/50 shadow-sm"
-                      title="Recortar imagem deste slide (Crop)"
-                    >
-                      <Crop className="w-3.5 h-3.5 text-pink-300" />
-                      <span>✂️ Recortar</span>
-                    </button>
-
                     <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/40 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
                       <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
                       <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
@@ -4469,8 +4426,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   </>
                 )}
 
-                {/* Reset de Posições / Escalas / Larguras no topo */}
-                {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled) && (
+                {/* Reset de Posições e Enquadramentos (quando arrastado livremente) */}
+                {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom) && (
                   <div className="flex items-center gap-1">
                     {isTitleMoved && (
                       <button
@@ -4478,7 +4435,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-1 rounded-lg bg-amber-950/80 border border-amber-500/40 cursor-pointer"
                         title="Restaurar posição original do título"
                       >
-                        ↺ Título
+                        ↺ Pos. Título
                       </button>
                     )}
                     {isBodyMoved && (
@@ -4487,16 +4444,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
                         title="Restaurar posição original do texto"
                       >
-                        ↺ Texto
-                      </button>
-                    )}
-                    {isBodyWidthCustom && (
-                      <button
-                        onClick={resetSlideBodyWidth}
-                        className="text-[10px] font-bold text-sky-300 hover:text-white px-2 py-1 rounded-lg bg-sky-950/80 border border-sky-500/40 cursor-pointer"
-                        title="Restaurar largura do texto (100%)"
-                      >
-                        ↺ Larg. Texto
+                        ↺ Pos. Texto
                       </button>
                     )}
                     {isImageMoved && (
@@ -4508,13 +4456,25 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         ↺ Pos. Img
                       </button>
                     )}
-                    {isImageScaled && (
+                    {(isImageWidthCustom || isImageHeightCustom) && (
                       <button
-                        onClick={resetSlideImageScale}
+                        onClick={() => {
+                          resetSlideImageWidth();
+                          resetSlideImageHeight();
+                        }}
                         className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
-                        title="Restaurar tamanho original da imagem (100%)"
+                        title="Restaurar tamanho padrão do quadro da imagem"
                       >
-                        ↺ Tam. Img
+                        ↺ Quadro
+                      </button>
+                    )}
+                    {isImageCropCustom && (
+                      <button
+                        onClick={resetSlideImageCrop}
+                        className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                        title="Restaurar enquadramento e corte original da imagem"
+                      >
+                        ↺ Recorte
                       </button>
                     )}
                   </div>
@@ -4615,120 +4575,8 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
                 </span>
 
-                {/* Controles de Tamanho Separados: Título e Texto */}
+                {/* Controles do Editor de Texto */}
                 <div className="flex flex-wrap items-center gap-3">
-                  {/* Fonte do Título */}
-                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-amber-500/50">
-                    <span className="text-[10px] font-black text-amber-300 uppercase">Fonte Título:</span>
-                    <button
-                      onClick={() => setSingleTitleScale(projectorIndex, Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100))}
-                      disabled={currentTitleScale <= 0.5}
-                      className="p-1 rounded bg-slate-900 text-amber-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Diminuir fonte do título"
-                    >
-                      <ZoomOut className="w-3 h-3 text-amber-400" />
-                    </button>
-                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${isCurrentTitleCustom ? 'text-yellow-300' : 'text-amber-300'}`}>
-                      {Math.round(currentTitleScale * 100)}%
-                    </span>
-                    <button
-                      onClick={() => setSingleTitleScale(projectorIndex, Math.min(3.0, Math.round((currentTitleScale + 0.05) * 100) / 100))}
-                      disabled={currentTitleScale >= 3.0}
-                      className="p-1 rounded bg-slate-900 text-amber-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Aumentar fonte do título"
-                    >
-                      <ZoomIn className="w-3 h-3 text-amber-400" />
-                    </button>
-                    {isCurrentTitleCustom && (
-                      <button
-                        onClick={() => setSingleTitleScale(projectorIndex, null)}
-                        className="text-[9px] font-bold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 cursor-pointer"
-                        title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
-                      >
-                        ↺ {Math.round(defaultTitleScale * 100)}%
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Fonte do Texto */}
-                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-cyan-500/50">
-                    <span className="text-[10px] font-black text-cyan-300 uppercase">Fonte Texto:</span>
-                    <button
-                      onClick={() => setSingleBodyScale(projectorIndex, Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100))}
-                      disabled={currentBodyScale <= 0.5}
-                      className="p-1 rounded bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Diminuir fonte do texto"
-                    >
-                      <ZoomOut className="w-3 h-3 text-cyan-400" />
-                    </button>
-                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${isCurrentBodyCustom ? 'text-cyan-200' : 'text-cyan-300'}`}>
-                      {Math.round(currentBodyScale * 100)}%
-                    </span>
-                    <button
-                      onClick={() => setSingleBodyScale(projectorIndex, Math.min(3.0, Math.round((currentBodyScale + 0.05) * 100) / 100))}
-                      disabled={currentBodyScale >= 3.0}
-                      className="p-1 rounded bg-slate-900 text-cyan-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Aumentar fonte do texto"
-                    >
-                      <ZoomIn className="w-3 h-3 text-cyan-400" />
-                    </button>
-                    {isCurrentBodyCustom && (
-                      <button
-                        onClick={() => setSingleBodyScale(projectorIndex, null)}
-                        className="text-[9px] font-bold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 cursor-pointer"
-                        title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
-                      >
-                        ↺ {Math.round(defaultBodyScale * 100)}%
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Largura da Caixa de Texto */}
-                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-sky-500/50">
-                    <span className="text-[10px] font-black text-sky-300 uppercase">Largura:</span>
-                    <button
-                      onClick={() => {
-                        const cur = slideBodyWidths[projectorIndex] ?? 100;
-                        setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
-                      }}
-                      disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
-                      className="p-1 rounded bg-slate-900 text-sky-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Diminuir largura do texto (-10%)"
-                    >
-                      <ZoomOut className="w-3 h-3 text-sky-400" />
-                    </button>
-                    <span className={`text-xs font-mono font-black min-w-[36px] text-center ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200' : 'text-sky-300'}`}>
-                      {slideBodyWidths[projectorIndex] ?? 100}%
-                    </span>
-                    <button
-                      onClick={() => {
-                        const cur = slideBodyWidths[projectorIndex] ?? 100;
-                        setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
-                      }}
-                      disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
-                      className="p-1 rounded bg-slate-900 text-sky-400 hover:bg-slate-800 text-xs font-black cursor-pointer"
-                      title="Aumentar largura do texto (+10%)"
-                    >
-                      <ZoomIn className="w-3 h-3 text-sky-400" />
-                    </button>
-                    <button
-                      onClick={toggleSideBySideLayout}
-                      className="text-[9px] font-black text-sky-300 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 cursor-pointer flex items-center gap-0.5"
-                      title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
-                    >
-                      🌓 Lado a Lado
-                    </button>
-                    {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
-                      <button
-                        onClick={resetSlideBodyWidth}
-                        className="text-[9px] font-bold text-sky-400 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 cursor-pointer"
-                        title="Restaurar largura inteira (100%)"
-                      >
-                        ↺ 100%
-                      </button>
-                    )}
-                  </div>
-
                   {/* Cor das Letras do Corpo */}
                   <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-cyan-500/50">
                     <span className="text-[10px] font-black text-cyan-300 uppercase">Cor Letras:</span>
@@ -4764,169 +4612,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     </span>
                   </div>
 
-                  {/* Redimensionamento e Ajuste da Imagem deste Slide */}
-                  {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                    <>
-                      {/* Botão de Encaixe na Área Branca (Embaixo) */}
-                      <button
-                        onClick={occupyFullArea}
-                        className="px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400 shadow-md shadow-emerald-950/40 hover:scale-105 active:scale-95"
-                        title="Encaixar a imagem perfeitamente dentro da área branca deste slide (estritamente abaixo do cabeçalho)"
-                      >
-                        <span>📐 Área Branca (Embaixo)</span>
-                      </button>
-
-                      {/* Botão Tela Toda (Caso queira preencher o slide inteiro) */}
-                      <button
-                        onClick={occupyEntireStage}
-                        className="px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700 shadow-sm"
-                        title="Fazer a imagem cobrir a tela inteira (100% de todo o slide)"
-                      >
-                        <span>🖥️ Tela Toda</span>
-                      </button>
-
-                      {/* Recortar Imagem estilo Canva diretamente no slide */}
-                      <button
-                        onClick={() => setIsCanvaCropping(prev => !prev)}
-                        className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border ${
-                          isCanvaCropping
-                            ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 shadow-lg shadow-cyan-600/30 animate-pulse'
-                            : 'bg-cyan-950/80 hover:bg-cyan-900 text-cyan-200 border-cyan-400/50 shadow-sm'
-                        }`}
-                        title="Recorte Fluido Estilo Canva: reposicione e dê zoom na foto diretamente no slide"
-                      >
-                        {isCanvaCropping ? <Check className="w-3.5 h-3.5" /> : <Crop className="w-3.5 h-3.5 text-cyan-300" />}
-                        <span>{isCanvaCropping ? '✓ Concluir Recorte' : '✂️ Recortar (Canva)'}</span>
-                      </button>
-
-                      {/* Largura do Quadro / Recipiente */}
-                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Largura do quadro/recipiente da imagem neste slide (ou arraste as laterais no modo Mover)">
-                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Quadro:</span>
-                        <button
-                          onClick={() => setSingleImageWidth(projectorIndex, Math.max(20, imageWidth - 5))}
-                          disabled={imageWidth <= 20}
-                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
-                          title="Diminuir largura do quadro (-5%)"
-                        >
-                          <ZoomOut className="w-3 h-3 text-purple-400" />
-                        </button>
-                        <span className={`text-xs font-black px-1 min-w-[34px] text-center font-mono ${isImageWidthCustom ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
-                          {imageWidth}%
-                        </span>
-                        <button
-                          onClick={() => setSingleImageWidth(projectorIndex, Math.min(100, imageWidth + 5))}
-                          disabled={imageWidth >= 100}
-                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
-                          title="Aumentar largura do quadro (+5%)"
-                        >
-                          <ZoomIn className="w-3 h-3 text-purple-400" />
-                        </button>
-                        <button
-                          onClick={() => setSingleImageWidth(projectorIndex, imageWidth === 48 ? 100 : 48)}
-                          className="text-[9px] font-black text-purple-300 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
-                          title="Alternar rapidamente entre 48% (Metade) e 100% (Total)"
-                        >
-                          {imageWidth === 48 ? '100%' : '48%'}
-                        </button>
-                        {isImageWidthCustom && (
-                          <button
-                            onClick={resetSlideImageWidth}
-                            className="text-[9px] font-bold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
-                            title="Restaurar largura padrão do quadro"
-                          >
-                            ↺
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Altura do Quadro / Recipiente */}
-                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Altura do quadro da imagem (ou arraste as alças superior/inferior no modo Mover)">
-                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Altura:</span>
-                        <button
-                          onClick={() => setSingleImageHeight(projectorIndex, Math.max(20, imageHeight - 5))}
-                          disabled={imageHeight <= 20}
-                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
-                          title="Diminuir altura do quadro (-5%)"
-                        >
-                          <ZoomOut className="w-3 h-3 text-purple-400" />
-                        </button>
-                        <span className={`text-xs font-black px-1 min-w-[34px] text-center font-mono ${isImageHeightCustom ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
-                          {imageHeight}%
-                        </span>
-                        <button
-                          onClick={() => setSingleImageHeight(projectorIndex, Math.min(100, imageHeight + 5))}
-                          disabled={imageHeight >= 100}
-                          className="p-1 rounded bg-slate-900 text-purple-300 hover:bg-slate-800 text-xs font-black cursor-pointer disabled:opacity-30"
-                          title="Aumentar altura do quadro (+5%)"
-                        >
-                          <ZoomIn className="w-3 h-3 text-purple-400" />
-                        </button>
-                        {isImageHeightCustom && (
-                          <button
-                            onClick={resetSlideImageHeight}
-                            className="text-[9px] font-bold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 cursor-pointer"
-                            title="Restaurar altura padrão do quadro"
-                          >
-                            ↺
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Zoom / Escala da Imagem */}
-                      <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/50 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
-                        <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                        <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Tamanho:</span>
-                        <button
-                          onClick={() => {
-                            const next = Math.max(0.2, Math.round((imageScale - 0.05) * 100) / 100);
-                            setSingleImageScale(projectorIndex, next);
-                          }}
-                          disabled={imageScale <= 0.2}
-                          className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                          title="Diminuir imagem (-)"
-                        >
-                          <ZoomOut className="w-3.5 h-3.5 text-purple-400" />
-                        </button>
-                        <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
-                          {Math.round(imageScale * 100)}%
-                        </span>
-                        <button
-                          onClick={() => {
-                            const next = Math.min(3.0, Math.round((imageScale + 0.05) * 100) / 100);
-                            setSingleImageScale(projectorIndex, next);
-                          }}
-                          disabled={imageScale >= 3.0}
-                          className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
-                          title="Aumentar imagem (+)"
-                        >
-                          <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
-                        </button>
-                        {isImageScaled && (
-                          <button
-                            onClick={resetSlideImageScale}
-                            className="text-[9px] font-extrabold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
-                            title="Restaurar tamanho original (100%)"
-                          >
-                            ↺ 100%
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Alternador de Ajuste: Preencher vs Ajustar Inteira */}
-                      <button
-                        onClick={() => toggleImageFit(projectorIndex)}
-                        className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
-                          imageFit === 'contain'
-                            ? 'bg-purple-900/60 text-purple-200 border-purple-400 shadow-sm'
-                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                        }`}
-                        title="Alternar entre Preencher o slide (Cover) ou Ajustar inteira sem cortar (Contain)"
-                      >
-                        {imageFit === 'contain' ? '🔍 Ajustar Inteira' : '🖼️ Preencher'}
-                      </button>
-                    </>
-                  )}
-
                   {(isCurrentTitleCustom || isCurrentBodyCustom) && (
                     <button
                       onClick={applyCurrentScalesToAllSlides}
@@ -4935,84 +4620,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     >
                       <span>🔗 Aplicar tamanhos a todos</span>
                     </button>
-                  )}
-
-                  {/* Reset de Posição, Tamanho e Largura dos Elementos */}
-                  {(isTitleMoved || isBodyMoved || isBodyWidthCustom || isImageMoved || isImageScaled || isImageWidthCustom || isImageHeightCustom || isImageCropCustom) && (
-                    <div className="flex items-center gap-1.5">
-                      {isTitleMoved && (
-                        <button
-                          onClick={() => resetSlidePosition('title')}
-                          className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-0.5 rounded-lg bg-amber-950/80 border border-amber-500/40 cursor-pointer"
-                          title="Restaurar posição original do título"
-                        >
-                          ↺ Pos. Título
-                        </button>
-                      )}
-                      {isBodyMoved && (
-                        <button
-                          onClick={() => resetSlidePosition('body')}
-                          className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
-                          title="Restaurar posição original do texto"
-                        >
-                          ↺ Pos. Texto
-                        </button>
-                      )}
-                      {isBodyWidthCustom && (
-                        <button
-                          onClick={resetSlideBodyWidth}
-                          className="text-[10px] font-bold text-sky-300 hover:text-white px-2 py-0.5 rounded-lg bg-sky-950/80 border border-sky-500/40 cursor-pointer"
-                          title="Restaurar largura original do texto (100%)"
-                        >
-                          ↺ Larg. Texto
-                        </button>
-                      )}
-                      {isImageMoved && (
-                        <button
-                          onClick={() => resetSlidePosition('image')}
-                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
-                          title="Restaurar posição original da imagem"
-                        >
-                          ↺ Pos. Imagem
-                        </button>
-                      )}
-                      {isImageWidthCustom && (
-                        <button
-                          onClick={resetSlideImageWidth}
-                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
-                          title="Restaurar largura original do quadro da imagem"
-                        >
-                          ↺ Larg. Quadro
-                        </button>
-                      )}
-                      {isImageHeightCustom && (
-                        <button
-                          onClick={resetSlideImageHeight}
-                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
-                          title="Restaurar altura original do quadro da imagem"
-                        >
-                          ↺ Alt. Quadro
-                        </button>
-                      )}
-                      {isImageScaled && (
-                        <button
-                          onClick={resetSlideImageScale}
-                          className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-0.5 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
-                          title="Restaurar tamanho original da imagem (100%)"
-                        >
-                          ↺ Tam. Imagem
-                        </button>
-                      )}
-                      {isImageCropCustom && (
-                        <button
-                          onClick={resetSlideImageCrop}
-                          className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
-                          title="Restaurar enquadramento e corte original da imagem"
-                        >
-                          ↺ Recorte
-                        </button>
-                      )}
-                    </div>
                   )}
                 </div>
               </div>
@@ -5402,7 +5009,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                               transformOrigin: 'bottom center',
                             }}
                           >
-                            <span>🖼️ Quadro ({imageWidth}% × {slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78)}%) • Zoom {Math.round(imageScale * 100)}%</span>
+                            <span>🖼️ Quadro ({imageWidth}% × {imageHeight}%) • Zoom {Math.round(imageScale * 100)}%</span>
                             <span className="opacity-80">• Duplo clique para Recorte Canva</span>
                           </div>
 
