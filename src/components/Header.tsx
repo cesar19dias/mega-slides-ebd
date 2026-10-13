@@ -1,11 +1,12 @@
 import React from 'react';
-import { BookOpen, Key, RefreshCw, UserCheck, Monitor } from 'lucide-react';
+import { BookOpen, Key, RefreshCw, UserCheck, Monitor, QrCode } from 'lucide-react';
 
 interface HeaderProps {
   hasApiKey: boolean;
   onOpenApiKeyModal: () => void;
   hasLesson?: boolean;
   onReset?: () => void;
+  onOpenQrCode?: () => void;
   activeTab?: 'professor' | 'projetor';
   onTabChange?: (tab: 'professor' | 'projetor') => void;
 }
@@ -15,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenApiKeyModal,
   hasLesson,
   onReset,
+  onOpenQrCode,
   activeTab,
   onTabChange,
 }) => {
@@ -40,16 +42,30 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Centro: Nova Lição EBD */}
-        {hasLesson && onReset && (
-          <div className="header-center-actions">
+        {/* Centro: Nova Lição EBD + Botão Quadrado de QR Code */}
+        {hasLesson && (
+          <div className="header-center-actions flex items-center gap-3">
+            {onReset && (
+              <button
+                onClick={onReset}
+                className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-4.5 py-2.5 rounded-xl border border-slate-600 hover:border-slate-400 font-extrabold text-sm transition-all shadow-md cursor-pointer active:scale-95 min-h-[42px]"
+                title="Iniciar uma nova lição EBD"
+              >
+                <RefreshCw className="w-4 h-4 text-blue-400" />
+                <span>Nova Lição EBD</span>
+              </button>
+            )}
+
+            {/* Símbolo QR Code Quadrado */}
             <button
-              onClick={onReset}
-              className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-4.5 py-2.5 rounded-xl border border-slate-600 hover:border-slate-400 font-extrabold text-sm transition-all shadow-md cursor-pointer active:scale-95"
-              title="Iniciar uma nova lição EBD"
+              onClick={() => {
+                if (onOpenQrCode) onOpenQrCode();
+                window.dispatchEvent(new CustomEvent('mega-ebd-open-qr'));
+              }}
+              className="w-11 h-11 flex items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border border-purple-400/50 shadow-lg shadow-purple-500/20 transition-all cursor-pointer active:scale-90 hover:scale-105 shrink-0"
+              title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
             >
-              <RefreshCw className="w-4 h-4 text-blue-400" />
-              <span>Nova Lição EBD</span>
+              <QrCode className="w-6 h-6 text-white" />
             </button>
           </div>
         )}

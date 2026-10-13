@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
-import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Smartphone, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
+import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
@@ -783,8 +783,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         setIsImageMenuOpen(false);
       }
     }
+    const handleOpenQr = () => setIsQrModalOpen(true);
+    window.addEventListener('mega-ebd-open-qr', handleOpenQr);
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('mega-ebd-open-qr', handleOpenQr);
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
@@ -3051,14 +3056,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>📄 Roteiro PDF</span>
               </button>
 
-              <button
-                onClick={() => setIsQrModalOpen(true)}
-                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/40 shadow-md transition-all cursor-pointer min-h-[42px] active:scale-95"
-              >
-                <Smartphone className="w-4 h-4 text-cyan-300" />
-                <span>📱 QR Code Celular</span>
-              </button>
 
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
@@ -3203,15 +3200,6 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 )}
               </div>
 
-              {/* QR Code Celular */}
-              <button
-                onClick={() => setIsQrModalOpen(true)}
-                title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-              >
-                <Smartphone className="w-4 h-4 text-cyan-300" />
-                <span>📱 QR Code Celular</span>
-              </button>
 
               {/* Upload do Meu Modelo / Gerenciador de Modelo */}
               <div className="relative inline-block" ref={modelMenuRef}>
