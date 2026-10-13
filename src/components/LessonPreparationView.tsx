@@ -3041,37 +3041,35 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
         <div className="flex flex-wrap items-center gap-3">
           {/* Botões de Ação para Baixar / Imprimir / Copiar a Parte do Professor */}
           {activeTab === 'professor' && (
-            <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2 rounded-2xl border border-slate-800">
               <button
                 onClick={() => exportTeacherGuideCleanPDF(lesson)}
                 title="Baixar Roteiro Limpo do Professor em PDF para ler no celular"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-red-600 hover:bg-red-500 text-white border border-red-400/40 shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm bg-red-600 hover:bg-red-500 text-white border border-red-400/40 shadow-md transition-all cursor-pointer min-h-[42px] active:scale-95"
               >
-                <FileDown className="w-3.5 h-3.5 text-white" />
+                <FileDown className="w-4 h-4 text-white" />
                 <span>📄 Roteiro PDF</span>
               </button>
 
               <button
                 onClick={() => setIsQrModalOpen(true)}
                 title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/40 shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400/40 shadow-md transition-all cursor-pointer min-h-[42px] active:scale-95"
               >
-                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                <Smartphone className="w-4 h-4 text-cyan-300" />
                 <span>📱 QR Code Celular</span>
               </button>
-
-
 
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
                 title="Ativar/desativar modo de edição livre de texto"
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm transition-all cursor-pointer border min-h-[42px] active:scale-95 ${
                   isEditMode
                     ? 'bg-amber-500 text-slate-950 border-amber-400 font-extrabold shadow-lg shadow-amber-500/30'
                     : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
                 }`}
               >
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-4 h-4" />
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Conteúdo'}</span>
               </button>
             </div>
@@ -3079,32 +3077,32 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
           {/* Botões de Ação do Projetor: Imagem (1 Botão), Slide Extra, QR Code, Modelo, PPTX, ZIP, Editar, Mover */}
           {activeTab === 'projetor' && (
-            <div className="flex flex-wrap items-center gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+            <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2 rounded-2xl border border-slate-800">
               {/* 1 BOTÃO UNIFICADO: IMAGEM DO SLIDE */}
               <div className="relative inline-block" ref={imageMenuRef}>
-                <div className="inline-flex items-center rounded-xl shadow-md border border-purple-400/50 bg-purple-700 overflow-hidden">
+                <div className="inline-flex items-center rounded-xl shadow-md border border-purple-400/50 bg-purple-700 overflow-hidden min-h-[42px]">
                   <label
-                    className="hover:bg-purple-600 text-white font-black px-3 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
+                    className="hover:bg-purple-600 text-white font-black px-4 py-2.5 flex items-center gap-2 text-sm cursor-pointer transition-all active:scale-95"
                     title="Adicionar ou alterar imagem ilustrativa neste slide"
                   >
-                    <ImageIcon className="w-4 h-4 text-purple-200" />
+                    <ImageIcon className="w-4.5 h-4.5 text-purple-200" />
                     <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Imagem' : '🖼️ + Imagem'}</span>
                     <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
                   </label>
                   {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                     <button
                       onClick={() => setIsImageMenuOpen(prev => !prev)}
-                      className="hover:bg-purple-600 text-white font-black px-2 py-1.5 border-l border-purple-500/80 flex items-center justify-center cursor-pointer transition-all"
+                      className="hover:bg-purple-600 text-white font-black px-3 py-2.5 border-l border-purple-500/80 flex items-center justify-center cursor-pointer transition-all min-h-[42px]"
                       title="Mais opções da imagem (Recortar, Remover)"
                     >
-                      <ChevronDown className={`w-3.5 h-3.5 text-purple-100 transition-transform duration-200 ${isImageMenuOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-purple-100 transition-transform duration-200 ${isImageMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
                   )}
                 </div>
 
                 {isImageMenuOpen && (projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                    <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-purple-200 hover:bg-purple-950/60 font-bold transition-colors cursor-pointer">
+                  <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                    <label className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-purple-200 hover:bg-purple-950/60 font-bold transition-colors cursor-pointer">
                       <ImageIcon className="w-4 h-4 text-purple-400" />
                       <span>📷 Alterar Imagem</span>
                       <input type="file" accept="image/*" onChange={(e) => { handleSlideImageUpload(e); setIsImageMenuOpen(false); }} className="hidden" />
@@ -3112,7 +3110,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                     <button
                       onClick={() => { handleOpenCropForSlide(); setIsImageMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
                     >
                       <Crop className="w-4 h-4 text-pink-400" />
                       <span>✂️ Recortar (Crop)</span>
@@ -3122,7 +3120,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                     <button
                       onClick={() => { handleRemoveSlideImage(); setIsImageMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4 text-red-400" />
                       <span>🗑️ Remover Imagem</span>
@@ -3133,29 +3131,29 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
               {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
               <div className="relative inline-block" ref={slideMenuRef}>
-                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden">
+                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden min-h-[42px]">
                   <button
                     onClick={handleAddExtraSlide}
-                    className="hover:bg-emerald-500 text-white font-black px-3 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
+                    className="hover:bg-emerald-500 text-white font-black px-4 py-2.5 flex items-center gap-2 text-sm cursor-pointer transition-all active:scale-95"
                     title="Adicionar um novo slide extra personalizado nesta lição"
                   >
-                    <PlusCircle className="w-4 h-4 text-emerald-100" />
+                    <PlusCircle className="w-4.5 h-4.5 text-emerald-100" />
                     <span>➕ Adicionar Slide Extra</span>
                   </button>
                   <button
                     onClick={() => setIsSlideMenuOpen(prev => !prev)}
-                    className="hover:bg-emerald-500 text-white font-black px-2 py-1.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all"
+                    className="hover:bg-emerald-500 text-white font-black px-3 py-2.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all min-h-[42px]"
                     title="Mais ações do slide (Duplicar, Mover, Excluir)"
                   >
-                    <ChevronDown className={`w-3.5 h-3.5 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
                   </button>
                 </div>
 
                 {isSlideMenuOpen && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                  <div className="absolute left-0 top-full mt-2 z-50 w-60 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
                     <button
                       onClick={() => { handleAddExtraSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
                     >
                       <PlusCircle className="w-4 h-4 text-emerald-400" />
                       <span>➕ Novo Slide Extra</span>
@@ -3163,7 +3161,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                     <button
                       onClick={() => { handleDuplicateSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
                     >
                       <Copy className="w-4 h-4 text-cyan-400" />
                       <span>📋 Duplicar Slide Atual</span>
@@ -3174,7 +3172,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => { handleMoveSlideLeft(); setIsSlideMenuOpen(false); }}
                       disabled={projectorIndex === 0}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
                     >
                       <ArrowLeft className="w-4 h-4 text-amber-400" />
                       <span>⬅️ Mover para Esquerda</span>
@@ -3183,7 +3181,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     <button
                       onClick={() => { handleMoveSlideRight(); setIsSlideMenuOpen(false); }}
                       disabled={projectorIndex === projectorItems.length - 1}
-                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
                     >
                       <ArrowRight className="w-4 h-4 text-amber-400" />
                       <span>➡️ Mover para Direita</span>
@@ -3194,7 +3192,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                         <div className="border-t border-slate-800 my-1" />
                         <button
                           onClick={() => { handleDeleteSlide(); setIsSlideMenuOpen(false); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4 text-red-400" />
                           <span>🗑️ Excluir Slide Atual</span>
@@ -3209,9 +3207,9 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               <button
                 onClick={() => setIsQrModalOpen(true)}
                 title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-bold cursor-pointer border border-purple-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
               >
-                <Smartphone className="w-3.5 h-3.5 text-cyan-300" />
+                <Smartphone className="w-4 h-4 text-cyan-300" />
                 <span>📱 QR Code Celular</span>
               </button>
 
@@ -3219,10 +3217,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
               <div className="relative inline-block" ref={modelMenuRef}>
                 {!customBg ? (
                   <label
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
                     title="Enviar imagem como fundo de todos os slides do projetor"
                   >
-                    <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                    <LayoutTemplate className="w-4 h-4 text-amber-300" />
                     <span>📁 Meu Modelo</span>
                     <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
                   </label>
@@ -3230,17 +3228,17 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   <>
                     <button
                       onClick={() => setIsModelMenuOpen(prev => !prev)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
                       title="Gerenciar imagem de fundo do modelo (Trocar, Recortar, Remover)"
                     >
-                      <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                      <LayoutTemplate className="w-4 h-4 text-amber-300" />
                       <span>📁 Modelo de Fundo</span>
-                      <ChevronDown className={`w-3.5 h-3.5 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                      <ChevronDown className={`w-4 h-4 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
                     </button>
 
                     {isModelMenuOpen && (
-                      <div className="absolute left-0 top-full mt-2 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                        <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
+                      <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                        <label className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
                           <LayoutTemplate className="w-4 h-4 text-indigo-400" />
                           <span>📁 Trocar Modelo</span>
                           <input
@@ -3259,7 +3257,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             handleOpenCropForBg();
                             setIsModelMenuOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
                         >
                           <Crop className="w-4 h-4 text-pink-400" />
                           <span>✂️ Recortar Fundo (16:9)</span>
@@ -3274,7 +3272,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                             updateLesson(l => ({ ...l, customBg: null }));
                             setIsModelMenuOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4 text-red-400" />
                           <span>✕ Remover Modelo</span>
@@ -3297,10 +3295,10 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   }));
                   exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
                 title="Exportar apresentação completa (.pptx) com todos os slides e edições"
               >
-                <Download className="w-3.5 h-3.5 text-white" />
+                <Download className="w-4 h-4 text-white" />
                 <span>PowerPoint (.pptx)</span>
               </button>
 
@@ -3323,38 +3321,38 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                   }
                 }}
                 disabled={!!isExporting}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold cursor-pointer disabled:opacity-50 transition-all shadow-sm hover:scale-105 active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold cursor-pointer disabled:opacity-50 transition-all shadow-sm hover:scale-105 active:scale-95 min-h-[42px]"
                 title="Exportar todos os slides como ZIP com PNGs"
               >
-                {isExporting === 'png' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ImageDown className="w-3.5 h-3.5" />}
+                {isExporting === 'png' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
                 <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
               </button>
 
               {/* BOTÃO DE EDITAR SLIDE (MODO PROJETOR) */}
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
                   isEditMode
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 ring-2 ring-amber-400/50'
                     : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
                 }`}
                 title="Ativar/desativar modo de edição livre de texto do slide"
               >
-                <Edit3 className="w-3.5 h-3.5 text-current" />
+                <Edit3 className="w-4 h-4 text-current" />
                 <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
               </button>
 
               {/* BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) */}
               <button
                 onClick={() => setIsLayoutEditMode(prev => !prev)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
                   isLayoutEditMode
                     ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
                     : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
                 }`}
                 title="Arrastar título e texto livremente no slide para reposicioná-los"
               >
-                <Move className="w-3.5 h-3.5 text-current" />
+                <Move className="w-4 h-4 text-current" />
                 <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
               </button>
             </div>
@@ -4342,23 +4340,23 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg">
 
           {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
                 {/* Fonte do Título */}
-                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-amber-500/40 shadow-sm" title="Ajustar tamanho da fonte do TÍTULO deste slide">
-                  <Type className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider">Título:</span>
+                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TÍTULO deste slide">
+                  <Type className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-xs font-black text-amber-300 uppercase tracking-wider">Título:</span>
                   <button
                     onClick={() => {
                       const next = Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100);
                       setSingleTitleScale(projectorIndex, next);
                     }}
                     disabled={currentTitleScale <= 0.5}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Diminuir fonte do título (A-)"
                   >
-                    <ZoomOut className="w-3.5 h-3.5 text-amber-400" />
+                    <ZoomOut className="w-4 h-4 text-amber-400" />
                   </button>
-                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isCurrentTitleCustom ? 'text-yellow-300 font-black' : 'text-amber-300'}`}>
+                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentTitleCustom ? 'text-yellow-300 font-black' : 'text-amber-300'}`}>
                     {Math.round(currentTitleScale * 100)}%
                   </span>
                   <button
@@ -4367,15 +4365,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       setSingleTitleScale(projectorIndex, next);
                     }}
                     disabled={currentTitleScale >= 3.0}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Aumentar fonte do título (A+)"
                   >
-                    <ZoomIn className="w-3.5 h-3.5 text-amber-400" />
+                    <ZoomIn className="w-4 h-4 text-amber-400" />
                   </button>
                   {isCurrentTitleCustom && (
                     <button
                       onClick={() => setSingleTitleScale(projectorIndex, null)}
-                      className="text-[9px] font-extrabold text-amber-400 hover:text-white px-1.5 py-0.5 rounded bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
+                      className="text-xs font-black text-amber-400 hover:text-white px-2 py-1 rounded-lg bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
                       title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
                     >
                       ↺ {Math.round(defaultTitleScale * 100)}%
@@ -4384,21 +4382,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </div>
 
                 {/* Fonte do Texto */}
-                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-cyan-500/40 shadow-sm" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
-                  <Type className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                  <span className="text-[10px] font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
+                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
+                  <Type className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
                   <button
                     onClick={() => {
                       const next = Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100);
                       setSingleBodyScale(projectorIndex, next);
                     }}
                     disabled={currentBodyScale <= 0.5}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Diminuir fonte do texto (A-)"
                   >
-                    <ZoomOut className="w-3.5 h-3.5 text-cyan-400" />
+                    <ZoomOut className="w-4 h-4 text-cyan-400" />
                   </button>
-                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isCurrentBodyCustom ? 'text-cyan-200 font-black' : 'text-cyan-300'}`}>
+                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentBodyCustom ? 'text-cyan-200 font-black' : 'text-cyan-300'}`}>
                     {Math.round(currentBodyScale * 100)}%
                   </span>
                   <button
@@ -4407,15 +4405,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       setSingleBodyScale(projectorIndex, next);
                     }}
                     disabled={currentBodyScale >= 3.0}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Aumentar fonte do texto (A+)"
                   >
-                    <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+                    <ZoomIn className="w-4 h-4 text-cyan-400" />
                   </button>
                   {isCurrentBodyCustom && (
                     <button
                       onClick={() => setSingleBodyScale(projectorIndex, null)}
-                      className="text-[9px] font-extrabold text-cyan-400 hover:text-white px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
+                      className="text-xs font-black text-cyan-400 hover:text-white px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
                       title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
                     >
                       ↺ {Math.round(defaultBodyScale * 100)}%
@@ -4424,21 +4422,21 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 </div>
 
                 {/* Largura da Caixa de Texto */}
-                <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-sky-500/40 shadow-sm" title="Ajustar largura da caixa de texto (permite colocar texto de um lado e imagem do outro)">
-                  <Columns className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span className="text-[10px] font-black text-sky-300 uppercase tracking-wider">Largura:</span>
+                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-sm min-h-[40px]" title="Ajustar largura da caixa de texto (permite colocar texto de um lado e imagem do outro)">
+                  <Columns className="w-4 h-4 text-sky-400 shrink-0" />
+                  <span className="text-xs font-black text-sky-300 uppercase tracking-wider">Largura:</span>
                   <button
                     onClick={() => {
                       const cur = slideBodyWidths[projectorIndex] ?? 100;
                       setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
                     }}
                     disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Diminuir largura do texto (-10%)"
                   >
-                    <ZoomOut className="w-3.5 h-3.5 text-sky-400" />
+                    <ZoomOut className="w-4 h-4 text-sky-400" />
                   </button>
-                  <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200 font-black' : 'text-sky-300'}`}>
+                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200 font-black' : 'text-sky-300'}`}>
                     {slideBodyWidths[projectorIndex] ?? 100}%
                   </span>
                   <button
@@ -4447,15 +4445,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                       setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
                     }}
                     disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
-                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                     title="Aumentar largura do texto (+10%)"
                   >
-                    <ZoomIn className="w-3.5 h-3.5 text-sky-400" />
+                    <ZoomIn className="w-4 h-4 text-sky-400" />
                   </button>
                   {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
                     <button
                       onClick={resetSlideBodyWidth}
-                      className="text-[9px] font-extrabold text-sky-400 hover:text-white px-1.5 py-0.5 rounded bg-sky-950 border border-sky-500/40 transition-colors cursor-pointer"
+                      className="text-xs font-black text-sky-400 hover:text-white px-2 py-1 rounded-lg bg-sky-950 border border-sky-500/40 transition-colors cursor-pointer"
                       title="Restaurar largura inteira (100%)"
                     >
                       ↺ 100%
@@ -4466,31 +4464,31 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 {/* Atalho Rápido: Lado a Lado (Texto de um lado, imagem do outro) */}
                 <button
                   onClick={toggleSideBySideLayout}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-gradient-to-r from-sky-900/60 to-purple-900/60 hover:from-sky-800/80 hover:to-purple-800/80 text-sky-200 border border-sky-400/50 text-xs font-extrabold cursor-pointer transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-900/60 to-purple-900/60 hover:from-sky-800/80 hover:to-purple-800/80 text-sky-200 border border-sky-400/50 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
                   title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
                 >
-                  <Columns className="w-3.5 h-3.5 text-sky-300" />
+                  <Columns className="w-4 h-4 text-sky-300" />
                   <span>🌓 Lado a Lado</span>
                 </button>
 
                 {/* Redimensionamento e Ajuste da Imagem deste Slide */}
                 {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
                   <>
-                    <div className="flex items-center gap-1 bg-slate-950 px-2 py-1 rounded-xl border border-purple-500/40 shadow-sm" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
-                      <ImageIcon className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      <span className="text-[10px] font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
+                    <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-purple-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
+                      <ImageIcon className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span className="text-xs font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
                       <button
                         onClick={() => {
                           const next = Math.max(0.2, Math.round((imageScale - 0.05) * 100) / 100);
                           setSingleImageScale(projectorIndex, next);
                         }}
                         disabled={imageScale <= 0.2}
-                        className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                         title="Diminuir imagem (-)"
                       >
-                        <ZoomOut className="w-3.5 h-3.5 text-purple-400" />
+                        <ZoomOut className="w-4 h-4 text-purple-400" />
                       </button>
-                      <span className={`text-xs font-black px-1 min-w-[36px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
+                      <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
                         {Math.round(imageScale * 100)}%
                       </span>
                       <button
@@ -4499,15 +4497,15 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           setSingleImageScale(projectorIndex, next);
                         }}
                         disabled={imageScale >= 3.0}
-                        className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-xs cursor-pointer transition-all"
+                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
                         title="Aumentar imagem (+)"
                       >
-                        <ZoomIn className="w-3.5 h-3.5 text-purple-400" />
+                        <ZoomIn className="w-4 h-4 text-purple-400" />
                       </button>
                       {isImageScaled && (
                         <button
                           onClick={resetSlideImageScale}
-                          className="text-[9px] font-extrabold text-purple-400 hover:text-white px-1.5 py-0.5 rounded bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
+                          className="text-xs font-black text-purple-400 hover:text-white px-2 py-1 rounded-lg bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
                           title="Restaurar tamanho original (100%)"
                         >
                           ↺ 100%
@@ -4517,7 +4515,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                     <button
                       onClick={() => toggleImageFit(projectorIndex)}
-                      className={`px-2 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                      className={`px-3.5 py-2 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-1.5 cursor-pointer border min-h-[40px] active:scale-95 ${
                         imageFit === 'contain'
                           ? 'bg-purple-900/60 text-purple-200 border-purple-400 shadow-sm'
                           : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
@@ -4531,11 +4529,11 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
 
                 {/* Reset de Posições e Enquadramentos (quando arrastado livremente) */}
                 {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom) && (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     {isTitleMoved && (
                       <button
                         onClick={() => resetSlidePosition('title')}
-                        className="text-[10px] font-bold text-amber-300 hover:text-white px-2 py-1 rounded-lg bg-amber-950/80 border border-amber-500/40 cursor-pointer"
+                        className="text-xs font-black text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-500/40 cursor-pointer min-h-[38px] active:scale-95"
                         title="Restaurar posição original do título"
                       >
                         ↺ Pos. Título
@@ -4544,7 +4542,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {isBodyMoved && (
                       <button
                         onClick={() => resetSlidePosition('body')}
-                        className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                        className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
                         title="Restaurar posição original do texto"
                       >
                         ↺ Pos. Texto
@@ -4553,7 +4551,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {isImageMoved && (
                       <button
                         onClick={() => resetSlidePosition('image')}
-                        className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                        className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
                         title="Restaurar posição original da imagem"
                       >
                         ↺ Pos. Img
@@ -4565,7 +4563,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           resetSlideImageWidth();
                           resetSlideImageHeight();
                         }}
-                        className="text-[10px] font-bold text-purple-300 hover:text-white px-2 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40 cursor-pointer"
+                        className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
                         title="Restaurar tamanho padrão do quadro da imagem"
                       >
                         ↺ Quadro
@@ -4574,7 +4572,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                     {isImageCropCustom && (
                       <button
                         onClick={resetSlideImageCrop}
-                        className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-1 rounded-lg bg-cyan-950/80 border border-cyan-500/40 cursor-pointer"
+                        className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
                         title="Restaurar enquadramento e corte original da imagem"
                       >
                         ↺ Recorte
