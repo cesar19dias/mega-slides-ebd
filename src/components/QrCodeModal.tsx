@@ -118,11 +118,11 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
         </div>
 
         {/* Dica de rodapé */}
-        <p className="text-[11px] text-center text-slate-500">
+        <p className="text-[11px] text-center text-slate-400">
           {isShortened ? (
-            <span>⚡ Link otimizado e encurtado para leitura instantânea no celular.</span>
+            <span>⚡ Aula 100% sincronizada com imagens, slides extras e anotações para leitura instantânea no celular.</span>
           ) : (
-            <span>💡 A aula é codificada diretamente no link, permitindo abrir instantaneamente em qualquer aparelho.</span>
+            <span>💡 A aula está codificada no link com imagens e slides extras, pronta para abrir no celular.</span>
           )}
         </p>
       </div>

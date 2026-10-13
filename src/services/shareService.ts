@@ -4,7 +4,92 @@ import type { EBDLessonPreparation } from '../types';
 import { fillMissingLessonPrompts } from './promptGeneratorService';
 
 /**
+ * Otimiza uma imagem base64 reduzindo resolução e comprimindo para JPEG com qualidade balanceada
+ */
+export function optimizeImageBase64(dataUrl: string, maxDim = 1280, quality = 0.82): Promise<string> {
+  return new Promise((resolve) => {
+    if (!dataUrl || !dataUrl.startsWith('data:image')) {
+      return resolve(dataUrl);
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      let { width, height } = img;
+      if (width <= maxDim && height <= maxDim && dataUrl.length < 120000) {
+        return resolve(dataUrl);
+      }
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(dataUrl);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const res = canvas.toDataURL('image/jpeg', quality);
+      resolve(res);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+/**
+ * Otimiza todas as imagens de uma lição (slides, extras e fundo) para tamanho ideal
+ */
+export async function optimizeLessonImages(lesson: EBDLessonPreparation): Promise<EBDLessonPreparation> {
+  if (!lesson) return lesson;
+  try {
+    const clone = JSON.parse(JSON.stringify(lesson)) as EBDLessonPreparation;
+
+    if (clone.projectorSlideImages && typeof clone.projectorSlideImages === 'object') {
+      const optimizedMap: Record<number, string> = {};
+      for (const [k, v] of Object.entries(clone.projectorSlideImages)) {
+        if (typeof v === 'string') {
+          if (v.startsWith('data:image')) {
+            optimizedMap[Number(k)] = await optimizeImageBase64(v, 1280, 0.82);
+          } else {
+            optimizedMap[Number(k)] = v;
+          }
+        }
+      }
+      clone.projectorSlideImages = optimizedMap;
+    }
+
+    if (clone.customBg && typeof clone.customBg === 'string' && clone.customBg.startsWith('data:image')) {
+      clone.customBg = await optimizeImageBase64(clone.customBg, 1280, 0.80);
+    }
+
+    if (Array.isArray(clone.extraSlides)) {
+      clone.extraSlides = await Promise.all(
+        clone.extraSlides.map(async (s) => {
+          if (s.imageUrl && s.imageUrl.startsWith('data:image')) {
+            const opt = await optimizeImageBase64(s.imageUrl, 1280, 0.82);
+            return { ...s, imageUrl: opt };
+          }
+          return s;
+        })
+      );
+    }
+
+    return clone;
+  } catch {
+    return lesson;
+  }
+}
+
+/**
  * Remove metadados temporários de interface e campos vazios para otimizar o tamanho do compartilhamento
+ * Preserva 100% de todas as imagens, slides extras e customizações visuais.
  */
 export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPreparation {
   if (!lesson) return lesson;
@@ -15,37 +100,15 @@ export function pruneLessonForSharing(lesson: EBDLessonPreparation): EBDLessonPr
     delete clone.checklist;
     delete clone.sourcesSummary;
 
-    // Filtra imagens base64 muito gigantes (> 60KB) para não estourar limite de URL,
-    // mas PRESERVA URLs web (http/https) e imagens compactas
+    // Preserva todas as imagens de slides
     if (clone.projectorSlideImages && typeof clone.projectorSlideImages === 'object') {
       const cleanedImages: Record<number, string> = {};
       for (const [k, v] of Object.entries(clone.projectorSlideImages)) {
-        if (typeof v === 'string') {
-          if (v.startsWith('http://') || v.startsWith('https://')) {
-            cleanedImages[Number(k)] = v;
-          } else if (v.startsWith('data:') && v.length < 60000) {
-            cleanedImages[Number(k)] = v;
-          }
+        if (typeof v === 'string' && v.trim()) {
+          cleanedImages[Number(k)] = v;
         }
       }
       clone.projectorSlideImages = cleanedImages;
-    }
-
-    if (clone.customBg && typeof clone.customBg === 'string') {
-      if (!clone.customBg.startsWith('http') && clone.customBg.length >= 60000) {
-        delete clone.customBg;
-      }
-    }
-
-    // Filtra imagens base64 muito gigantes em extraSlides (> 60KB)
-    if (Array.isArray(clone.extraSlides)) {
-      clone.extraSlides = clone.extraSlides.map((s: any) => {
-        const item = { ...s };
-        if (item.imageUrl && item.imageUrl.startsWith('data:') && item.imageUrl.length >= 60000) {
-          delete item.imageUrl;
-        }
-        return item;
-      });
     }
 
     // Limpa arrays e strings vazios em tópicos e subtópicos para economizar espaço
@@ -325,6 +388,88 @@ export function decodeLessonFromUrl(): EBDLessonPreparation | null {
   return null;
 }
 
+/**
+ * Publica a lição na nuvem para compartilhamento rápido, retornando uma chave curta de sincronização
+ * Otimiza e inclui 100% de todas as imagens, slides extras e personalizações.
+ */
+export async function publishLessonForSharing(lesson: EBDLessonPreparation): Promise<string | null> {
+  try {
+    const optimized = await optimizeLessonImages(lesson);
+    const pruned = pruneLessonForSharing(optimized);
+    const jsonStr = JSON.stringify(pruned);
+
+    // 1. Tenta Bytebin (suporta até 10MB, alta performance via Cloudflare e CORS aberto)
+    const res = await fetch('https://bytebin.lucko.me/post', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonStr,
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.key) {
+        return data.key;
+      }
+    }
+  } catch (err) {
+    console.warn('Erro ao publicar lição na nuvem (Bytebin):', err);
+  }
+
+  return null;
+}
+
+/**
+ * Busca uma lição completa na nuvem a partir de sua chave curta de sincronização
+ */
+export async function fetchSharedLesson(key: string): Promise<EBDLessonPreparation | null> {
+  if (!key) return null;
+  const cleanKey = key.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+  if (!cleanKey) return null;
+
+  try {
+    const res = await fetch(`https://bytebin.lucko.me/${cleanKey}`);
+    if (res.ok) {
+      const raw = await res.json();
+      if (raw && (raw.metadata || raw.topicos || raw.t)) {
+        return sanitizeLessonData(raw);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao buscar lição compartilhada na nuvem:', err);
+  }
+
+  return null;
+}
+
+/**
+ * Carrega lição assíncrona da nuvem se a URL tiver ?share=KEY ou ?id=KEY ou #share=KEY
+ */
+export async function loadSharedLessonFromUrlAsync(): Promise<EBDLessonPreparation | null> {
+  try {
+    let key = '';
+    if (window.location.search) {
+      const params = new URLSearchParams(window.location.search);
+      key = params.get('share') || params.get('id') || '';
+    }
+    if (!key && window.location.hash) {
+      const hashStr = window.location.hash.substring(1);
+      if (hashStr.includes('share=')) {
+        key = hashStr.split('share=')[1]?.split('&')[0] || '';
+      } else if (hashStr.includes('id=')) {
+        key = hashStr.split('id=')[1]?.split('&')[0] || '';
+      }
+    }
+
+    if (!key) return null;
+    return await fetchSharedLesson(key);
+  } catch (err) {
+    console.error('Erro ao resolver parâmetro de compartilhamento da URL:', err);
+    return null;
+  }
+}
+
 export async function shortenUrl(longUrl: string): Promise<string> {
   const fetchWithTimeout = async (url: string, options: RequestInit, timeoutMs = 3000) => {
     const controller = new AbortController();
@@ -373,21 +518,6 @@ export async function shortenUrl(longUrl: string): Promise<string> {
     console.warn('Falha no encurtador spoo.me:', e);
   }
 
-  // 3. Tenta is.gd
-  try {
-    const res = await fetchWithTimeout(`https://is.gd/create.php?format=json&url=${encodeURIComponent(longUrl)}`, {
-      method: 'GET'
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.shorturl && data.shorturl.startsWith('http')) {
-        return data.shorturl;
-      }
-    }
-  } catch (e) {
-    console.warn('Falha no encurtador is.gd:', e);
-  }
-
   return longUrl;
 }
 
@@ -398,15 +528,37 @@ export interface QrCodeResult {
 }
 
 /**
- * Gera uma imagem DataURL (PNG) de QR Code a partir da URL da lição,
- * encurtando a URL se necessário para caber no limite físico do QR Code.
+ * Gera uma imagem DataURL (PNG) de QR Code a partir da lição,
+ * priorizando a sincronização em nuvem para garantir todas as imagens e extras com URL ultra-curta.
  */
 export async function generateQrCodeDataUrl(
   fullUrl: string,
   lesson?: EBDLessonPreparation
 ): Promise<QrCodeResult> {
-  // 1. Tenta primeiro com a URL direta se for razoavelmente curta (< 2200 chars)
-  if (fullUrl.length < 2200) {
+  const baseUrl = getBaseShareUrl();
+
+  // 1. Prioridade Máxima: Sincronização em nuvem completa
+  // Gera uma URL curta (~45 caracteres) contendo 100% de todas as imagens e slides extras
+  if (lesson) {
+    try {
+      const shareKey = await publishLessonForSharing(lesson);
+      if (shareKey) {
+        const cloudUrl = `${baseUrl}?share=${shareKey}`;
+        const dataUrl = await QRCode.toDataURL(cloudUrl, {
+          width: 380,
+          margin: 2,
+          color: { dark: '#0f172a', light: '#ffffff' },
+          errorCorrectionLevel: 'L',
+        });
+        return { dataUrl, shareUrl: cloudUrl, isShortened: true };
+      }
+    } catch (err) {
+      console.warn('Falha na sincronização em nuvem, tentando encurtamento tradicional:', err);
+    }
+  }
+
+  // 2. Se a URL direta for razoavelmente curta (< 2400 chars)
+  if (fullUrl.length < 2400) {
     try {
       const dataUrl = await QRCode.toDataURL(fullUrl, {
         width: 380,
@@ -420,7 +572,7 @@ export async function generateQrCodeDataUrl(
     }
   }
 
-  // 2. Se a URL for grande, tenta encurtar via API
+  // 3. Se a URL for grande, tenta encurtar via API
   const shortUrl = await shortenUrl(fullUrl);
   if (shortUrl !== fullUrl && (shortUrl.startsWith('http://') || shortUrl.startsWith('https://'))) {
     try {
@@ -436,7 +588,7 @@ export async function generateQrCodeDataUrl(
     }
   }
 
-  // 3. Fallback Offline: Se o encurtador falhar (ex: sem internet), cria payload super compacto preservando slides extras e visual
+  // 4. Fallback Offline: Se estiver sem internet, cria payload compacto preservando imagens e slides extras
   if (lesson) {
     try {
       const compactLesson = {
@@ -465,7 +617,7 @@ export async function generateQrCodeDataUrl(
           p: s.projetorText,
           s: s.subtitle,
           r: s.reference,
-          u: (s.imageUrl && (s.imageUrl.startsWith('http://') || s.imageUrl.startsWith('https://'))) ? s.imageUrl : undefined,
+          u: s.imageUrl,
           bp: s.bulletPoints,
         })),
         so: lesson.customSlideOrder,
@@ -482,16 +634,13 @@ export async function generateQrCodeDataUrl(
         tfs: lesson.slideTitleFontScales,
         bfs: lesson.slideBodyFontScales,
         to: lesson.slideTextOverrides,
-        psi: Object.fromEntries(
-          Object.entries(lesson.projectorSlideImages || {}).filter(([_, v]) => typeof v === 'string' && (v.startsWith('http://') || v.startsWith('https://')))
-        ),
-        bg: (lesson.customBg && (lesson.customBg.startsWith('http://') || lesson.customBg.startsWith('https://'))) ? lesson.customBg : null,
+        psi: lesson.projectorSlideImages || {},
+        bg: lesson.customBg || null,
         tc: lesson.bodyTextColor,
       };
 
       const compactJson = JSON.stringify(compactLesson);
       const compactCompressed = LZString.compressToEncodedURIComponent(compactJson);
-      const baseUrl = getBaseShareUrl();
       const compactUrl = `${baseUrl}#lesson=${compactCompressed}`;
 
       const dataUrl = await QRCode.toDataURL(compactUrl, {

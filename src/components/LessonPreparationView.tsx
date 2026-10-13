@@ -10,6 +10,7 @@ import { formatAllPromptsForExport, generateAllLessonPromptsWithAi } from '../se
 import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
 import { ImageCropModal } from './ImageCropModal';
+import { optimizeImageBase64 } from '../services/shareService';
 
 // ── Inline Text Highlight System ──────────────────────────────────
 interface TextHighlightEntry {
@@ -2124,18 +2125,19 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setCropModalOpen(true);
   };
 
-  const handleApplyCrop = (croppedDataUrl: string) => {
+  const handleApplyCrop = async (croppedDataUrl: string) => {
+    const opt = await optimizeImageBase64(croppedDataUrl, 1280, 0.85);
     if (cropTarget === 'slide') {
       setProjectorSlideImages(prev => {
-        const next = { ...prev, [projectorIndex]: croppedDataUrl };
+        const next = { ...prev, [projectorIndex]: opt };
         try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, projectorSlideImages: next }));
         return next;
       });
     } else if (cropTarget === 'bg') {
-      setCustomBg(croppedDataUrl);
-      try { localStorage.setItem('mega_ebd_custom_bg', croppedDataUrl); } catch {}
-      updateLesson(l => ({ ...l, customBg: croppedDataUrl }));
+      setCustomBg(opt);
+      try { localStorage.setItem('mega_ebd_custom_bg', opt); } catch {}
+      updateLesson(l => ({ ...l, customBg: opt }));
     }
     setCropModalOpen(false);
     setCropModalImage(null);
@@ -2145,9 +2147,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
-      const d = ev.target?.result as string;
-      if (d) {
+    reader.onload = async ev => {
+      const raw = ev.target?.result as string;
+      if (raw) {
+        const d = await optimizeImageBase64(raw, 1280, 0.82);
         setProjectorSlideImages(prev => {
           const next = { ...prev, [projectorIndex]: d };
           try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
@@ -2178,9 +2181,10 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
-      const d = ev.target?.result as string;
-      if (d) {
+    reader.onload = async ev => {
+      const raw = ev.target?.result as string;
+      if (raw) {
+        const d = await optimizeImageBase64(raw, 1280, 0.80);
         setCustomBg(d);
         try { localStorage.setItem('mega_ebd_custom_bg', d); } catch {}
         updateLesson(l => ({ ...l, customBg: d }));
