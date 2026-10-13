@@ -759,6 +759,25 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Modo de Recorte Ativo no Slide (Estilo Canva)
   const [isCanvaCropping, setIsCanvaCropping] = useState<boolean>(false);
 
+  // Menus suspensos de opções consolidadas
+  const [isSlideMenuOpen, setIsSlideMenuOpen] = useState<boolean>(false);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState<boolean>(false);
+  const slideMenuRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (slideMenuRef.current && !slideMenuRef.current.contains(event.target as Node)) {
+        setIsSlideMenuOpen(false);
+      }
+      if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+        setIsModelMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
   const imagePos = slideImagePositions[projectorIndex] ?? { x: 0, y: 0 };
@@ -4127,38 +4146,75 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                 <span>📱 QR Code Celular</span>
               </button>
 
-              {/* Upload do Meu Modelo */}
-              <label
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all"
-                title="Enviar imagem como fundo de todos os slides do projetor"
-              >
-                <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
-                <span>{customBg ? '📁 Trocar Modelo' : '📁 Meu Modelo'}</span>
-                <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
-              </label>
-              {customBg && (
-                <>
-                  <button
-                    onClick={handleOpenCropForBg}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-pink-900/40 hover:bg-pink-900/60 text-pink-200 border border-pink-500/40 text-xs font-bold cursor-pointer transition-all shadow-sm"
-                    title="Recortar imagem de fundo do modelo (16:9)"
+              {/* Upload do Meu Modelo / Gerenciador de Modelo */}
+              <div className="relative inline-block" ref={modelMenuRef}>
+                {!customBg ? (
+                  <label
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                    title="Enviar imagem como fundo de todos os slides do projetor"
                   >
-                    <Crop className="w-3.5 h-3.5 text-pink-300" />
-                    <span>✂️ Recortar Fundo</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCustomBg(null);
-                      try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
-                      updateLesson(l => ({ ...l, customBg: null }));
-                    }}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600/40 text-red-300 border border-red-500/30 text-xs font-bold cursor-pointer transition-all"
-                    title="Remover fundo personalizado do modelo"
-                  >
-                    ✕ Remover Modelo
-                  </button>
-                </>
-              )}
+                    <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                    <span>📁 Meu Modelo</span>
+                    <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
+                  </label>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setIsModelMenuOpen(prev => !prev)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-xs font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95"
+                      title="Gerenciar imagem de fundo do modelo (Trocar, Recortar, Remover)"
+                    >
+                      <LayoutTemplate className="w-3.5 h-3.5 text-amber-300" />
+                      <span>📁 Modelo de Fundo</span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isModelMenuOpen && (
+                      <div className="absolute left-0 top-full mt-1.5 z-50 w-52 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                        <label className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
+                          <LayoutTemplate className="w-4 h-4 text-indigo-400" />
+                          <span>📁 Trocar Modelo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                              handleCustomBgUpload(e);
+                              setIsModelMenuOpen(false);
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <button
+                          onClick={() => {
+                            handleOpenCropForBg();
+                            setIsModelMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Crop className="w-4 h-4 text-pink-400" />
+                          <span>✂️ Recortar Fundo (16:9)</span>
+                        </button>
+
+                        <div className="border-t border-slate-800 my-1" />
+
+                        <button
+                          onClick={() => {
+                            setCustomBg(null);
+                            try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
+                            updateLesson(l => ({ ...l, customBg: null }));
+                            setIsModelMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                          <span>✕ Remover Modelo</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
 
               {/* Exportar PPTX com todos os slides */}
               <button
@@ -4484,64 +4540,86 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
           </div>
         </div>
 
-          {/* ── FERRAMENTAS DE GESTÃO DE SLIDES: +ADICIONAR EXTRA, DUPLICAR, REORDENAR, EXCLUIR ── */}
+          {/* ── FERRAMENTAS DE GESTÃO DE SLIDES: +ADICIONAR EXTRA COM SUBMENU DE AÇÕES ── */}
           <div className="flex items-center justify-between gap-2.5 flex-wrap bg-slate-950 p-2.5 rounded-xl border border-slate-800 font-sans">
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão Adicionar Slide Extra */}
-              <button
-                onClick={handleAddExtraSlide}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3.5 py-1.5 rounded-xl border border-emerald-400/40 flex items-center gap-1.5 text-xs shadow-md cursor-pointer transition-all hover:scale-105"
-                title="Adicionar um novo slide extra personalizado nesta lição"
-              >
-                <PlusCircle className="w-4 h-4 text-emerald-200" />
-                <span>➕ Adicionar Slide Extra</span>
-              </button>
+              {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
+              <div className="relative inline-block" ref={slideMenuRef}>
+                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden">
+                  <button
+                    onClick={handleAddExtraSlide}
+                    className="hover:bg-emerald-500 text-white font-black px-3.5 py-1.5 flex items-center gap-1.5 text-xs cursor-pointer transition-all active:scale-95"
+                    title="Adicionar um novo slide extra personalizado nesta lição"
+                  >
+                    <PlusCircle className="w-4 h-4 text-emerald-100" />
+                    <span>➕ Adicionar Slide Extra</span>
+                  </button>
+                  <button
+                    onClick={() => setIsSlideMenuOpen(prev => !prev)}
+                    className="hover:bg-emerald-500 text-white font-black px-2.5 py-1.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all"
+                    title="Mais ações do slide (Duplicar, Mover, Excluir)"
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                </div>
 
-              {/* Botão Duplicar Slide */}
-              <button
-                onClick={handleDuplicateSlide}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1.5 text-xs cursor-pointer transition-all"
-                title="Duplicar este slide atual para editar"
-              >
-                <Copy className="w-3.5 h-3.5 text-cyan-400" />
-                <span>📋 Duplicar</span>
-              </button>
+                {isSlideMenuOpen && (
+                  <div className="absolute left-0 bottom-full mb-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-1.5 text-xs space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+                    <button
+                      onClick={() => { handleAddExtraSlide(); setIsSlideMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
+                    >
+                      <PlusCircle className="w-4 h-4 text-emerald-400" />
+                      <span>➕ Novo Slide Extra</span>
+                    </button>
 
-              {/* Botão Mover para Esquerda */}
-              <button
-                onClick={handleMoveSlideLeft}
-                disabled={projectorIndex === 0}
-                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1 text-xs cursor-pointer transition-all"
-                title="Mover este slide para trás na ordem da apresentação"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 text-amber-400" />
-                <span>⬅️ Mover Esquerda</span>
-              </button>
+                    <button
+                      onClick={() => { handleDuplicateSlide(); setIsSlideMenuOpen(false); }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
+                    >
+                      <Copy className="w-4 h-4 text-cyan-400" />
+                      <span>📋 Duplicar Slide Atual</span>
+                    </button>
 
-              {/* Botão Mover para Direita */}
-              <button
-                onClick={handleMoveSlideRight}
-                disabled={projectorIndex === projectorItems.length - 1}
-                className="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold px-3 py-1.5 rounded-xl border border-slate-700 flex items-center gap-1 text-xs cursor-pointer transition-all"
-                title="Mover este slide para frente na ordem da apresentação"
-              >
-                <span>➡️ Mover Direita</span>
-                <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
-              </button>
+                    <div className="border-t border-slate-800 my-1" />
+
+                    <button
+                      onClick={() => { handleMoveSlideLeft(); setIsSlideMenuOpen(false); }}
+                      disabled={projectorIndex === 0}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-amber-400" />
+                      <span>⬅️ Mover para Esquerda</span>
+                    </button>
+
+                    <button
+                      onClick={() => { handleMoveSlideRight(); setIsSlideMenuOpen(false); }}
+                      disabled={projectorIndex === projectorItems.length - 1}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4 text-amber-400" />
+                      <span>➡️ Mover para Direita</span>
+                    </button>
+
+                    {projectorItems.length > 1 && (
+                      <>
+                        <div className="border-t border-slate-800 my-1" />
+                        <button
+                          onClick={() => { handleDeleteSlide(); setIsSlideMenuOpen(false); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-400" />
+                          <span>🗑️ Excluir Slide Atual</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Botão Excluir Slide */}
-              {projectorItems.length > 1 && (
-                <button
-                  onClick={handleDeleteSlide}
-                  className="bg-red-600/20 hover:bg-red-600/40 text-red-300 hover:text-white border border-red-500/30 font-bold px-3 py-1.5 rounded-xl text-xs flex items-center gap-1 cursor-pointer transition-all"
-                  title="Excluir o slide atual"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                  <span>🗑️ Excluir Slide</span>
-                </button>
-              )}
+            <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold font-mono">
+              <span>Slide {projectorIndex + 1} de {projectorItems.length}</span>
             </div>
           </div>
 
