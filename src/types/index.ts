@@ -64,6 +64,17 @@ export interface EBDSubtopicPreparation {
   notaEnfase?: string;
 }
 
+export interface ImageBox {
+  x: number; // Posição horizontal (% do palco 16:9)
+  y: number; // Posição vertical (% do palco 16:9)
+  w: number; // Largura (% do palco 16:9)
+  h: number; // Altura (% do palco 16:9)
+  rot: number; // Rotação em graus (0 a 360)
+  fit: 'fill' | 'cover' | 'contain';
+  layer: 'back' | 'front';
+  flipX?: boolean;
+}
+
 export interface EBDTopicPreparation {
   number: string; // "I", "II", "III"
   title: string;
@@ -136,25 +147,27 @@ export interface EBDLessonPreparation {
   }>;
   extraSlides?: EBDExtraSlide[];
   customSlideOrder?: string[];
-  slideFontScales?: Record<number, number>;
-  slideTitleFontScales?: Record<number, number>;
-  slideBodyFontScales?: Record<number, number>;
-  slideTextOverrides?: Record<number, { title?: string; subtitle?: string; text?: string }>;
-  slideTitlePositions?: Record<number, { x: number; y: number }>;
-  slideBodyPositions?: Record<number, { x: number; y: number }>;
-  slideBodyWidths?: Record<number, number>;
-  slideImagePositions?: Record<number, { x: number; y: number }>;
-  slideImageScales?: Record<number, number>;
-  slideImageWidths?: Record<number, number>;
-  slideImageHeights?: Record<number, number>;
-  slideImageCrops?: Record<number, { panX: number; panY: number; zoom: number }>;
-  slideImageFits?: Record<number, 'cover' | 'contain'>;
-  slideImageBorders?: Record<number, 'white' | 'thin' | 'thick' | 'none'>;
-  projectorSlideImages?: Record<number, string>;
+  slideFontScales?: Record<string | number, number>;
+  slideTitleFontScales?: Record<string | number, number>;
+  slideBodyFontScales?: Record<string | number, number>;
+  slideTextOverrides?: Record<string | number, { title?: string; subtitle?: string; text?: string }>;
+  slideTitlePositions?: Record<string | number, { x: number; y: number }>;
+  slideBodyPositions?: Record<string | number, { x: number; y: number }>;
+  slideBodyWidths?: Record<string | number, number>;
+  slideImagePositions?: Record<string | number, { x: number; y: number }>;
+  slideImageScales?: Record<string | number, number>;
+  slideImageWidths?: Record<string | number, number>;
+  slideImageHeights?: Record<string | number, number>;
+  slideImageCrops?: Record<string | number, { panX: number; panY: number; zoom: number }>;
+  slideImageFits?: Record<string | number, 'cover' | 'contain'>;
+  slideImageBorders?: Record<string | number, 'white' | 'thin' | 'thick' | 'none'>;
+  slideImageBoxes?: Record<string, ImageBox>;
+  projectorSlideImages?: Record<string | number, string>;
   projectorFontSizeScale?: number;
   customBg?: string | null;
   bodyTextColor?: 'black' | 'white';
   textHighlights?: Record<string, any>;
+  revistaRawContent?: string;
 }
 
 export interface EBDExtraSlide {
@@ -215,6 +228,7 @@ export interface Slide {
   imageScale?: number;
   imageFit?: 'cover' | 'contain';
   imageBorder?: 'white' | 'thin' | 'thick' | 'none';
+  imageBox?: ImageBox;
 }
 
 export interface PresentationData {

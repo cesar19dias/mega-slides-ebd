@@ -8,7 +8,7 @@ export function exportToPowerPoint(data: PresentationData, theme: ThemeConfig, c
   pptx.author = 'MegaEBD Slides AI';
   pptx.company = 'Escola Bíblica Dominical';
   pptx.title = data.title;
-  pptx.layout = 'LAYOUT_16x9';
+  pptx.layout = 'LAYOUT_WIDE';
 
   data.slides.forEach((slideData: Slide, index: number) => {
     const slide = pptx.addSlide();
@@ -22,12 +22,55 @@ export function exportToPowerPoint(data: PresentationData, theme: ThemeConfig, c
     // Se houver modelo personalizado carregado pelo usuário, aplica a imagem no fundo de todos os slides
     if (customTemplateBg) {
       if (customTemplateBg.startsWith('data:image')) {
-        slide.addImage({ data: customTemplateBg, x: 0, y: 0, w: 13.33, h: 7.5 });
+        slide.addImage({ data: customTemplateBg, x: 0, y: 0, w: 13.333, h: 7.5 });
       } else {
-        slide.addImage({ path: customTemplateBg, x: 0, y: 0, w: 13.33, h: 7.5 });
+        slide.addImage({ path: customTemplateBg, x: 0, y: 0, w: 13.333, h: 7.5 });
       }
     } else {
       slide.background = { color: isWhiteSlide ? 'FFFFFF' : (isOfficial ? '0D2238' : theme.bgColor) };
+    }
+
+    // Se o slide possuir imagem (carregada ou gerada), renderiza fielmente com suas coordenadas do palco
+    if (slideData.imageUrl) {
+      try {
+        const bx = slideData.imageBox || {
+          x: 52,
+          y: 20,
+          w: 44,
+          h: 70,
+          rot: 0,
+          fit: 'cover',
+          layer: 'back',
+          flipX: false
+        };
+
+        const imgConfig: any = {
+          x: (bx.x / 100) * 13.333,
+          y: (bx.y / 100) * 7.5,
+          w: (bx.w / 100) * 13.333,
+          h: (bx.h / 100) * 7.5,
+          rotate: bx.rot || 0,
+          flipH: !!bx.flipX,
+        };
+
+        if (bx.fit !== 'fill') {
+          imgConfig.sizing = {
+            type: bx.fit === 'contain' ? 'contain' : 'cover',
+            w: (bx.w / 100) * 13.333,
+            h: (bx.h / 100) * 7.5,
+          };
+        }
+
+        if (slideData.imageUrl.startsWith('data:image')) {
+          imgConfig.data = slideData.imageUrl;
+        } else {
+          imgConfig.path = slideData.imageUrl;
+        }
+
+        slide.addImage(imgConfig);
+      } catch (imgErr) {
+        console.warn('[PPTX] Não foi possível embutir imagem no slide:', imgErr);
+      }
     }
 
     if (slideData.speakerNotes) {
@@ -398,6 +441,7 @@ export function exportProjectorItemsToPowerPoint(
     reference?: string;
     imageUrl?: string;
     imagePrompt?: string;
+    imageBox?: import('../types').ImageBox;
   }>,
   lessonTitle: string,
   theme: ThemeConfig,
@@ -420,8 +464,12 @@ export function exportProjectorItemsToPowerPoint(
       keyVerse: item.type === 'aureo' ? { reference: item.reference || '', text: item.projetorText?.replace(/^[“"']|[”"']$/g, '') || '' } : undefined,
       takeaway: (item.type === 'pratica' || item.type === 'conclusao' || item.type === 'palavra_chave') ? item.projetorText : undefined,
       imageUrl: item.imageUrl,
+      imageBox: item.imageBox,
       imagePrompt: item.imagePrompt,
-      speakerNotes: item.imagePrompt ? `[Prompt 16:9 Canva/Midjourney]: ${item.imagePrompt}` : undefined
+      speakerNotes: [
+        item.projetorText ? `[Texto do Slide]: ${item.projetorText}` : '',
+        item.imagePrompt ? `[Prompt 16:9 Imagem]: ${item.imagePrompt}` : ''
+      ].filter(Boolean).join('\n\n') || undefined
     };
   });
 

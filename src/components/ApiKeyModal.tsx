@@ -60,18 +60,26 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({
             />
           </div>
 
-          <div className="bg-slate-800/80 p-3 rounded-lg border border-slate-700 text-xs text-slate-400 flex items-start gap-2 mb-6">
-            <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold text-slate-200">Como obter sua chave gratuita:</p>
-              <p className="mt-1">
-                Acesse o Google AI Studio e clique em <span className="text-blue-400">"Get API key"</span>.
+          <div className="bg-slate-800/80 p-3.5 rounded-lg border border-slate-700 text-xs text-slate-300 space-y-2 mb-6">
+            <div className="flex items-start gap-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-slate-100">Privacidade e Proteção de Dados:</p>
+                <p className="mt-0.5 text-slate-400">
+                  Sua chave fica gravada exclusivamente no armazenamento local deste navegador (<code className="text-emerald-400 text-[11px]">localStorage</code>) e é transmitida pelo cabeçalho seguro <code className="text-blue-400 text-[11px]">x-goog-api-key</code> diretamente à Google (sem aparecer em histórico, URLs ou servidores intermediários).
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-700/60 pl-7 text-[11px] text-slate-400">
+              <p>
+                <strong>Dica de Segurança:</strong> No Google AI Studio, você pode limitar as permissões da chave apenas ao Gemini API ou definir cotas de uso gratuitas.
               </p>
               <a
                 href="https://aistudio.google.com/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-blue-400 hover:underline mt-2 font-medium"
+                className="inline-flex items-center gap-1 text-blue-400 hover:underline mt-1.5 font-medium"
               >
                 Abrir Google AI Studio <ExternalLink className="w-3 h-3" />
               </a>

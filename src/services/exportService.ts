@@ -19,91 +19,8 @@ async function captureElement(el: HTMLElement): Promise<HTMLCanvasElement> {
   return toCanvas(el, {
     quality: 0.95,
     pixelRatio: 2,
-    fontEmbedCSS: '',
+    cacheBust: true,
   });
-}
-
-/**
- * Exporta todos os slides como um PDF 16:9
- */
-export async function exportSlidesPDF(
-  slideElements: HTMLElement[],
-  fileName: string = 'mega-ebd-slides'
-): Promise<void> {
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: [297, 167.0625], // 16:9 em mm
-  });
-
-  for (let i = 0; i < slideElements.length; i++) {
-    const canvas = await captureElement(slideElements[i]);
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 167.0625);
-  }
-
-  pdf.save(`${fileName}.pdf`);
-}
-
-/**
- * Exporta todos os slides como PNGs num arquivo ZIP
- */
-export async function exportSlidesPNGZip(
-  slideElements: HTMLElement[],
-  fileName: string = 'mega-ebd-slides'
-): Promise<void> {
-  const zip = new JSZip();
-  const folder = zip.folder('slides')!;
-
-  for (let i = 0; i < slideElements.length; i++) {
-    const canvas = await captureElement(slideElements[i]);
-    const base64 = canvas.toDataURL('image/png').split(',')[1];
-    const slideNum = String(i + 1).padStart(2, '0');
-    folder.file(`slide_${slideNum}.png`, base64, { base64: true });
-  }
-
-  const blob = await zip.generateAsync({ type: 'blob' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${fileName}.zip`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/**
- * Exporta todos os slides capturando o palco ao vivo a cada índice (Garante 100% de fidelidade ao slide visível)
- */
-export async function exportAllSlidesPDFFromStage(
-  totalSlides: number,
-  setIndex: (i: number) => void,
-  getStageEl: () => HTMLElement | null,
-  fileName: string = 'mega-ebd-slides'
-): Promise<void> {
-  const stage = getStageEl();
-  if (!stage) return;
-  await document.fonts.ready;
-
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: [297, 167.0625],
-  });
-
-  for (let i = 0; i < totalSlides; i++) {
-    setIndex(i);
-    await new Promise(r => setTimeout(r, 250));
-    const currentStage = getStageEl() || stage;
-    const canvas = await captureElement(currentStage);
-    const imgData = canvas.toDataURL('image/jpeg', 0.95);
-
-    if (i > 0) pdf.addPage();
-    pdf.addImage(imgData, 'JPEG', 0, 0, 297, 167.0625);
-  }
-
-  pdf.save(`${fileName}.pdf`);
 }
 
 /**
@@ -142,54 +59,15 @@ export async function exportAllSlidesPNGZipFromStage(
 }
 
 /**
- * Exporta apenas 1 slide atual como PDF (16:9) - Mais rápido para testes
- */
-export async function exportSingleSlidePDF(
-  slideElement: HTMLElement,
-  fileName: string = 'mega-ebd-slide',
-  slideIndex: number = 1
-): Promise<void> {
-  const pdf = new jsPDF({
-    orientation: 'landscape',
-    unit: 'mm',
-    format: [297, 167.0625],
-  });
-
-  const canvas = await captureElement(slideElement);
-  const imgData = canvas.toDataURL('image/jpeg', 0.95);
-  pdf.addImage(imgData, 'JPEG', 0, 0, 297, 167.0625);
-  pdf.save(`${fileName}_Slide_${slideIndex}.pdf`);
-}
-
-/**
- * Exporta apenas 1 slide atual como imagem PNG - Mais rápido para testes
- */
-export async function exportSingleSlidePNG(
-  slideElement: HTMLElement,
-  fileName: string = 'mega-ebd-slide',
-  slideIndex: number = 1
-): Promise<void> {
-  const canvas = await captureElement(slideElement);
-  const dataUrl = canvas.toDataURL('image/png');
-  const a = document.createElement('a');
-  a.href = dataUrl;
-  a.download = `${fileName}_Slide_${slideIndex}.png`;
-  a.click();
-}
-
-/**
  * Exporta o Roteiro Limpo do Professor em formato PDF A4 limpo e bem formatado
  */
 export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
-  // Remove emojis and characters jsPDF cannot render
+  // Remove emojis e caracteres incompatíveis preservando acentos do português (WinAnsi / Latin-1)
   const sanitize = (s: string): string =>
     (s || '')
-      // Strip emoji / non-BMP characters
       .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
       .replace(/[\u2600-\u27BF]/gu, '')
-      // Normalize common accented letters to ASCII equivalents
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[^\x00-\xFF]/g, '')
       .trim();
 
   const pdf = new jsPDF({
@@ -243,11 +121,15 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
     pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
     pdf.setFontSize(fontSize);
     pdf.setTextColor(textColor[0], textColor[1], textColor[2]);
-    const lines = pdf.splitTextToSize(sanitize(text), contentWidth);
-    const blockHeight = lines.length * (fontSize * 0.42);
-    checkPageBreak(blockHeight + 3);
-    pdf.text(lines, margin, yPos);
-    yPos += blockHeight + 3;
+    const lines: string[] = pdf.splitTextToSize(sanitize(text), contentWidth);
+    const lineHeight = fontSize * 0.44;
+
+    for (const line of lines) {
+      checkPageBreak(lineHeight + 1);
+      pdf.text(line, margin, yPos);
+      yPos += lineHeight;
+    }
+    yPos += 3;
   };
 
   // Transição / Ponte Contextual (Se houver)
@@ -595,7 +477,7 @@ export function exportTeacherGuideHTML(lesson: EBDLessonPreparation): void {
   // ── 1. Texto Áureo ──
   const taContent = `
     ${yellowBox(`${lesson.textAureo.text}${lesson.textAureo.reference ? ' — ' + lesson.textAureo.reference : ''}`)}`;
-  sections.push(sectionBox('1. Texto Âncora', taContent));
+  sections.push(sectionBox('1. Texto Áureo', taContent));
 
   // ── 2. Verdade Prática ──
   if (lesson.verdadePratica?.text) {

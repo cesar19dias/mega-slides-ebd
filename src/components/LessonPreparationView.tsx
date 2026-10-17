@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide } from '../types';
+import type { EBDLessonPreparation, EBDTopicPreparation, EBDExtraSlide, ImageBox } from '../types';
+import { FreeImageBox, ImageBoxToolbar, DEFAULT_IMAGE_BOX } from './FreeImageBox';
 import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Monitor, FileText, Bookmark, ArrowLeft, ArrowRight, Printer, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Eraser, Link2, Plus, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Sparkles, Crop, Crosshair } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
-import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF } from '../services/exportService';
+import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
 import { THEMES } from '../constants/themes';
 import { formatAllPromptsForExport, generateAllLessonPromptsWithAi } from '../services/promptGeneratorService';
@@ -11,6 +12,7 @@ import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
 import { ImageCropModal } from './ImageCropModal';
 import { optimizeImageBase64 } from '../services/shareService';
+import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
 
 // ── Inline Text Highlight System ──────────────────────────────────
 interface TextHighlightEntry {
@@ -82,15 +84,18 @@ function applyHighlightsToText(
     let pattern: RegExp;
     const isSingleWord = !needle.includes(' ');
     if (isSingleWord && needle.length <= 4) {
-      pattern = new RegExp(`(?<=^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, 'gui');
+      // Evita lookbehind para compatibilidade total com Safari/iOS < 16.4
+      pattern = new RegExp(`(^|[^\\p{L}\\p{N}_])(${escaped})(?=$|[^\\p{L}\\p{N}_])`, 'gui');
     } else {
       pattern = new RegExp(escaped, 'gi');
     }
 
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(lowerText)) !== null) {
-      const idx = m.index;
-      const len = m[0].length;
+      const prefixOffset = isSingleWord && needle.length <= 4 && m[1] ? m[1].length : 0;
+      const matchedText = isSingleWord && needle.length <= 4 && m[2] ? m[2] : m[0];
+      const idx = m.index + prefixOffset;
+      const len = matchedText.length;
       const overlaps = intervals.some((iv) => idx < iv.e && idx + len > iv.s);
       if (!overlaps) intervals.push({ s: idx, e: idx + len, color: h.color, style: h.style ?? 'fill' });
       pattern.lastIndex = idx + 1;
@@ -257,7 +262,8 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
   // 3. Identifica marcos no texto: Títulos de Livro/Passagem e Versículos
   const bookNamePattern = '(?:Gên|Êx|Lv|Nm|Dt|Jos|Jz|Rt|1Sm|2Sm|1Rs|2Rs|1Cr|2Cr|Esd|Ne|Et|Jó|Sal|Sl|Pv|Ec|Ct|Is|Jer|Jr|Lam|Lm|Ez|Dn|Os|Jl|Am|Ob|Jon|Mq|Na|Hab|Zef|Zc|Ag|Zc|Mal|Ml|Mt|Mat|Mateus|Mc|Mar|Marcos|Lc|Luc|Lucas|Jo|João|At|Atos|Rm|Rom|Romanos|1Co|2Co|Gál|Gal|Gálatas|Ef|Efé|Efésios|Fp|Fil|Filipenses|Cl|Col|Colossenses|1Ts|2Ts|1Tm|2Tm|Tt|Tito|Fm|Heb|Hb|Hebreus|Tg|Tia|Tiago|1Pe|2Pe|1Jo|2Jo|3Jo|Jd|Jud|Judas|Ap|Apoc|Apocalipse|[1-3]?\\s*[A-Za-zÀ-ÿ]+)';
 
-  const headerRegex = new RegExp(`(?:^|\\n|\\s{2,}|(?<=[\\.\\!\\?]"?\\s+)|(?<=\\s))(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}|\\s*$)`, 'gi');
+  // Reescreve sem lookbehind para total compatibilidade com Safari/iOS < 16.4
+  const headerRegex = new RegExp(`(^|\\n|\\s{2,}|[\\.\\!\\?]"?\\s+|\\s)(${bookNamePattern}\\.?\\s+\\d{1,3}(?:[\\.\\:\\,]\\d{1,3}(?:[\\-\\–\\—]\\d{1,3})?)?)(?=\\s*[:\\-\\—\\n]|\\s+\\d{1,3}|\\s*$)`, 'gi');
   const verseRegex = /(?:^|\s+|\n)(\d{1,3})\s*(?:[—\-–\.\:]\s*|\s+)(?=[A-Za-zÀ-ÿ"“'\(])/g;
 
   interface TokenLandmark {
@@ -272,7 +278,7 @@ export function parseBiblicalTextSections(rawText: string): ParsedBiblicalReadin
   let hMatch: RegExpExecArray | null;
   while ((hMatch = headerRegex.exec(bodyText)) !== null) {
     const fullStr = hMatch[0];
-    const headerStr = hMatch[1].trim();
+    const headerStr = (hMatch[2] || hMatch[1]).trim();
     const idx = hMatch.index + fullStr.indexOf(headerStr);
     landmarks.push({
       type: 'header',
@@ -459,26 +465,30 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 }) => {
   const [lesson, setLesson] = useState<EBDLessonPreparation>(() => {
     let initial = { ...lessonData };
-    if (
-      initial?.palavraChave?.palavra?.toUpperCase() === 'FIDELIDADE' &&
-      initial.palavraChave.explicacao &&
-      !initial.palavraChave.explicacao.includes('emûnāh')
-    ) {
-      initial = {
-        ...initial,
-        palavraChave: {
-          ...initial.palavraChave,
-          explicacao: "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
-        }
-      };
+    if (initial?.palavraChave?.palavra) {
+      const exp = getTheologicalKeywordExplanation(initial.palavraChave.palavra, initial.palavraChave.explicacao);
+      if (exp && exp !== initial.palavraChave.explicacao) {
+        initial = {
+          ...initial,
+          palavraChave: {
+            ...initial.palavraChave,
+            explicacao: exp
+          }
+        };
+      }
     }
     return initial;
   });
 
+  const lastSyncedRef = useRef<EBDLessonPreparation | null>(null);
+
   const updateLesson = useCallback((updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => {
     setLesson(prev => {
       const next = updater(prev);
-      onUpdateLesson(next);
+      lastSyncedRef.current = next;
+      queueMicrotask(() => {
+        onUpdateLesson(next);
+      });
       return next;
     });
   }, [onUpdateLesson]);
@@ -500,84 +510,40 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     }
   });
 
-  // Estado de escalas de fonte individuais por slide (indexadas pelo projectorIndex)
-  const [slideFontScales, setSlideFontScales] = useState<Record<number, number>>(() => {
-    if (lessonData.slideFontScales && Object.keys(lessonData.slideFontScales).length > 0) {
-      return lessonData.slideFontScales;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_slide_font_scales');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  // Estado de escalas de fonte individuais por slide (indexadas pelo projectorIndex ou item.id)
+  const [slideFontScales, setSlideFontScales] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideFontScales || {};
   });
 
-  // Escalas de fonte específicas para o TÍTULO de cada slide (indexadas pelo projectorIndex)
-  const [slideTitleFontScales, setSlideTitleFontScales] = useState<Record<number, number>>(() => {
-    if (lessonData.slideTitleFontScales && Object.keys(lessonData.slideTitleFontScales).length > 0) {
-      return lessonData.slideTitleFontScales;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_slide_title_font_scales');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  // Escalas de fonte específicas para o TÍTULO de cada slide
+  const [slideTitleFontScales, setSlideTitleFontScales] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideTitleFontScales || {};
   });
 
   const [bodyTextColor, setBodyTextColor] = useState<'black' | 'white'>(() => {
-    if (lessonData.bodyTextColor) return lessonData.bodyTextColor;
-    try {
-      return (localStorage.getItem('mega_ebd_body_text_color') as 'black' | 'white') || 'black';
-    } catch {
-      return 'black';
-    }
+    return lessonData.bodyTextColor || 'black';
   });
 
   const toggleBodyTextColor = useCallback(() => {
     setBodyTextColor(prev => {
       const next = prev === 'black' ? 'white' : 'black';
-      try { localStorage.setItem('mega_ebd_body_text_color', next); } catch {}
       updateLesson(l => ({ ...l, bodyTextColor: next }));
       return next;
     });
   }, [updateLesson]);
 
-  // Escalas de fonte específicas para o TEXTO / CORPO de cada slide (indexadas pelo projectorIndex)
-  const [slideBodyFontScales, setSlideBodyFontScales] = useState<Record<number, number>>(() => {
-    if (lessonData.slideBodyFontScales && Object.keys(lessonData.slideBodyFontScales).length > 0) {
-      return lessonData.slideBodyFontScales;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_slide_body_font_scales');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  // Escalas de fonte específicas para o TEXTO / CORPO de cada slide
+  const [slideBodyFontScales, setSlideBodyFontScales] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideBodyFontScales || {};
   });
 
-  const [slideTextOverrides, setSlideTextOverrides] = useState<Record<number, { title?: string; subtitle?: string; text?: string }>>(() => {
-    if (lessonData.slideTextOverrides && Object.keys(lessonData.slideTextOverrides).length > 0) {
-      return lessonData.slideTextOverrides;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_slide_text_overrides');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  const [slideTextOverrides, setSlideTextOverrides] = useState<Record<string | number, { title?: string; subtitle?: string; text?: string }>>(() => {
+    return lessonData.slideTextOverrides || {};
   });
 
   // Largura personalizada da caixa de texto por slide (30% a 100%)
-  const [slideBodyWidths, setSlideBodyWidths] = useState<Record<number, number>>(() => {
-    if (lessonData.slideBodyWidths && Object.keys(lessonData.slideBodyWidths).length > 0) {
-      return lessonData.slideBodyWidths;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_body_widths');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideBodyWidths, setSlideBodyWidths] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideBodyWidths || {};
   });
 
   const curBodyWidth = slideBodyWidths[projectorIndex] ?? 100;
@@ -626,7 +592,35 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return `${colorClass} text-lg md:text-2xl lg:text-3xl leading-relaxed`;
   }, [slideBodyWidths, projectorIndex, bodyTextColor]);
 
+  // Caixas delimitadoras livres de imagens estilo Corel Draw (x, y, w, h, rot, fit, layer, flipX)
+  const [slideImageBoxes, setSlideImageBoxes] = useState<Record<string, ImageBox>>(() => {
+    return lessonData.slideImageBoxes || {};
+  });
+
+  const [imageSelected, setImageSelected] = useState<boolean>(false);
   useEffect(() => {
+    setImageSelected(false);
+  }, [projectorIndex]);
+
+  const commitBox = useCallback((b: ImageBox) => {
+    const key = String(projectorIndex);
+    setSlideImageBoxes(prev => {
+      const next = { ...prev, [key]: b };
+      try {
+        localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    updateLesson(l => ({
+      ...l,
+      slideImageBoxes: { ...(l.slideImageBoxes ?? {}), [key]: b }
+    }));
+  }, [projectorIndex, updateLesson]);
+
+  useEffect(() => {
+    if (lastSyncedRef.current === lessonData) return;
+    lastSyncedRef.current = lessonData;
+
     setLesson(lessonData);
     if (lessonData.slideFontScales) setSlideFontScales(lessonData.slideFontScales);
     if (lessonData.slideTitleFontScales) setSlideTitleFontScales(lessonData.slideTitleFontScales);
@@ -641,6 +635,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (lessonData.slideImageCrops) setSlideImageCrops(lessonData.slideImageCrops);
     if (lessonData.slideImageFits) setSlideImageFits(lessonData.slideImageFits);
     if (lessonData.slideImageBorders) setSlideImageBorders(lessonData.slideImageBorders);
+    if (lessonData.slideImageBoxes) setSlideImageBoxes(lessonData.slideImageBoxes);
     if (lessonData.slideTextOverrides) setSlideTextOverrides(lessonData.slideTextOverrides);
     if (lessonData.projectorSlideImages) setProjectorSlideImages(lessonData.projectorSlideImages);
     if (lessonData.projectorFontSizeScale) setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
@@ -682,24 +677,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     });
   }, [updateLesson]);
 
-  // Aplica as escalas de título e texto deste slide a todos os slides
-  const applyCurrentScalesToAllSlides = useCallback(() => {
-    const totalSlides = 60;
-    const nextTitles: Record<number, number> = {};
-    const nextBodies: Record<number, number> = {};
-    for (let i = 0; i < totalSlides; i++) {
-      if (currentTitleScale !== defaultTitleScale) nextTitles[i] = currentTitleScale;
-      if (currentBodyScale !== defaultBodyScale) nextBodies[i] = currentBodyScale;
-    }
-    setSlideTitleFontScales(nextTitles);
-    setSlideBodyFontScales(nextBodies);
-    try {
-      localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(nextTitles));
-      localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(nextBodies));
-    } catch {}
-    updateLesson(l => ({ ...l, slideTitleFontScales: nextTitles, slideBodyFontScales: nextBodies }));
-  }, [currentTitleScale, currentBodyScale, defaultTitleScale, defaultBodyScale, updateLesson]);
-
   // ── POSICIONAMENTO LIVRE DE ELEMENTOS NO SLIDE ──────────────────────────────
   const [isLayoutEditMode, setIsLayoutEditMode] = useState(false);
 
@@ -738,96 +715,42 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     });
   }, []);
 
-  const [slideTitlePositions, setSlideTitlePositions] = useState<Record<number, { x: number; y: number }>>(() => {
-    if (lessonData.slideTitlePositions && Object.keys(lessonData.slideTitlePositions).length > 0) {
-      return lessonData.slideTitlePositions;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_title_positions');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideTitlePositions, setSlideTitlePositions] = useState<Record<string | number, { x: number; y: number }>>(() => {
+    return lessonData.slideTitlePositions || {};
   });
 
-  const [slideBodyPositions, setSlideBodyPositions] = useState<Record<number, { x: number; y: number }>>(() => {
-    if (lessonData.slideBodyPositions && Object.keys(lessonData.slideBodyPositions).length > 0) {
-      return lessonData.slideBodyPositions;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_body_positions');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideBodyPositions, setSlideBodyPositions] = useState<Record<string | number, { x: number; y: number }>>(() => {
+    return lessonData.slideBodyPositions || {};
   });
 
-  const [slideImagePositions, setSlideImagePositions] = useState<Record<number, { x: number; y: number }>>(() => {
-    if (lessonData.slideImagePositions && Object.keys(lessonData.slideImagePositions).length > 0) {
-      return lessonData.slideImagePositions;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_positions');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImagePositions, setSlideImagePositions] = useState<Record<string | number, { x: number; y: number }>>(() => {
+    return lessonData.slideImagePositions || {};
   });
 
-  const [slideImageScales, setSlideImageScales] = useState<Record<number, number>>(() => {
-    if (lessonData.slideImageScales && Object.keys(lessonData.slideImageScales).length > 0) {
-      return lessonData.slideImageScales;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_scales');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageScales, setSlideImageScales] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideImageScales || {};
   });
 
-  const [slideImageFits, setSlideImageFits] = useState<Record<number, 'cover' | 'contain'>>(() => {
-    if (lessonData.slideImageFits && Object.keys(lessonData.slideImageFits).length > 0) {
-      return lessonData.slideImageFits;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_fits');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageFits, setSlideImageFits] = useState<Record<string | number, 'cover' | 'contain'>>(() => {
+    return lessonData.slideImageFits || {};
   });
 
   // Largura e Altura do Recipiente da Imagem por slide (% da largura/altura do palco)
-  const [slideImageWidths, setSlideImageWidths] = useState<Record<number, number>>(() => {
-    if (lessonData.slideImageWidths && Object.keys(lessonData.slideImageWidths).length > 0) {
-      return lessonData.slideImageWidths;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_widths');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageWidths, setSlideImageWidths] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideImageWidths || {};
   });
 
-  const [slideImageHeights, setSlideImageHeights] = useState<Record<number, number>>(() => {
-    if (lessonData.slideImageHeights && Object.keys(lessonData.slideImageHeights).length > 0) {
-      return lessonData.slideImageHeights;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_heights');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageHeights, setSlideImageHeights] = useState<Record<string | number, number>>(() => {
+    return lessonData.slideImageHeights || {};
   });
 
   // Corte Fluido Estilo Canva por slide (panX, panY em %, zoom de 1.0 a 3.0)
-  const [slideImageCrops, setSlideImageCrops] = useState<Record<number, { panX: number; panY: number; zoom: number }>>(() => {
-    if (lessonData.slideImageCrops && Object.keys(lessonData.slideImageCrops).length > 0) {
-      return lessonData.slideImageCrops;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_crops');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageCrops, setSlideImageCrops] = useState<Record<string | number, { panX: number; panY: number; zoom: number }>>(() => {
+    return lessonData.slideImageCrops || {};
   });
 
-  const [slideImageBorders, setSlideImageBorders] = useState<Record<number, 'white' | 'thin' | 'thick' | 'none'>>(() => {
-    if (lessonData.slideImageBorders && Object.keys(lessonData.slideImageBorders).length > 0) {
-      return lessonData.slideImageBorders;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_image_borders');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
+  const [slideImageBorders, setSlideImageBorders] = useState<Record<string | number, 'white' | 'thin' | 'thick' | 'none'>>(() => {
+    return lessonData.slideImageBorders || {};
   });
 
   // Modo de Recorte Ativo no Slide (Estilo Canva)
@@ -864,18 +787,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
-  const imagePos = slideImagePositions[projectorIndex] ?? { x: 0, y: 0 };
-  const imageScale = slideImageScales[projectorIndex] ?? 1.0;
   const imageFit = slideImageFits[projectorIndex] ?? 'cover';
   const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
-  const isImageMoved = slideImagePositions[projectorIndex] !== undefined;
-  const isImageScaled = slideImageScales[projectorIndex] !== undefined && slideImageScales[projectorIndex] !== 1.0;
+  const isImageMoved = slideImagePositions[projectorIndex] !== undefined || slideImageBoxes[String(projectorIndex)] !== undefined;
 
-  const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
-  const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-  const imageWidth = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 92);
-  const imageHeight = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78);
   const imageCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
   const isImageWidthCustom = slideImageWidths[projectorIndex] !== undefined;
   const isImageHeightCustom = slideImageHeights[projectorIndex] !== undefined;
@@ -931,40 +847,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     stageWidth: number;
   } | null>(null);
 
-  const handleImageWidthResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, side: 'left' | 'right') => {
-    if (!isLayoutEditMode) return;
-    if ('touches' in e) {
-      if (e.cancelable) e.preventDefault();
-    } else {
-      e.preventDefault();
-    }
-    e.stopPropagation();
-
-    const stage = projectorStageRef.current;
-    const stageW = stage?.clientWidth || 800;
-
-    let clientX = 0;
-    if ('touches' in e && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-    } else if ('clientX' in e) {
-      clientX = (e as React.MouseEvent).clientX;
-    } else {
-      return;
-    }
-
-    const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
-    const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-    const currentW = slideImageWidths[projectorIndex] ?? (isSideBySideActive ? 48 : 92);
-
-    imageWidthResizeStateRef.current = {
-      active: true,
-      side,
-      startClientX: clientX,
-      startWidth: currentW,
-      stageWidth: stageW,
-    };
-  }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageWidths]);
-
   // Ref de redimensionamento da altura e limites (superior/inferior) do recipiente da imagem
   const imageHeightResizeStateRef = useRef<{
     active: boolean;
@@ -974,42 +856,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     startPosY: number;
     stageHeight: number;
   } | null>(null);
-
-  const handleImageHeightResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, side: 'top' | 'bottom') => {
-    if (!isLayoutEditMode) return;
-    if ('touches' in e) {
-      if (e.cancelable) e.preventDefault();
-    } else {
-      e.preventDefault();
-    }
-    e.stopPropagation();
-
-    const stage = projectorStageRef.current;
-    const stageH = stage?.clientHeight || 450;
-
-    let clientY = 0;
-    if ('touches' in e && e.touches.length > 0) {
-      clientY = e.touches[0].clientY;
-    } else if ('clientX' in e) {
-      clientY = (e as React.MouseEvent).clientY;
-    } else {
-      return;
-    }
-
-    const curBodyW = slideBodyWidths[projectorIndex] ?? 100;
-    const isSideBySideActive = curBodyW <= 65 && Math.abs(slideBodyPositions[projectorIndex]?.x ?? 0) > 5;
-    const currentH = slideImageHeights[projectorIndex] ?? (isSideBySideActive ? 92 : 78);
-    const currentPosY = slideImagePositions[projectorIndex]?.y ?? (isSideBySideActive ? 0 : 7.0);
-
-    imageHeightResizeStateRef.current = {
-      active: true,
-      side,
-      startClientY: clientY,
-      startHeight: currentH,
-      startPosY: currentPosY,
-      stageHeight: stageH,
-    };
-  }, [isLayoutEditMode, projectorIndex, slideBodyWidths, slideBodyPositions, slideImageHeights, slideImagePositions]);
 
   const resetSlideImageHeight = useCallback(() => {
     setSlideImageHeights(prev => {
@@ -1032,40 +878,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     containerHeight: number;
   } | null>(null);
 
-  const handleCropPanStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    if ('touches' in e) {
-      if (e.cancelable) e.preventDefault();
-    } else {
-      e.preventDefault();
-    }
-    e.stopPropagation();
 
-    const imgContainer = (e.currentTarget as HTMLElement).closest('.slide-image-frame');
-    const rect = imgContainer?.getBoundingClientRect() || { width: 400, height: 300 };
-
-    let clientX = 0;
-    let clientY = 0;
-    if ('touches' in e && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else if ('clientX' in e) {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
-    } else {
-      return;
-    }
-
-    const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
-    cropPanStateRef.current = {
-      active: true,
-      startClientX: clientX,
-      startClientY: clientY,
-      startPanX: curCrop.panX,
-      startPanY: curCrop.panY,
-      containerWidth: rect.width || 400,
-      containerHeight: rect.height || 300,
-    };
-  }, [projectorIndex, slideImageCrops]);
 
   const resetSlideImageWidth = useCallback(() => {
     setSlideImageWidths(prev => {
@@ -1194,48 +1007,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     startScale: number;
   } | null>(null);
 
-  const handleImageResizeStart = useCallback((e: React.MouseEvent | React.TouchEvent, corner: 'nw' | 'ne' | 'se' | 'sw') => {
-    if (!isLayoutEditMode) return;
-    if ('touches' in e) {
-      if (e.cancelable) e.preventDefault();
-    } else {
-      e.preventDefault();
-    }
-    e.stopPropagation();
 
-    const stage = projectorStageRef.current;
-    if (!stage) return;
-
-    let clientX = 0;
-    let clientY = 0;
-    if ('touches' in e && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else if ('clientX' in e) {
-      clientX = (e as React.MouseEvent).clientX;
-      clientY = (e as React.MouseEvent).clientY;
-    } else {
-      return;
-    }
-
-    const imgContainer = (e.currentTarget as HTMLElement).closest('.slide-image-container');
-    const rect = imgContainer ? imgContainer.getBoundingClientRect() : stage.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-    const startDist = Math.max(10, Math.hypot(clientX - centerX, clientY - centerY));
-    const currentScale = slideImageScales[projectorIndex] ?? 1.0;
-
-    resizeStateRef.current = {
-      active: true,
-      corner,
-      startClientX: clientX,
-      startClientY: clientY,
-      startCenterX: centerX,
-      startCenterY: centerY,
-      startDist,
-      startScale: currentScale,
-    };
-  }, [isLayoutEditMode, projectorIndex, slideImageScales]);
 
   // Ref de drag responsivo (suporta mouse e touch com posições em porcentagem)
   const dragStateRef = useRef<{
@@ -1376,18 +1148,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         const deltaPanX = (dx / (containerWidth || 400)) * 100;
         const deltaPanY = (dy / (containerHeight || 300)) * 100;
 
-        const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
         const newPanX = Math.max(-100, Math.min(100, Math.round((startPanX + deltaPanX) * 10) / 10));
         const newPanY = Math.max(-100, Math.min(100, Math.round((startPanY + deltaPanY) * 10) / 10));
 
-        setSlideImageCrops(prev => ({
-          ...prev,
-          [projectorIndex]: {
-            ...curCrop,
-            panX: newPanX,
-            panY: newPanY,
-          }
-        }));
+        setSlideImageCrops(prev => {
+          const curCrop = prev[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
+          return {
+            ...prev,
+            [projectorIndex]: {
+              ...curCrop,
+              panX: newPanX,
+              panY: newPanY,
+            }
+          };
+        });
         return;
       }
 
@@ -1627,20 +1401,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     };
   }, [projectorIndex, updateLesson]);
 
-  // Modificação direta de escala da imagem (botões de zoom)
-  const setSingleImageScale = useCallback((idx: number, scale: number | null) => {
-    setSlideImageScales(prev => {
-      const next = { ...prev };
-      if (scale === null || scale === 1.0) {
-        delete next[idx];
-      } else {
-        next[idx] = Math.round(scale * 100) / 100;
-      }
-      try { localStorage.setItem('mega_ebd_image_scales', JSON.stringify(next)); } catch {}
-      updateLesson(l => ({ ...l, slideImageScales: next }));
-      return next;
-    });
-  }, [updateLesson]);
+
 
   // Alternador de ajuste da imagem (Preencher/Cover vs Ajustar Inteira/Contain)
   const toggleImageFit = useCallback((idx: number) => {
@@ -1727,6 +1488,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
     if (curWidth <= 65 && curBodyPos.x < -10) {
       // Inverte: Imagem na Esquerda, Texto na Direita
+      commitBox({ x: 3, y: 18, w: 46, h: 78, rot: 0, fit: 'cover', layer: 'front', flipX: false });
       setSlideBodyWidths(prev => {
         const next = { ...prev, [projectorIndex]: 48 };
         try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
@@ -1765,6 +1527,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       });
     } else if (curWidth <= 65 && curBodyPos.x > 10) {
       // Restaura centralizado
+      commitBox(DEFAULT_IMAGE_BOX);
       resetSlideBodyWidth();
       resetSlidePosition('body');
       resetSlidePosition('image');
@@ -1772,6 +1535,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       resetSlideImageWidth();
     } else {
       // Ativa: Texto na Esquerda (48%), Imagem na Direita (48%)
+      commitBox({ x: 51, y: 18, w: 46, h: 78, rot: 0, fit: 'cover', layer: 'front', flipX: false });
       setSlideBodyWidths(prev => {
         const next = { ...prev, [projectorIndex]: 48 };
         try { localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next)); } catch {}
@@ -1809,7 +1573,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return next;
       });
     }
-  }, [projectorIndex, slideBodyWidths, slideBodyPositions, updateLesson, resetSlideBodyWidth, resetSlidePosition, resetSlideImageScale, resetSlideImageWidth]);
+  }, [projectorIndex, slideBodyWidths, slideBodyPositions, updateLesson, resetSlideBodyWidth, resetSlidePosition, resetSlideImageScale, resetSlideImageWidth, commitBox]);
 
   // Estilos do wrapper de drag para cada elemento (suporta pixels legados e porcentagem responsiva)
   const makeDragStyle = (pos: { x: number; y: number }, kind: 'title' | 'body' | 'image'): React.CSSProperties => {
@@ -2090,34 +1854,53 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const addVersiculoSubtopic = (topicIdx: number, subIdx: number) => {
     updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      const list = [...(sub.versiculos || [])];
-      list.push({ reference: 'Referência Bíblica (ex: João 3.16)', text: 'Texto do versículo...', explicacao: 'Breve explicação didática do versículo...' });
-      sub.versiculos = list;
-      topicos[topicIdx].subtopicos[subIdx] = sub;
+      const topicos = prev.topicos.map((top, tIdx) => {
+        if (tIdx !== topicIdx) return top;
+        const subtopicos = top.subtopicos.map((sub, sIdx) => {
+          if (sIdx !== subIdx) return sub;
+          return {
+            ...sub,
+            versiculos: [
+              ...(sub.versiculos || []),
+              { reference: 'Referência Bíblica (ex: João 3.16)', text: 'Texto do versículo...', explicacao: 'Breve explicação didática do versículo...' }
+            ]
+          };
+        });
+        return { ...top, subtopicos };
+      });
       return { ...prev, topicos };
     });
   };
 
   const updateVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number, field: 'reference' | 'text' | 'explicacao', val: string) => {
     updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      const list = [...(sub.versiculos || [])];
-      list[vIdx] = { ...list[vIdx], [field]: val };
-      sub.versiculos = list;
-      topicos[topicIdx].subtopicos[subIdx] = sub;
+      const topicos = prev.topicos.map((top, tIdx) => {
+        if (tIdx !== topicIdx) return top;
+        const subtopicos = top.subtopicos.map((sub, sIdx) => {
+          if (sIdx !== subIdx) return sub;
+          const versiculos = [...(sub.versiculos || [])];
+          versiculos[vIdx] = { ...versiculos[vIdx], [field]: val };
+          return { ...sub, versiculos };
+        });
+        return { ...top, subtopicos };
+      });
       return { ...prev, topicos };
     });
   };
 
   const removeVersiculoSubtopic = (topicIdx: number, subIdx: number, vIdx: number) => {
     updateLesson(prev => {
-      const topicos = [...prev.topicos];
-      const sub = { ...topicos[topicIdx].subtopicos[subIdx] };
-      sub.versiculos = (sub.versiculos || []).filter((_, idx) => idx !== vIdx);
-      topicos[topicIdx].subtopicos[subIdx] = sub;
+      const topicos = prev.topicos.map((top, tIdx) => {
+        if (tIdx !== topicIdx) return top;
+        const subtopicos = top.subtopicos.map((sub, sIdx) => {
+          if (sIdx !== subIdx) return sub;
+          return {
+            ...sub,
+            versiculos: (sub.versiculos || []).filter((_, idx) => idx !== vIdx)
+          };
+        });
+        return { ...top, subtopicos };
+      });
       return { ...prev, topicos };
     });
   };
@@ -2271,24 +2054,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const projectorStageRef = useRef<HTMLDivElement>(null);
 
-  const [projectorSlideImages, setProjectorSlideImages] = useState<Record<number, string>>(() => {
-    if (lessonData.projectorSlideImages && Object.keys(lessonData.projectorSlideImages).length > 0) {
-      return lessonData.projectorSlideImages;
-    }
-    try {
-      const saved = localStorage.getItem('mega_ebd_projector_slide_images');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
+  const [projectorSlideImages, setProjectorSlideImages] = useState<Record<string | number, string>>(() => {
+    return lessonData.projectorSlideImages || {};
   });
   const [customBg, setCustomBg] = useState<string | null>(() => {
-    if (lessonData.customBg) return lessonData.customBg;
-    try {
-      return localStorage.getItem('mega_ebd_custom_bg');
-    } catch {
-      return null;
-    }
+    return lessonData.customBg || null;
   });
 
 
@@ -3084,6 +2854,59 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   }, [lesson]);
 
   const currentProjectorItem = projectorItems[projectorIndex] || projectorItems[0];
+  const currentSlideId = currentProjectorItem?.id || String(projectorIndex);
+
+  // Aplica as escalas de título e texto deste slide a todos os slides da lição (iterando sobre todos os projectorItems)
+  const applyCurrentScalesToAllSlides = useCallback(() => {
+    const nextTitles: Record<string | number, number> = {};
+    const nextBodies: Record<string | number, number> = {};
+    projectorItems.forEach((item, idx) => {
+      const key = item.id || idx;
+      if (currentTitleScale !== defaultTitleScale) {
+        nextTitles[key] = currentTitleScale;
+        nextTitles[idx] = currentTitleScale;
+      }
+      if (currentBodyScale !== defaultBodyScale) {
+        nextBodies[key] = currentBodyScale;
+        nextBodies[idx] = currentBodyScale;
+      }
+    });
+    setSlideTitleFontScales(nextTitles);
+    setSlideBodyFontScales(nextBodies);
+    updateLesson(l => ({ ...l, slideTitleFontScales: nextTitles, slideBodyFontScales: nextBodies }));
+  }, [projectorItems, currentTitleScale, currentBodyScale, defaultTitleScale, defaultBodyScale, updateLesson]);
+
+  // Verificação Ipsis Litteris do Slide de Subtópico atual contra o Conteúdo da Revista
+  const isIpsisLitterisVerified = React.useMemo(() => {
+    if (!lesson.revistaRawContent || !currentProjectorItem) return null;
+    if (currentProjectorItem.type !== 'subtopic') return null;
+    const slideText = currentProjectorItem.projetorText || '';
+    if (!slideText || slideText.trim().length < 15) return null;
+
+    const norm = (str: string) => str
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/^\s*\d+(\.\d+)*\.?\s*/g, '')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const normalizedRevista = norm(lesson.revistaRawContent);
+    const normalizedSlide = norm(slideText);
+
+    if (normalizedSlide.length < 15) return null;
+
+    if (normalizedRevista.includes(normalizedSlide)) return true;
+    const snippet = normalizedSlide.slice(0, Math.min(45, normalizedSlide.length));
+    if (snippet.length >= 20 && normalizedRevista.includes(snippet)) return true;
+
+    return false;
+  }, [lesson.revistaRawContent, currentProjectorItem]);
+
+  // ── CAIXA DELIMITADORA LIVRE DA IMAGEM DO SLIDE ATUAL ──
+  const curImageSrc = projectorSlideImages[currentSlideId] || projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
+  const curBox: ImageBox = slideImageBoxes[currentSlideId] ?? slideImageBoxes[String(projectorIndex)] ?? DEFAULT_IMAGE_BOX;
 
   // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita e Escape para Sair do Recorte Canva)
   useEffect(() => {
@@ -3159,21 +2982,36 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
 
       const newText = await callGeminiRaw(prompt, 'gemini-2.5-flash', false, 0.6);
 
-      const updated = { ...lesson };
-      const targetSub = updated.topicos[topicIdx].subtopicos[subIdx];
-
-      if (ideiaIdx !== undefined && targetSub.ideias?.[ideiaIdx]) {
-        if (targetType === 'explicacao') targetSub.ideias[ideiaIdx].professor.explicacao = newText.trim();
-        else if (targetType === 'aplicacao') targetSub.ideias[ideiaIdx].professor.aplicacao = newText.trim();
-        else if (targetType === 'projetor') targetSub.ideias[ideiaIdx].projetor = newText.trim();
-      } else {
-        if (targetType === 'explicacao') targetSub.explicacao = newText.trim();
-        else if (targetType === 'aplicacao') targetSub.aplicacao = newText.trim();
-        else if (targetType === 'projetor') targetSub.projetor = newText.trim();
-      }
-
-      setLesson(updated);
-      onUpdateLesson(updated);
+      updateLesson(prev => {
+        const topicos = prev.topicos.map((top, tIdx) => {
+          if (tIdx !== topicIdx) return top;
+          const subtopicos = top.subtopicos.map((sub, sIdx) => {
+            if (sIdx !== subIdx) return sub;
+            if (ideiaIdx !== undefined && sub.ideias?.[ideiaIdx]) {
+              const ideias = sub.ideias.map((ideia, iIdx) => {
+                if (iIdx !== ideiaIdx) return ideia;
+                if (targetType === 'explicacao') {
+                  return { ...ideia, professor: { ...ideia.professor, explicacao: newText.trim() } };
+                } else if (targetType === 'aplicacao') {
+                  return { ...ideia, professor: { ...ideia.professor, aplicacao: newText.trim() } };
+                } else {
+                  return { ...ideia, projetor: newText.trim() };
+                }
+              });
+              return { ...sub, ideias };
+            } else {
+              return {
+                ...sub,
+                ...(targetType === 'explicacao' ? { explicacao: newText.trim() } : {}),
+                ...(targetType === 'aplicacao' ? { aplicacao: newText.trim() } : {}),
+                ...(targetType === 'projetor' ? { projetor: newText.trim() } : {}),
+              };
+            }
+          });
+          return { ...top, subtopicos };
+        });
+        return { ...prev, topicos };
+      });
     } catch (err: any) {
       alert(`Erro ao regenerar seção: ${err.message}`);
     } finally {
@@ -3236,6 +3074,17 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
           <div className="text-white text-sm md:text-base font-black truncate max-w-sm md:max-w-md">
             {lesson.metadata.title}
           </div>
+          {activeTab === 'projetor' && isIpsisLitterisVerified !== null && (
+            isIpsisLitterisVerified ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0" title="Texto do slide verificado: 100% literal da revista enviada">
+                ✓ Ipsis litteris (Revista)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 shrink-0" title="Atenção: este texto pode ter sido adaptado ou resumido pela IA em relação à revista">
+                ⚠️ Texto adaptado
+              </span>
+            )
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -3249,6 +3098,15 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               >
                 <FileDown className="w-4 h-4 text-white" />
                 <span>📄 Roteiro PDF</span>
+              </button>
+
+              <button
+                onClick={() => exportTeacherGuideHTML(lesson)}
+                title="Exportar Roteiro do Professor em formato formatado para Word ou Google Docs"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-black text-sm bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/40 shadow-md transition-all cursor-pointer min-h-[42px] active:scale-95"
+              >
+                <FileText className="w-4 h-4 text-white" />
+                <span>📝 Roteiro Docs</span>
               </button>
 
 
@@ -3299,6 +3157,17 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                       <span>📷 Alterar Imagem</span>
                       <input type="file" accept="image/*" onChange={(e) => { handleSlideImageUpload(e); setIsImageMenuOpen(false); }} className="hidden" />
                     </label>
+
+                    <button
+                      onClick={() => {
+                        setImageSelected(true);
+                        setIsImageMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-cyan-300 hover:bg-cyan-950/60 font-bold transition-colors cursor-pointer"
+                    >
+                      <Move className="w-4 h-4 text-cyan-400" />
+                      <span>🎯 Redimensionar / Mover Imagem</span>
+                    </button>
 
                     <button
                       onClick={() => { handleOpenCropForSlide(); setIsImageMenuOpen(false); }}
@@ -3470,16 +3339,20 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               <button
                 onClick={() => {
                   const theme = THEMES[0];
-                  const itemsWithImages = projectorItems.map((item, idx) => ({
-                    ...item,
-                    imageUrl: projectorSlideImages[idx] || item.imageUrl,
-                    imageScale: slideImageScales[idx] ?? 1.0,
-                    imageFit: slideImageFits[idx] ?? 'cover',
-                  }));
+                  const itemsWithImages = projectorItems.map((item, idx) => {
+                    const id = item.id;
+                    return {
+                      ...item,
+                      imageUrl: (id ? projectorSlideImages[id] : undefined) || projectorSlideImages[idx] || item.imageUrl,
+                      imageScale: (id && slideImageScales[id] !== undefined ? slideImageScales[id] : slideImageScales[idx]) ?? 1.0,
+                      imageFit: (id && slideImageFits[id] !== undefined ? slideImageFits[id] : slideImageFits[idx]) ?? 'cover',
+                      imageBox: (id && slideImageBoxes[id] !== undefined ? slideImageBoxes[id] : slideImageBoxes[String(idx)]),
+                    };
+                  });
                   exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
                 }}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-                title="Exportar apresentação completa (.pptx) com todos os slides e edições"
+                title="Exportar apresentação completa (.pptx) com todos os slides, imagens e anotações do orador"
               >
                 <Download className="w-4 h-4 text-white" />
                 <span>PowerPoint (.pptx)</span>
@@ -4682,60 +4555,30 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                   <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
                 </button>
 
-                {/* Redimensionamento e Ajuste da Imagem deste Slide */}
-                {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                  <>
-                    <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-purple-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da imagem deste slide (ou arraste as alças nos 4 cantos no modo 'Mover')">
-                      <ImageIcon className="w-4 h-4 text-purple-400 shrink-0" />
-                      <span className="text-xs font-black text-purple-300 uppercase tracking-wider">Imagem:</span>
-                      <button
-                        onClick={() => {
-                          const next = Math.max(0.2, Math.round((imageScale - 0.05) * 100) / 100);
-                          setSingleImageScale(projectorIndex, next);
-                        }}
-                        disabled={imageScale <= 0.2}
-                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                        title="Diminuir imagem (-)"
-                      >
-                        <ZoomOut className="w-4 h-4 text-purple-400" />
-                      </button>
-                      <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isImageScaled ? 'text-purple-200 font-black' : 'text-purple-300'}`}>
-                        {Math.round(imageScale * 100)}%
-                      </span>
-                      <button
-                        onClick={() => {
-                          const next = Math.min(3.0, Math.round((imageScale + 0.05) * 100) / 100);
-                          setSingleImageScale(projectorIndex, next);
-                        }}
-                        disabled={imageScale >= 3.0}
-                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                        title="Aumentar imagem (+)"
-                      >
-                        <ZoomIn className="w-4 h-4 text-purple-400" />
-                      </button>
-                      {isImageScaled && (
-                        <button
-                          onClick={resetSlideImageScale}
-                          className="text-xs font-black text-purple-400 hover:text-white px-2 py-1 rounded-lg bg-purple-950 border border-purple-500/40 transition-colors cursor-pointer"
-                          title="Restaurar tamanho original (100%)"
-                        >
-                          ↺ 100%
-                        </button>
-                      )}
-                    </div>
+                {/* Controle e Barra de Ferramentas de Imagem Estilo Corel Draw */}
+                {curImageSrc && imageSelected && (
+                  <ImageBoxToolbar
+                    box={curBox}
+                    src={curImageSrc}
+                    stageRef={projectorStageRef}
+                    onChange={commitBox}
+                    onRemove={() => {
+                      handleRemoveSlideImage();
+                      setImageSelected(false);
+                    }}
+                    onDone={() => setImageSelected(false)}
+                  />
+                )}
 
-                    <button
-                      onClick={() => toggleImageFit(projectorIndex)}
-                      className={`px-3.5 py-2 rounded-xl text-xs md:text-sm font-black transition-all flex items-center gap-1.5 cursor-pointer border min-h-[40px] active:scale-95 ${
-                        imageFit === 'contain'
-                          ? 'bg-purple-900/60 text-purple-200 border-purple-400 shadow-sm'
-                          : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                      }`}
-                      title="Alternar entre Preencher o slide (Cover) ou Ajustar inteira sem cortar (Contain)"
-                    >
-                      {imageFit === 'contain' ? '🔍 Ajustar Inteira' : '🖼️ Preencher'}
-                    </button>
-                  </>
+                {curImageSrc && !imageSelected && (
+                  <button
+                    onClick={() => setImageSelected(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+                    title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
+                  >
+                    <ImageIcon className="w-4 h-4 text-purple-400" />
+                    <span>🎯 Mover / Redimensionar Imagem</span>
+                  </button>
                 )}
 
                 {/* Reset de Posições, Enquadramentos e Destaques (quando arrastado livremente ou cores ativas) */}
@@ -4829,9 +4672,20 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
           {isEditMode && currentProjectorItem && !isExporting && (
             <div className="bg-amber-950/90 border-2 border-amber-500/80 p-4 rounded-2xl shadow-2xl space-y-3 mb-3 text-left animate-in fade-in duration-200">
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 pb-2">
-                <span className="text-amber-300 font-extrabold text-xs uppercase flex items-center gap-2">
+                <span className="text-amber-300 font-extrabold text-xs uppercase flex items-center gap-2 flex-wrap">
                   <Edit3 className="w-4 h-4 text-amber-400" />
                   <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
+                  {isIpsisLitterisVerified !== null && (
+                    isIpsisLitterisVerified ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 normal-case" title="Texto confirmado 100% literal da revista enviada">
+                        ✓ Ipsis litteris (Revista)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 normal-case" title="Atenção: este parágrafo pode ter sido adaptado ou resumido em vez de ser cópia literal da revista">
+                        ⚠️ Texto adaptado
+                      </span>
+                    )
+                  )}
                 </span>
 
                 {/* Controles do Editor de Texto */}
@@ -4979,6 +4833,11 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             ref={projectorStageRef}
             className={`slide-stage-wrapper ${isLayoutEditMode ? 'layout-mode' : ''} rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4`}
             style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
+            onPointerDown={(e) => {
+              if (!(e.target as HTMLElement).closest('[data-image-box]')) {
+                setImageSelected(false);
+              }
+            }}
             onMouseUp={handleSlideMouseUp}
             onTouchEnd={handleSlideMouseUp}
           >
@@ -5252,261 +5111,23 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               </div>
             )}
 
+            {/* 🖼️ Imagem Livre estilo Corel Draw (alças nos 8 cantos, rotação, proporção, camadas) */}
+            {curImageSrc && (
+              <FreeImageBox
+                src={curImageSrc}
+                box={curBox}
+                selected={imageSelected && !isExporting}
+                editable={!isExporting && (isLayoutEditMode || imageSelected)}
+                stageRef={projectorStageRef}
+                onSelect={() => setImageSelected(true)}
+                onCommit={commitBox}
+              />
+            )}
+
             {/* Bloco Central do Slide */}
             {(() => {
-              // Função auxiliar para renderizar o recipiente da imagem com recorte fluido estilo Canva
-              const renderSlideImageElement = () => {
-                const curSlideImg = projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
-                if (!curSlideImg) return null;
-
-                const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
-
-                // Zoom com scroll do mouse no modo Canva
-                const handleWheelZoom = (e: React.WheelEvent) => {
-                  if (!isCanvaCropping) return;
-                  e.stopPropagation();
-                  e.preventDefault();
-                  const delta = e.deltaY < 0 ? 0.05 : -0.05;
-                  const nextZ = Math.min(3.0, Math.max(1.0, Math.round((curCrop.zoom + delta) * 100) / 100));
-                  setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
-                };
-
-                return (
-                  <>
-                    {/* Ghost unclipped da imagem no modo Canva mostrando o que está além do quadro */}
-                    {isCanvaCropping && (
-                      <div
-                        className="slide-image-ghost absolute pointer-events-none select-none z-10 transition-opacity duration-150"
-                        style={{
-                          ...makeDragStyle(imagePos, 'image'),
-                          opacity: 0.3,
-                          filter: 'brightness(0.9) grayscale(15%)',
-                        }}
-                      >
-                        <div className="w-full h-full flex items-center justify-center overflow-visible">
-                          <img
-                            src={curSlideImg}
-                            alt="Visualização estendida da foto"
-                            draggable={false}
-                            className={`w-full h-full ${imageFit === 'contain' ? 'object-contain' : 'object-cover'} pointer-events-none select-none`}
-                            style={{
-                              transform: `scale(${curCrop.zoom}) translate(${curCrop.panX}%, ${curCrop.panY}%)`,
-                              transformOrigin: 'center center',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Recipiente / Quadro da Imagem */}
-                    <div
-                      className={`slide-image-container absolute select-none transition-all duration-150 group ${
-                        isCanvaCropping ? 'z-40 ring-4 ring-cyan-400/80 rounded-2xl shadow-2xl' : 'z-0'
-                      }`}
-                      style={{
-                        ...makeDragStyle(imagePos, 'image'),
-                        opacity: slideImageOpacity / 100,
-                        pointerEvents: (isLayoutEditMode || isCanvaCropping) ? 'auto' : 'none',
-                      }}
-                      onMouseDown={!isCanvaCropping && isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
-                      onTouchStart={!isCanvaCropping && isLayoutEditMode ? (e) => handleElementDragStart(e, 'image') : undefined}
-                      onDoubleClick={(e) => {
-                        e.stopPropagation();
-                        setIsCanvaCropping(true);
-                      }}
-                      onWheel={handleWheelZoom}
-                    >
-                      {/* Quadro delimitador com corte interno da imagem */}
-                      <div
-                        className={`slide-image-frame w-full h-full relative rounded-2xl overflow-hidden flex items-center justify-center transition-all ${
-                          isCanvaCropping
-                            ? 'cursor-grab active:cursor-grabbing border-2 border-cyan-300 bg-black/20'
-                            : imageFit === 'contain' ? '' : 'rounded-2xl'
-                        }`}
-                        onMouseDown={isCanvaCropping ? handleCropPanStart : undefined}
-                        onTouchStart={isCanvaCropping ? handleCropPanStart : undefined}
-                        title={isCanvaCropping ? 'Arraste a foto para enquadrar ou use o scroll para zoom' : undefined}
-                      >
-                        <img
-                          src={curSlideImg}
-                          alt="Ilustração do Slide"
-                          draggable={false}
-                          className={`${
-                            imageFit === 'contain' ? 'max-w-full max-h-full object-contain rounded-2xl' : 'w-full h-full object-cover'
-                          } pointer-events-none select-none transition-transform duration-75`}
-                          style={{
-                            transform: `scale(${curCrop.zoom}) translate(${curCrop.panX}%, ${curCrop.panY}%)`,
-                            transformOrigin: 'center center',
-                          }}
-                        />
-
-                        {/* Grade 3x3 e Cantoneiras do Modo Canva */}
-                        {isCanvaCropping && (
-                          <div className="absolute inset-0 pointer-events-none z-20">
-                            {/* Linhas verticais */}
-                            <div className="absolute top-0 bottom-0 left-1/3 w-[1.5px] bg-white/45 shadow-sm" />
-                            <div className="absolute top-0 bottom-0 left-2/3 w-[1.5px] bg-white/45 shadow-sm" />
-                            {/* Linhas horizontais */}
-                            <div className="absolute left-0 right-0 top-1/3 h-[1.5px] bg-white/45 shadow-sm" />
-                            <div className="absolute left-0 right-0 top-2/3 h-[1.5px] bg-white/45 shadow-sm" />
-
-                            {/* Cantoneiras L do Canva */}
-                            <div className="absolute top-1 left-1 w-4 h-4 border-t-2 border-l-2 border-white drop-shadow-md rounded-tl-sm" />
-                            <div className="absolute top-1 right-1 w-4 h-4 border-t-2 border-r-2 border-white drop-shadow-md rounded-tr-sm" />
-                            <div className="absolute bottom-1 left-1 w-4 h-4 border-b-2 border-l-2 border-white drop-shadow-md rounded-bl-sm" />
-                            <div className="absolute bottom-1 right-1 w-4 h-4 border-b-2 border-r-2 border-white drop-shadow-md rounded-br-sm" />
-
-                            {/* Dica flutuante */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-30 bg-slate-950/85 text-cyan-200 border border-cyan-400/40 px-3 py-1 rounded-full text-[10px] font-black shadow-xl backdrop-blur-md pointer-events-none flex items-center gap-1.5 whitespace-nowrap">
-                              <span>✋ Arraste a foto para enquadrar</span>
-                              <span className="opacity-50">•</span>
-                              <span>Scroll do mouse para zoom</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Botões de Ação Rápida no Modo Mover */}
-                      {isLayoutEditMode && !isCanvaCropping && (
-                        <div className="absolute top-2 right-2 z-50 pointer-events-auto flex items-center gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              occupyFullArea();
-                            }}
-                            className="bg-emerald-700/90 hover:bg-emerald-600 text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-emerald-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-                            title="Encaixar na área branca abaixo do cabeçalho"
-                          >
-                            <span>📐 Área Branca</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setIsCanvaCropping(true);
-                            }}
-                            className="bg-slate-950/90 hover:bg-cyan-600 text-cyan-200 hover:text-white px-2.5 py-1 rounded-xl text-[10px] font-black border border-cyan-400/50 shadow-xl flex items-center gap-1 backdrop-blur-md cursor-pointer transition-all hover:scale-105"
-                            title="Recorte Fluido Estilo Canva (reposicionar e dar zoom diretamente no slide)"
-                          >
-                            <Crop className="w-3 h-3 text-cyan-300" />
-                            <span>✂️ Recortar (Canva)</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* No modo "Mover": Badges e Alças do Recipiente */}
-                      {isLayoutEditMode && !isCanvaCropping && (
-                        <>
-                          {/* Badge superior */}
-                          <div
-                            className="absolute -top-7 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
-                            style={{
-                              backgroundColor: '#8b5cf6',
-                              color: '#ffffff',
-                              transform: `translateX(-50%) scale(${Math.max(0.65, Math.min(1.3, 1 / imageScale))})`,
-                              transformOrigin: 'bottom center',
-                            }}
-                          >
-                            <span>🖼️ Quadro ({imageWidth}% × {imageHeight}%) • Zoom {Math.round(imageScale * 100)}%</span>
-                            <span className="opacity-80">• Duplo clique para Recorte Canva</span>
-                          </div>
-
-                          {/* Alça Superior para Redimensionar Altura do Recipiente (Topo) */}
-                          <div
-                            onMouseDown={(e) => handleImageHeightResizeStart(e, 'top')}
-                            onTouchStart={(e) => handleImageHeightResizeStart(e, 'top')}
-                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageHeight(); }}
-                            className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 h-4 w-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ns-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
-                            title="Arrastar para ajustar limite superior da foto (altura) • Duplo clique para padrão"
-                          >
-                            <div className="h-0.5 w-5 bg-purple-600 rounded-full" />
-                          </div>
-
-                          {/* Alça Inferior para Redimensionar Altura do Recipiente (Base) */}
-                          <div
-                            onMouseDown={(e) => handleImageHeightResizeStart(e, 'bottom')}
-                            onTouchStart={(e) => handleImageHeightResizeStart(e, 'bottom')}
-                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageHeight(); }}
-                            className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 h-4 w-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ns-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
-                            title="Arrastar para ajustar limite inferior da foto (altura) • Duplo clique para padrão"
-                          >
-                            <div className="h-0.5 w-5 bg-purple-600 rounded-full" />
-                          </div>
-
-                          {/* Alça Esquerda para Redimensionar Largura do Recipiente */}
-                          <div
-                            onMouseDown={(e) => handleImageWidthResizeStart(e, 'left')}
-                            onTouchStart={(e) => handleImageWidthResizeStart(e, 'left')}
-                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageWidth(); }}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
-                            title="Arrastar para ajustar largura do quadro • Duplo clique para padrão"
-                          >
-                            <div className="w-0.5 h-5 bg-purple-600 rounded-full" />
-                          </div>
-
-                          {/* Alça Direita para Redimensionar Largura do Recipiente */}
-                          <div
-                            onMouseDown={(e) => handleImageWidthResizeStart(e, 'right')}
-                            onTouchStart={(e) => handleImageWidthResizeStart(e, 'right')}
-                            onDoubleClick={(e) => { e.stopPropagation(); resetSlideImageWidth(); }}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-12 bg-white border-2 border-purple-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group pointer-events-auto"
-                            title="Arrastar para ajustar largura do quadro • Duplo clique para padrão"
-                          >
-                            <div className="w-0.5 h-5 bg-purple-600 rounded-full" />
-                          </div>
-
-                          {/* Alça Noroeste (Top-Left) */}
-                          <div
-                            onMouseDown={(e) => handleImageResizeStart(e, 'nw')}
-                            onTouchStart={(e) => handleImageResizeStart(e, 'nw')}
-                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                            className="absolute top-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform pointer-events-auto"
-                            style={{
-                              transform: `translate(-50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                            }}
-                            title="Arrastar para redimensionar • Duplo clique para 100%"
-                          />
-
-                          {/* Alça Nordeste (Top-Right) */}
-                          <div
-                            onMouseDown={(e) => handleImageResizeStart(e, 'ne')}
-                            onTouchStart={(e) => handleImageResizeStart(e, 'ne')}
-                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                            className="absolute top-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform pointer-events-auto"
-                            style={{
-                              transform: `translate(50%, -50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                            }}
-                            title="Arrastar para redimensionar • Duplo clique para 100%"
-                          />
-
-                          {/* Alça Sudoeste (Bottom-Left) */}
-                          <div
-                            onMouseDown={(e) => handleImageResizeStart(e, 'sw')}
-                            onTouchStart={(e) => handleImageResizeStart(e, 'sw')}
-                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                            className="absolute bottom-0 left-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nesw-resize hover:scale-125 transition-transform pointer-events-auto"
-                            style={{
-                              transform: `translate(-50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                            }}
-                            title="Arrastar para redimensionar • Duplo clique para 100%"
-                          />
-
-                          {/* Alça Sudeste (Bottom-Right) */}
-                          <div
-                            onMouseDown={(e) => handleImageResizeStart(e, 'se')}
-                            onTouchStart={(e) => handleImageResizeStart(e, 'se')}
-                            onDoubleClick={(e) => { e.stopPropagation(); setSingleImageScale(projectorIndex, 1.0); }}
-                            className="absolute bottom-0 right-0 w-4 h-4 bg-white border-2 border-purple-600 rounded-full shadow-lg z-50 cursor-nwse-resize hover:scale-125 transition-transform pointer-events-auto"
-                            style={{
-                              transform: `translate(50%, 50%) scale(${Math.max(0.65, Math.min(1.4, 1 / imageScale))})`,
-                            }}
-                            title="Arrastar para redimensionar • Duplo clique para 100%"
-                          />
-                        </>
-                      )}
-                    </div>
-                  </>
-                );
-              };
+              // Substituído pelo FreeImageBox estilo Corel Draw
+              const renderSlideImageElement = () => null;
 
               // Função auxiliar para renderizar as alças de largura e badge do texto no modo "Mover"
               const renderBodyResizeHandles = () => {
@@ -5793,7 +5414,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                                 className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
                               >
                                 {displayRef && (
-                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0 sticky top-0 bg-slate-900/95 py-2.5 backdrop-blur-md z-20 rounded-2xl shadow-lg border border-amber-500/30" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
                                     {renderHL(displayRef, '#0052cc')}
                                   </h3>
                                 )}

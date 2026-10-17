@@ -3,19 +3,22 @@
  * Gerencia chamadas brutas ao Gemini com suporte a modelos atuais (gemini-3.5-flash-lite, gemini-3.5-flash, gemini-1.5-pro)
  */
 
-import type { PresentationData, GenerationOptions } from '../types';
-import { runProfessorEngine } from './ebdProfessorEngine';
-import { runDesignerEngine } from './ebdDesignerEngine';
-
-// Chave da API no localStorage
-const GEMINI_API_KEY_STORAGE_KEY = 'megaebd_gemini_api_key';
+// Chaves da API no localStorage (unificando e mantendo compatibilidade)
+const PRIMARY_GEMINI_KEY = 'megaebd_gemini_api_key';
+const LEGACY_GEMINI_KEY = 'mega_slides_gemini_key';
 
 export function getStoredApiKey(): string {
-  return localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY) || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+  const key = localStorage.getItem(PRIMARY_GEMINI_KEY) || localStorage.getItem(LEGACY_GEMINI_KEY) || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+  if (key && !localStorage.getItem(PRIMARY_GEMINI_KEY)) {
+    try { localStorage.setItem(PRIMARY_GEMINI_KEY, key.trim()); } catch {}
+  }
+  return key;
 }
 
 export function setStoredApiKey(key: string): void {
-  localStorage.setItem(GEMINI_API_KEY_STORAGE_KEY, key.trim());
+  const trimmed = key.trim();
+  localStorage.setItem(PRIMARY_GEMINI_KEY, trimmed);
+  try { localStorage.setItem(LEGACY_GEMINI_KEY, trimmed); } catch {}
 }
 
 // Cache para modelos suportados pela chave do usuário
@@ -27,7 +30,16 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
   }
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const proxyBase = (import.meta.env.VITE_GEMINI_PROXY_URL as string) || '';
+    const endpoint = proxyBase 
+      ? `${proxyBase.replace(/\/$/, '')}/models`
+      : 'https://generativelanguage.googleapis.com/v1beta/models';
+
+    const res = await fetch(endpoint, {
+      headers: {
+        'x-goog-api-key': apiKey,
+      }
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data.models)) {
@@ -70,39 +82,44 @@ export async function callGeminiRaw(
   // Busca dinamicamente os modelos ativos e suportados pela chave do usuário
   const activeModels = await getAvailableModels(apiKey);
 
-  // Lista ordenada de tentativas: modelo solicitado -> variações -latest -> modelos disponíveis na conta
+  // Lista ordenada e enxuta de tentativas
   const candidateModels = Array.from(new Set([
     modelName,
-    `${modelName}-latest`,
-    'gemini-3.6-flash',
-    'gemini-3.6-pro',
     'gemini-2.5-flash',
     'gemini-2.5-pro',
-    ...activeModels,
-    'gemini-2.0-flash',
+    ...activeModels.filter(m => m.includes('flash') || m.includes('pro')),
     'gemini-1.5-flash-latest'
-  ]));
+  ])).filter(Boolean);
 
   let lastError: Error | null = null;
+  const proxyBase = (import.meta.env.VITE_GEMINI_PROXY_URL as string) || '';
 
   for (const model of candidateModels) {
     try {
-      // Endpoint REST v1beta do Google AI Studio
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      // Endpoint REST v1beta do Google AI Studio (ou proxy serverless se configurado)
+      const url = proxyBase 
+        ? `${proxyBase.replace(/\/$/, '')}/models/${model}:generateContent`
+        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+      // Modelos 2.5 e 3.x aceitam até 65536 tokens; modelos 1.5 e 2.0 aceitam 8192
+      const isHighCapacity = /gemini-(2\.5|3\.)/i.test(model);
+      const maxTokens = isHighCapacity ? 65536 : 8192;
 
       const generationConfig: any = {
         temperature: temperature,
-        maxOutputTokens: 65536,
+        maxOutputTokens: maxTokens,
       };
 
       if (isJsonResponse) {
         generationConfig.responseMimeType = "application/json";
       }
 
+      // Passa a chave no header x-goog-api-key para proteção de segurança (evita vazamento em logs de URL, histórico e proxy)
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
         },
         body: JSON.stringify({
           contents: [
@@ -117,6 +134,23 @@ export async function callGeminiRaw(
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
         const message = errJson?.error?.message || `HTTP ${response.status}`;
+        const status = response.status;
+
+        // Se for erro definitivo (chave inválida, cota esgotada, permissão), interrompe imediatamente sem testar 15 modelos repetidos
+        const isFatalError = 
+          (status === 400 && /API key/i.test(message)) ||
+          status === 401 || 
+          status === 403 || 
+          status === 429 || 
+          /API[ _]?key/i.test(message) ||
+          /quota/i.test(message) ||
+          /resource has been exhausted/i.test(message) ||
+          /rate limit/i.test(message);
+
+        if (isFatalError) {
+          throw new Error(`Erro definitivo na API Gemini (${status}): ${message}`);
+        }
+
         throw new Error(`Modelo ${model}: ${message}`);
       }
 
@@ -127,6 +161,9 @@ export async function callGeminiRaw(
         return textResult;
       }
     } catch (err: any) {
+      if (err.message && err.message.startsWith('Erro definitivo na API Gemini')) {
+        throw err;
+      }
       console.warn(`[Gemini REST Fallback] Falha no modelo ${model}:`, err.message);
       lastError = err;
     }
@@ -135,13 +172,3 @@ export async function callGeminiRaw(
   throw new Error(`Nenhum modelo Gemini respondeu com sucesso. Detalhes do último erro: ${lastError?.message || 'Erro desconhecido'}`);
 }
 
-export async function generatePresentationWithGemini(
-  apiKey: string,
-  rawContent: string,
-  options: GenerationOptions
-): Promise<PresentationData> {
-  if (apiKey) setStoredApiKey(apiKey);
-  const structuredLesson = await runProfessorEngine(apiKey, rawContent, options);
-  const presentationData = await runDesignerEngine(structuredLesson, options);
-  return presentationData;
-}

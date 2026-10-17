@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2, Video, Loader2 } from 'lucide-react';
 import type { TranscriptionSource, PreparationOptions, DepthControl } from '../types';
-import { extractTextFromPDF } from '../services/pdfService';
+import { extractTextFromFile } from '../services/documentService';
 import { fetchYouTubeTranscript } from '../services/youtubeService';
 
 interface ContentInputProps {
@@ -77,7 +77,7 @@ export const ContentInput: React.FC<ContentInputProps> = ({
     previousLessonContext: ''
   });
 
-  // Handler para Upload da Revista em PDF
+  // Handler para Upload da Revista em PDF/DOCX/TXT
   const handleRevistaFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -86,13 +86,8 @@ export const ContentInput: React.FC<ContentInputProps> = ({
     setIsReadingRevista(true);
 
     try {
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        const extracted = await extractTextFromPDF(file);
-        setRevistaTextContent(extracted);
-      } else {
-        const text = await file.text();
-        setRevistaTextContent(text);
-      }
+      const extracted = await extractTextFromFile(file);
+      setRevistaTextContent(extracted);
     } catch (err: any) {
       alert(`Erro ao ler arquivo da revista: ${err.message}`);
     } finally {
@@ -100,18 +95,13 @@ export const ContentInput: React.FC<ContentInputProps> = ({
     }
   };
 
-  // Handler para Upload de Arquivo de Transcrição
+  // Handler para Upload de Arquivo de Transcrição (PDF/DOCX/TXT)
   const handleTranscriptionFileChange = async (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
-      let content = '';
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        content = await extractTextFromPDF(file);
-      } else {
-        content = await file.text();
-      }
+      const content = await extractTextFromFile(file);
 
       setTranscriptions(prev => prev.map(t => {
         if (t.id === id) {

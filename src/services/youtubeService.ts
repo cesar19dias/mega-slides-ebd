@@ -64,7 +64,7 @@ function decodeHTMLEntities(text: string): string {
  */
 async function fetchVideoTitle(videoId: string): Promise<string> {
   try {
-    const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+    const res = await fetchWithTimeout(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`, {}, 4000);
     if (res.ok) {
       const data = await res.json();
       if (data && data.title) {
@@ -93,6 +93,22 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
+ * Utilitário de fetch com timeout de segurança
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 6000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
+/**
  * Transcreve o áudio de um vídeo do YouTube usando a IA Gemini (Speech-to-Text)
  * quando o vídeo não possui legendas no YouTube.
  */
@@ -115,7 +131,7 @@ async function transcribeAudioWithGeminiAI(videoId: string): Promise<string | nu
 
   for (const instanceUrl of pipedInstances) {
     try {
-      const res = await fetch(instanceUrl);
+      const res = await fetchWithTimeout(instanceUrl, {}, 5000);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.audioStreams) && data.audioStreams.length > 0) {
@@ -137,22 +153,36 @@ async function transcribeAudioWithGeminiAI(videoId: string): Promise<string | nu
   }
 
   try {
-    const audioRes = await fetch(audioUrl);
+    const audioRes = await fetchWithTimeout(audioUrl, {}, 15000);
     if (!audioRes.ok) return null;
 
     const audioBuffer = await audioRes.arrayBuffer();
-    // Limita até ~18MB para caber na requisição REST base64
-    const slicedBuffer = audioBuffer.slice(0, 18 * 1024 * 1024);
-    const base64Audio = arrayBufferToBase64(slicedBuffer);
+    const MAX_AUDIO_BYTES = 18 * 1024 * 1024; // Limite de 18MB suportado pelo payload REST do Gemini
+
+    // Se o áudio exceder 18MB, não corta o áudio com slice (cortar o binário quebra os metadados do container MP4/WebM e corrompe a mídia)
+    if (audioBuffer.byteLength > MAX_AUDIO_BYTES) {
+      const mbSize = (audioBuffer.byteLength / (1024 * 1024)).toFixed(1);
+      console.warn(`[YouTube Audio] Áudio com ${mbSize}MB excede o limite de 18MB para envio seguro.`);
+      throw new Error(`O áudio deste vídeo possui ${mbSize}MB e ultrapassa o limite de 18MB suportado para transcrição direta. Por favor, utilize vídeos com legendas do YouTube ou insira o texto da aula diretamente.`);
+    }
+
+    const base64Audio = arrayBufferToBase64(audioBuffer);
 
     const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const proxyBase = (import.meta.env.VITE_GEMINI_PROXY_URL as string) || '';
 
     for (const model of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const url = proxyBase 
+          ? `${proxyBase.replace(/\/$/, '')}/models/${model}:generateContent`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
         const response = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
           body: JSON.stringify({
             contents: [
               {
@@ -183,7 +213,10 @@ async function transcribeAudioWithGeminiAI(videoId: string): Promise<string | nu
         console.warn(`Transcrição Gemini Audio (${model}) falhou:`, e);
       }
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.message && err.message.includes('ultrapassa o limite de 18MB')) {
+      throw err;
+    }
     console.warn('Erro ao processar áudio para transcrição via Gemini:', err);
   }
 
@@ -194,7 +227,9 @@ async function transcribeAudioWithGeminiAI(videoId: string): Promise<string | nu
  * Tenta buscar o conteúdo via proxies CORS simples
  */
 async function fetchViaCorsProxy(targetUrl: string): Promise<string> {
+  const customProxy = (import.meta.env.VITE_CORS_PROXY_URL as string) || '';
   const proxies = [
+    ...(customProxy ? [(u: string) => `${customProxy.replace(/\/$/, '')}?url=${encodeURIComponent(u)}`] : []),
     (u: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
     (u: string) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
     (u: string) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`
@@ -205,7 +240,7 @@ async function fetchViaCorsProxy(targetUrl: string): Promise<string> {
   for (const proxyFn of proxies) {
     try {
       const proxyUrl = proxyFn(targetUrl);
-      const res = await fetch(proxyUrl);
+      const res = await fetchWithTimeout(proxyUrl, {}, 6000);
       if (res.ok) {
         const text = await res.text();
         if (text && text.length > 50) {

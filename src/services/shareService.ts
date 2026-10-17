@@ -2,6 +2,7 @@ import LZString from 'lz-string';
 import QRCode from 'qrcode';
 import type { EBDLessonPreparation } from '../types';
 import { fillMissingLessonPrompts } from './promptGeneratorService';
+import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
 
 /**
  * Otimiza uma imagem base64 reduzindo resolução e comprimindo para JPEG com qualidade balanceada
@@ -206,9 +207,7 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
     },
     palavraChave: raw.palavraChave ? {
       palavra: raw.palavraChave.palavra || '',
-      explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
-        ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
-        : (raw.palavraChave.explicacao || ''),
+      explicacao: getTheologicalKeywordExplanation(raw.palavraChave.palavra, raw.palavraChave.explicacao),
       imagePrompt: raw.palavraChave.imagePrompt || '',
     } : undefined,
     leituraDiaria: raw.leituraDiaria || [],
@@ -277,11 +276,13 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
     slideImageCrops: raw.slideImageCrops || {},
     slideImageFits: raw.slideImageFits || {},
     slideImageBorders: raw.slideImageBorders || {},
+    slideImageBoxes: raw.slideImageBoxes || raw.ib || {},
     projectorSlideImages: raw.projectorSlideImages || {},
     projectorFontSizeScale: typeof raw.projectorFontSizeScale === 'number' ? raw.projectorFontSizeScale : 1.0,
     customBg: raw.customBg || null,
     bodyTextColor: raw.bodyTextColor === 'white' ? 'white' : 'black',
     textHighlights: raw.textHighlights || {},
+    revistaRawContent: raw.revistaRawContent || '',
   };
 
   return fillMissingLessonPrompts(result);
@@ -376,6 +377,7 @@ export function decodeLessonFromUrl(): EBDLessonPreparation | null {
         slideTitleFontScales: parsed.tfs || {},
         slideBodyFontScales: parsed.bfs || {},
         slideTextOverrides: parsed.to || {},
+        slideImageBoxes: parsed.ib || {},
         projectorSlideImages: parsed.psi || {},
         customBg: parsed.bg || null,
         bodyTextColor: parsed.tc || 'black',
@@ -533,13 +535,14 @@ export interface QrCodeResult {
  */
 export async function generateQrCodeDataUrl(
   fullUrl: string,
-  lesson?: EBDLessonPreparation
+  lesson?: EBDLessonPreparation,
+  allowCloudUpload: boolean = true
 ): Promise<QrCodeResult> {
   const baseUrl = getBaseShareUrl();
 
-  // 1. Prioridade Máxima: Sincronização em nuvem completa
+  // 1. Sincronização em nuvem completa (se autorizado pelo usuário)
   // Gera uma URL curta (~45 caracteres) contendo 100% de todas as imagens e slides extras
-  if (lesson) {
+  if (lesson && allowCloudUpload) {
     try {
       const shareKey = await publishLessonForSharing(lesson);
       if (shareKey) {

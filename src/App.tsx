@@ -134,9 +134,22 @@ export function App() {
   const handleReset = () => {
     setLessonData(null);
     setError(null);
-    // 🗑️ Limpa a preparação salva ao recomeçar
+    // 🗑️ Limpa a preparação salva e todas as customizações no localStorage ao recomeçar
     localStorage.removeItem(LESSON_STORAGE_KEY);
-    localStorage.removeItem('mega_ebd_text_highlights_v2');
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('mega_ebd_') || k.startsWith('megaebd_'))) {
+        // Preserva a chave de API do Gemini do professor
+        if (k !== 'mega_slides_gemini_key' && k !== 'megaebd_gemini_api_key') {
+          keysToRemove.push(k);
+        }
+      }
+    }
+    keysToRemove.push('slide_highlights_v2', 'presentation_slide_images', 'mega_ebd_text_highlights_v2');
+    keysToRemove.forEach(k => {
+      try { localStorage.removeItem(k); } catch {}
+    });
   };
 
   return (

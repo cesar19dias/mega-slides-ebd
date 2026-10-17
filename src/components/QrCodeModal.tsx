@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, QrCode, Copy, Check, Download, Smartphone } from 'lucide-react';
+import { X, QrCode, Copy, Check, Download, Smartphone, Cloud, ShieldCheck } from 'lucide-react';
 import type { EBDLessonPreparation } from '../types';
 import { encodeLessonToUrl, generateQrCodeDataUrl, downloadLessonJson } from '../services/shareService';
 
@@ -15,6 +15,7 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
   const [isShortened, setIsShortened] = useState<boolean>(false);
+  const [useCloudSync, setUseCloudSync] = useState<boolean>(true);
 
   useEffect(() => {
     if (isOpen && lesson) {
@@ -22,7 +23,7 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
       const fullUrl = encodeLessonToUrl(lesson);
       setShareUrl(fullUrl);
 
-      generateQrCodeDataUrl(fullUrl, lesson)
+      generateQrCodeDataUrl(fullUrl, lesson, useCloudSync)
         .then((result) => {
           setQrDataUrl(result.dataUrl);
           setShareUrl(result.shareUrl);
@@ -34,7 +35,7 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
           setIsLoading(false);
         });
     }
-  }, [isOpen, lesson]);
+  }, [isOpen, lesson, useCloudSync]);
 
   if (!isOpen) return null;
 
@@ -87,6 +88,30 @@ export function QrCodeModal({ isOpen, onClose, lesson }: QrCodeModalProps) {
               Erro ao gerar QR Code. Tente copiar o link.
             </div>
           )}
+        </div>
+
+        {/* Controle de Privacidade / Nuvem */}
+        <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700/80 text-xs space-y-2">
+          <label className="flex items-center justify-between cursor-pointer select-none">
+            <span className="flex items-center gap-2 font-medium text-slate-200">
+              <Cloud className={`w-4 h-4 ${useCloudSync ? 'text-cyan-400' : 'text-slate-500'}`} />
+              Sincronização temporária na nuvem
+            </span>
+            <input
+              type="checkbox"
+              checked={useCloudSync}
+              onChange={(e) => setUseCloudSync(e.target.checked)}
+              className="w-4 h-4 rounded text-cyan-600 bg-slate-900 border-slate-600 focus:ring-cyan-500 cursor-pointer"
+            />
+          </label>
+          <div className="text-[11px] text-slate-400 leading-relaxed flex items-start gap-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+            <span>
+              {useCloudSync
+                ? 'Armazena temporariamente os slides no Bytebin para gerar um link/QR Code curto com imagens completas.'
+                : 'Modo 100% Local (Sem Nuvem): Nenhum dado é enviado a servidores de terceiros. Use o arquivo .megaebd para transferir offline com total privacidade.'}
+            </span>
+          </div>
         </div>
 
         {/* Ações */}

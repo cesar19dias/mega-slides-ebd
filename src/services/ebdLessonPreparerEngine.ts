@@ -9,6 +9,7 @@ import type { EBDLessonPreparation, TranscriptionSource, PreparationOptions } fr
 import { callGeminiRaw } from './geminiService';
 import { jsonrepair } from 'jsonrepair';
 import { fillMissingLessonPrompts } from './promptGeneratorService';
+import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
 
 export function isCopyOrEmptyExplanation(explicacao?: string, projetor?: string): boolean {
   if (!explicacao || explicacao.trim().length < 25) return true;
@@ -51,9 +52,7 @@ function normalizeLessonData(raw: any): EBDLessonPreparation {
     },
     palavraChave: raw.palavraChave ? {
       palavra: raw.palavraChave.palavra || '',
-      explicacao: (raw.palavraChave.palavra?.toUpperCase() === 'FIDELIDADE' && raw.palavraChave.explicacao && !raw.palavraChave.explicacao.includes('emûnāh'))
-        ? "No hebraico 'emûnāh (raiz 'āman, firmeza, verdade) e no grego pistis/pistos (confiança, lealdade), a fidelidade evoca a ideia de estabilidade inabalável, firmeza e verdade permanente, semelhante a uma rocha inabalável. A fidelidade não é apenas algo que Deus faz, mas a própria essência do Seu caráter imutável; Ele permanece constante e digno de confiança, independentemente das falhas ou circunstâncias humanas."
-        : (raw.palavraChave.explicacao || ''),
+      explicacao: getTheologicalKeywordExplanation(raw.palavraChave.palavra, raw.palavraChave.explicacao),
       imagePrompt: raw.palavraChave.imagePrompt || '',
     } : undefined,
     leituraDiaria: Array.isArray(raw.leituraDiaria) ? raw.leituraDiaria : [],
@@ -259,15 +258,18 @@ function repairAndParseTruncatedJSON(rawInput: string): EBDLessonPreparation {
 
   // 4. Fallback de truncamento progressivo:
   // Se o JSON foi cortado no meio de uma propriedade ou objeto incompleto,
-  // recua até o último fechamento de objeto/array e repara
-  for (let cutPos = cleaned.length - 1; cutPos > 500; cutPos--) {
+  // recua até o último fechamento de objeto/array e repara com limite de tentativas (evita O(n²))
+  let repairAttempts = 0;
+  const maxRepairAttempts = 15;
+  for (let cutPos = cleaned.length - 1; cutPos > 500 && repairAttempts < maxRepairAttempts; cutPos--) {
     const char = cleaned[cutPos];
     if (char === '}' || char === ']') {
+      repairAttempts++;
       const candidate = cleaned.substring(0, cutPos + 1);
       try {
         const repaired = jsonrepair(candidate);
         const parsed = JSON.parse(repaired);
-        console.log('[JSON Repair] Recuperado com sucesso via truncamento seguro na posição', cutPos);
+        console.log('[JSON Repair] Recuperado com sucesso via truncamento seguro na posição', cutPos, `(tentativa ${repairAttempts})`);
         return normalizeLessonData(parsed);
       } catch {
         // Continua buscando o ponto anterior de fechamento válido
@@ -316,6 +318,31 @@ Estrutura esperada:
 Na propriedade "introducao", preencha "ponteContextual": { "enabled": false }.
 `;
 
+  const bibleVersionLabel = options.bibleVersion === 'NVI'
+    ? 'Nova Versão Internacional (NVI)'
+    : options.bibleVersion === 'NAA'
+    ? 'Nova Almeida Atualizada (NAA)'
+    : 'Almeida Revista e Corrigida (ARC)';
+
+  const depthInstruction = {
+    resumida: 'NÍVEL RESUMIDO: Foque estritamente no essencial com sínteses claras e diretas (1 a 2 parágrafos concisos por subtópico, explicações diretas ao ponto sem rodeios).',
+    detalhada: 'NÍVEL DETALHADO (PADRÃO): Desenvolva bem as explicações com profundidade pedagógica equilibrada (2 a 3 parágrafos bem desenvolvidos por subtópico, com contexto histórico e desdobramentos práticos).',
+    aprofundada: 'NÍVEL APROFUNDADO: Máxima densidade teológica, exegética e histórica (3 a 5 parágrafos robustos por subtópico, esmiuçando detalhes culturais, conexões bíblicas amplas, implicações teológicas profundas e análise contextual minuciosa).'
+  }[options.depth] || 'Desenvolva explicações pedagógicas equilibradas (2 a 3 parágrafos por subtópico).';
+
+  const pentecostalInstruction = options.includePentecostalApplication
+    ? 'ÊNFASE PENTECOSTAL ATIVADA: Destaque ativamente a atuação e o poder do Espírito Santo, a atualidade dos dons espirituais, a oração fervorosa, a consagração e o agir sobrenatural de Deus tanto na aplicação prática quanto nas explicações teológicas da lição.'
+    : 'ÊNFASE PENTECOSTAL PADRÃO: Mantenha uma aplicação prática bíblica equilibrada e sólida, adequada para classes gerais de EBD.';
+
+  const professorConfigBlock = `
+--- ⚙️ CONFIGURAÇÕES ESCOLHIDAS PELO PROFESSOR ---
+1. VERSÃO BÍBLICA: Utilize OBRIGATORIAMENTE o texto na versão ${bibleVersionLabel} para todos os versículos citados (Texto Áureo, Leitura Bíblica em Classe e Versículos de apoio).
+2. PROFUNDIDADE DO CONTEÚDO ("${(options.depth || 'detalhada').toUpperCase()}"):
+   ${depthInstruction}
+3. APLICAÇÃO PENTECOSTAL:
+   ${pentecostalInstruction}
+`;
+
   const prompt = `
 Você é o Assistente Especialista de Preparação de Aulas da Escola Bíblica Dominical (MegaEBD).
 Sua missão é realizar a PREPARAÇÃO COMPLETA E DIDÁTICA DA AULA cruzando o conteúdo da REVISTA OFICIAL com as TRANSCRIÇÕES enviadas.
@@ -333,7 +360,7 @@ NÍVEL 4 — EXPANSÃO CONTROLADA (TRAVA EDITORIAL ANTI-ALUCINAÇÃO):
 --- ETAPA OBRIGATÓRIA: REVISÃO BÍBLICA E LINGUÍSTICA (HIGIENIZAÇÃO DE OCR/TRANSCRIÇÃO) ---
 Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
 1. Corrija erros de ortografia de OCR/Transcrição (ex: "fujiram" -> "fugiram", "conciências" -> "consciências", "estos" -> "estes", palavras truncadas).
-2. Valide as referências bíblicas no texto bíblico ARC oficial (Almeida Revista e Corrigida).
+2. Valide as referências bíblicas no texto bíblico na versão oficial escolhida (${bibleVersionLabel}).
 3. Garanta que a linguagem seja culta, clara e teologicamente precisa.
 
 --- REGRAS DE CONSTRUÇÃO DO "MAPA DE ENSINO" ---
@@ -356,7 +383,7 @@ Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES
 
 2. CAMADA 2 — EXPLICAÇÃO DIDÁTICA DO PROFESSOR ("explicacao"):
    * Origem: TRANSCRIÇÕES 1 e 2 (Estudos e falas dos pastores/pregadores nas transcrições).
-   * Conteúdo: A AULA MINISTRADA PELO PROFESSOR. Um texto didático corrido, fluido, aprofundado e pedagógico em parágrafos bem desenvolvidos (2 a 4 parágrafos por subtópico).
+   * Conteúdo: A AULA MINISTRADA PELO PROFESSOR. Um texto didático corrido, fluido, aprofundado e pedagógico em parágrafos bem desenvolvidos (respeite a PROFUNDIDADE DO CONTEÚDO escolhida pelo professor).
    * O que deve conter:
      - Extraia e integre TODAS as explicações, detalhes históricos, costumes bíblicos e comentários teológicos presentes nas transcrições.
      - Explique os versículos, o pano de fundo histórico e as lições espirituais de forma rica e envolvente.
@@ -368,10 +395,10 @@ Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES
 
 - CADA SUBTÓPICO DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES ELEMENTOS CHAVE:
   1. NÚMERO + TEXTO LITERAL DA REVISTA PARA O SLIDE ("projetor"): "1. " seguido do parágrafo original e exato (ipsis litteris) do subtópico da lição para os alunos lerem no quadro azul.
-  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos (2 a 4 parágrafos ricos extraídos das transcrições). NUNCA copie o projetor.
+  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos (respeitando a profundidade configurada). NUNCA copie o projetor.
   3. BASE BÍBLICA ("versiculos"):
      * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico para a conduta do crente.
-     * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão ARC oficial.
+     * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão bíblica escolhida (${bibleVersionLabel}).
      * EXPLICAÇÃO BREVE DO VERSÍCULO ("explicacao"): Para CADA versículo de apoio inserido, forneça uma explicação BREVE e concisa (1 a 2 frases) explicando o sentido bíblico. ATENÇÃO: Esta explicação é destinada EXCLUSIVAMENTE ao ROTEIRO DO PROFESSOR (o slide do projetor exibirá apenas os versículos/referências).
   4. APLICAÇÃO PRÁTICA ("aplicacao"): Como essa verdade bíblica e os versículos de apoio se aplicam de forma concreta à vida espiritual e diária do aluno.
   5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
@@ -391,7 +418,9 @@ Você DEVE gerar obrigatoriamente um prompt visual cinematográfico hiperdetalha
   Identifique a PALAVRA-CHAVE oficial da lição informada na revista (ou a palavra teológica/conceitual mais central da lição, ex: "AUTORIA", "INSPIRAÇÃO", "FIDELIDADE").
   Na EXPLICAÇÃO ("explicacao"), OBRIGATORIAMENTE INCLUA A ORIGEM ETIMOLÓGICA NO HEBRAICO (se for contexto do AT) E/OU NO GREGO (se for NT) sempre que houver essa raiz bíblica, indicando o termo transliterado e seu sentido literal original (ex: 'No hebraico 'emûnāh [raiz 'āman, firmeza, estabilidade] e no grego pistis/pistos'). Forneça uma explicação clara, bíblica e didática (2 a 3 frases) conectando essa raiz no original à mensagem da lição.
 
-- LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão ARC. A primeira linha deve conter a referência COMPLETA (ex: "Mateus 28.18-20; Atos 1.8; Efésios 2.13-18.") seguida de travessão ("—"). Caso haja múltiplos livros ou capítulos, separe cada livro/capítulo em sua própria linha como título (ex: "Mateus 28", "Atos 1", "Efésios 2") seguido de cada versículo numerado.
+- LEITURA BÍBLICA EM CLASSE NA ÍNTEGRA ("biblicalText"): Forneça OBRIGATORIAMENTE o texto bíblico COMPLETO NA ÍNTEGRA de TODOS os versículos lidos em classe na versão oficial (${bibleVersionLabel}). A primeira linha deve conter a referência COMPLETA (ex: "Mateus 28.18-20; Atos 1.8; Efésios 2.13-18.") seguida de travessão ("—"). Caso haja múltiplos livros ou capítulos, separe cada livro/capítulo em sua própria linha como título (ex: "Mateus 28", "Atos 1", "Efésios 2") seguido de cada versículo numerado.
+
+${professorConfigBlock}
 
 --- CONTEÚDO DA REVISTA ---
 ${revistaContent}
@@ -643,6 +672,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     if (problematicSubtopics.length > 0) {
       console.warn(`[Motor Preparador] Detectados ${problematicSubtopics.length} subtópicos com explicação copiada do projetor ou vazia. Executando síntese didática a partir das transcrições...`);
       try {
+        const maxPerSource = Math.floor(25000 / Math.max(1, transcriptions.length));
+        const balancedTranscriptionsText = transcriptions
+          .map((t, idx) => `=== TRANSCRIÇÃO ${idx + 1}: ${t.title || `Fonte ${idx + 1}`} ===\n${(t.content || '').substring(0, maxPerSource)}`)
+          .join('\n\n');
+
         const repairPrompt = `Você é um Doutor em Teologia e Pedagogia especialista na Escola Bíblica Dominical (EBD).
 O professor precisa da EXPLICAÇÃO DIDÁTICA DO PROFESSOR (o que o professor vai falar para dar a aula) para ${problematicSubtopics.length} subtópico(s) da lição "${parsedData.metadata.title}".
 
@@ -654,7 +688,7 @@ Texto do slide do projetor (resumo da revista): "${p.projetor}"
 `).join('\n')}
 
 TRANSCRIÇÕES DE APOIO DOS PASTORES/ESTUDOS:
-${transcriptionsText.substring(0, 25000)}
+${balancedTranscriptionsText}
 
 REGRAS MANDATÓRIAS INEGOCIÁVEIS:
 1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR! O projetor é apenas o parágrafo resumido que fica na tela para os alunos.
@@ -686,6 +720,7 @@ REGRAS MANDATÓRIAS INEGOCIÁVEIS:
       }
     }
 
+    parsedData.revistaRawContent = revistaContent;
     return parsedData;
   } catch (err: any) {
     console.error('Erro ao processar lição no Motor Preparador:', err);
