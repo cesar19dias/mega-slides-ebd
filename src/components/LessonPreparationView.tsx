@@ -551,23 +551,32 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   });
 
   const [imageSelected, setImageSelected] = useState<boolean>(false);
+  const currentSlideIdRef = useRef<string>(String(projectorIndex));
+
   useEffect(() => {
     setImageSelected(false);
   }, [projectorIndex]);
 
   const commitBox = useCallback((b: ImageBox) => {
     const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
     setSlideImageBoxes(prev => {
       const next = { ...prev, [key]: b };
+      if (slideId) next[slideId] = b;
       try {
         localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next));
       } catch {}
       return next;
     });
-    updateLesson(l => ({
-      ...l,
-      slideImageBoxes: { ...(l.slideImageBoxes ?? {}), [key]: b }
-    }));
+    updateLesson(l => {
+      const prevBoxes = l.slideImageBoxes ?? {};
+      const nextBoxes = { ...prevBoxes, [key]: b };
+      if (slideId) nextBoxes[slideId] = b;
+      return {
+        ...l,
+        slideImageBoxes: nextBoxes,
+      };
+    });
   }, [projectorIndex, updateLesson]);
 
   useEffect(() => {
@@ -743,7 +752,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const imageFit = slideImageFits[projectorIndex] ?? 'cover';
   const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
-  const isImageMoved = slideImagePositions[projectorIndex] !== undefined || slideImageBoxes[String(projectorIndex)] !== undefined;
+  const isImageMoved = slideImagePositions[projectorIndex] !== undefined || slideImageBoxes[String(projectorIndex)] !== undefined || (currentSlideIdRef.current ? slideImageBoxes[currentSlideIdRef.current] !== undefined : false);
 
   const imageCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
   const isImageWidthCustom = slideImageWidths[projectorIndex] !== undefined;
@@ -1398,12 +1407,27 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return next;
       });
     } else {
+      const key = String(projectorIndex);
+      const slideId = currentSlideIdRef.current;
       setSlideImagePositions(prev => {
         const next = { ...prev };
         delete next[projectorIndex];
         try { localStorage.setItem('mega_ebd_image_positions', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, slideImagePositions: next }));
         return next;
+      });
+      setSlideImageBoxes(prev => {
+        const next = { ...prev };
+        delete next[key];
+        if (slideId) delete next[slideId];
+        try { localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next)); } catch {}
+        return next;
+      });
+      updateLesson(l => {
+        const nextBoxes = { ...(l.slideImageBoxes ?? {}) };
+        delete nextBoxes[key];
+        if (slideId) delete nextBoxes[slideId];
+        return { ...l, slideImageBoxes: nextBoxes };
       });
     }
   }, [projectorIndex, updateLesson]);
@@ -1892,12 +1916,29 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   };
 
   const handleRemoveSlideImage = () => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
     setProjectorSlideImages(prev => {
       const next = { ...prev };
       delete next[projectorIndex];
+      delete next[key];
+      if (slideId) delete next[slideId];
       try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
       updateLesson(l => ({ ...l, projectorSlideImages: next }));
       return next;
+    });
+    setSlideImageBoxes(prev => {
+      const next = { ...prev };
+      delete next[key];
+      if (slideId) delete next[slideId];
+      try { localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const nextBoxes = { ...(l.slideImageBoxes ?? {}) };
+      delete nextBoxes[key];
+      if (slideId) delete nextBoxes[slideId];
+      return { ...l, slideImageBoxes: nextBoxes };
     });
   };
 
@@ -2400,6 +2441,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const currentProjectorItem = projectorItems[projectorIndex] || projectorItems[0];
   const currentSlideId = currentProjectorItem?.id || String(projectorIndex);
+  currentSlideIdRef.current = currentSlideId;
 
   // Aplica as escalas de título e texto deste slide a todos os slides da lição (iterando sobre todos os projectorItems)
   const applyCurrentScalesToAllSlides = useCallback(() => {
@@ -3774,7 +3816,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               if (currentProjectorItem.type === 'cover') {
                 const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
                 return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {renderSlideImageElement()}
 
                     {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
@@ -3782,7 +3824,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                       style={makeDragStyle(titlePos, 'title')}
                       onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                       onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      className="w-full shrink-0 relative"
+                      className="w-full shrink-0 relative pointer-events-auto"
                     >
                       {isLayoutEditMode && (
                         <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -3828,7 +3870,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               // 2. SLIDE EXTRA PERSONALIZADO
               if (currentProjectorItem.type === 'extra') {
                 return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                     {renderSlideImageElement()}
 
                     {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
@@ -3836,7 +3878,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                       style={makeDragStyle(titlePos, 'title')}
                       onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                       onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      className="w-full shrink-0 relative"
+                      className="w-full shrink-0 relative pointer-events-auto"
                     >
                       {isLayoutEditMode && (
                         <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -3970,7 +4012,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               }
 
               return (
-                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
                   {renderSlideImageElement()}
 
                   {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
@@ -3978,7 +4020,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
                     style={makeDragStyle(titlePos, 'title')}
                     onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                     onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                    className="w-full shrink-0 relative"
+                    className="w-full shrink-0 relative pointer-events-auto"
                   >
                     {isLayoutEditMode && (
                       <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"

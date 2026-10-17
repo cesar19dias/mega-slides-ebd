@@ -44,6 +44,7 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
   onCommit,
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLDivElement>(null);
 
   // Estado local durante o arraste para garantir fluidez a 60fps
   const [activeDrag, setActiveDrag] = useState<{
@@ -55,8 +56,7 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
 
   // Bloqueio nativo do gesto de rolagem/pull-to-refresh no tablet/celular
   useEffect(() => {
-    const el = boxRef.current;
-    if (!el || !editable) return;
+    if (!editable) return;
 
     const preventTouchScroll = (e: TouchEvent) => {
       if (selected || (e.target as HTMLElement)?.closest('[data-image-box]')) {
@@ -66,12 +66,27 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
       }
     };
 
-    el.addEventListener('touchstart', preventTouchScroll, { passive: false });
-    el.addEventListener('touchmove', preventTouchScroll, { passive: false });
+    const boxEl = boxRef.current;
+    const imgEl = imgRef.current;
+
+    if (boxEl) {
+      boxEl.addEventListener('touchstart', preventTouchScroll, { passive: false });
+      boxEl.addEventListener('touchmove', preventTouchScroll, { passive: false });
+    }
+    if (imgEl) {
+      imgEl.addEventListener('touchstart', preventTouchScroll, { passive: false });
+      imgEl.addEventListener('touchmove', preventTouchScroll, { passive: false });
+    }
 
     return () => {
-      el.removeEventListener('touchstart', preventTouchScroll);
-      el.removeEventListener('touchmove', preventTouchScroll);
+      if (boxEl) {
+        boxEl.removeEventListener('touchstart', preventTouchScroll);
+        boxEl.removeEventListener('touchmove', preventTouchScroll);
+      }
+      if (imgEl) {
+        imgEl.removeEventListener('touchstart', preventTouchScroll);
+        imgEl.removeEventListener('touchmove', preventTouchScroll);
+      }
     };
   }, [editable, selected]);
 
@@ -276,6 +291,7 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
     }
   }, [activeDrag, onCommit]);
 
+  const isFront = currentBox.layer === 'front';
   const isNearTopEdge = currentBox.y < 8;
   const isNearBottomEdge = (currentBox.y + currentBox.h) > 92;
   const isNearLeftEdge = currentBox.x < 3;
@@ -283,51 +299,73 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
   const isRotAtBottom = isNearTopEdge && !isNearBottomEdge;
 
   return (
-    <div
-      ref={boxRef}
-      data-image-box="true"
-      className={`absolute transition-shadow select-none touch-none ${
-        selected ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900/50' : ''
-      }`}
-      style={{
-        left: `${currentBox.x}%`,
-        top: `${currentBox.y}%`,
-        width: `${currentBox.w}%`,
-        height: `${currentBox.h}%`,
-        transform: `rotate(${currentBox.rot}deg) ${currentBox.flipX ? 'scaleX(-1)' : ''}`,
-        transformOrigin: 'center center',
-        zIndex: selected ? 45 : currentBox.layer === 'front' ? 42 : 8,
-        cursor: editable ? (activeDrag?.handle === 'move' ? 'grabbing' : 'grab') : 'default',
-        touchAction: 'none',
-        WebkitTouchCallout: 'none',
-        WebkitUserSelect: 'none',
-        userSelect: 'none',
-      }}
-      onPointerDown={(e) => {
-        if (editable && !selected) {
-          onSelect();
-        } else if (editable && selected) {
-          handlePointerDown(e, 'move');
-        }
-      }}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
-      {/* Imagem propriamente dita com corte/ajuste */}
-      <div className="w-full h-full relative overflow-hidden rounded-xl pointer-events-none">
-        <img
-          src={src}
-          alt="Ilustração do slide"
-          draggable={false}
-          className="w-full h-full pointer-events-none select-none"
-          style={{ objectFit: currentBox.fit }}
-        />
+    <>
+      {/* 🖼️ CAMADA DA IMAGEM: Z-Index dinâmico (Frente = 35, Atrás = 5). Atualiza na hora na tela sem delay */}
+      <div
+        ref={imgRef}
+        data-image-box="true"
+        className={`absolute transition-shadow select-none ${
+          !selected && editable ? 'cursor-pointer hover:ring-2 hover:ring-cyan-400/50' : ''
+        }`}
+        style={{
+          left: `${currentBox.x}%`,
+          top: `${currentBox.y}%`,
+          width: `${currentBox.w}%`,
+          height: `${currentBox.h}%`,
+          transform: `rotate(${currentBox.rot}deg) ${currentBox.flipX ? 'scaleX(-1)' : ''}`,
+          transformOrigin: 'center center',
+          zIndex: isFront ? 35 : 5,
+          touchAction: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+        }}
+        onPointerDown={(e) => {
+          if (editable && !selected) {
+            e.stopPropagation();
+            onSelect();
+          }
+        }}
+      >
+        {/* Imagem propriamente dita com corte/ajuste */}
+        <div className="w-full h-full relative overflow-hidden rounded-xl pointer-events-none">
+          <img
+            src={src}
+            alt="Ilustração do slide"
+            draggable={false}
+            className="w-full h-full pointer-events-none select-none"
+            style={{ objectFit: currentBox.fit }}
+          />
+        </div>
       </div>
 
-      {/* Alças de Redimensionamento e Giro (Ativas apenas quando selecionado) */}
+      {/* 🛠️ ALÇAS E CONTROLE DE TRANSFORMAÇÃO (Apenas quando selecionado): Fica sempre no topo (z-50) */}
       {selected && editable && (
-        <div className="absolute inset-0 pointer-events-none select-none touch-none">
+        <div
+          ref={boxRef}
+          data-image-box="true"
+          className="absolute select-none touch-none ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900/50 rounded-xl"
+          style={{
+            left: `${currentBox.x}%`,
+            top: `${currentBox.y}%`,
+            width: `${currentBox.w}%`,
+            height: `${currentBox.h}%`,
+            transform: `rotate(${currentBox.rot}deg) ${currentBox.flipX ? 'scaleX(-1)' : ''}`,
+            transformOrigin: 'center center',
+            zIndex: 50,
+            cursor: activeDrag?.handle === 'move' ? 'grabbing' : 'grab',
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+          }}
+          onPointerDown={(e) => {
+            handlePointerDown(e, 'move');
+          }}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+        >
           {/* Caixa de contorno suave estilo vetor Corel */}
           <div className="absolute inset-0 border-2 border-dashed border-cyan-400/90 pointer-events-none rounded-xl" />
 
@@ -471,7 +509,7 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
@@ -646,15 +684,15 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
         <button
           type="button"
           onClick={handleToggleLayer}
-          className={`px-2 py-1 rounded-xl border text-[11px] font-bold flex items-center gap-1 cursor-pointer transition-all ${
+          className={`px-2.5 py-1.5 rounded-xl border text-[11px] font-black flex items-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-sm ${
             box.layer === 'front'
-              ? 'bg-purple-600/30 text-purple-200 border-purple-400'
-              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border-slate-700/80'
+              ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-300 shadow-purple-600/30 ring-1 ring-purple-300'
+              : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border-amber-500/40 hover:text-amber-200'
           }`}
           title="Alternar camada: Frente do texto ou Atrás do texto"
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>{box.layer === 'front' ? 'Frente' : 'Atrás'}</span>
+          <span>{box.layer === 'front' ? 'À Frente' : 'Atrás'}</span>
         </button>
       </div>
 

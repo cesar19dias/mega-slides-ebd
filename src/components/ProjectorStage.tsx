@@ -506,13 +506,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         if (currentProjectorItem.type === 'cover') {
           const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
           return (
-            <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+            <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
               {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
               <div
                 style={makeDragStyle(titlePos, 'title')}
                 onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                 onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                className="w-full shrink-0 relative"
+                className="w-full shrink-0 relative pointer-events-auto"
               >
                 {isLayoutEditMode && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -558,13 +558,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         // 2. SLIDE EXTRA PERSONALIZADO
         if (currentProjectorItem.type === 'extra') {
           return (
-            <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+            <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
               {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
               <div
                 style={makeDragStyle(titlePos, 'title')}
                 onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
                 onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                className="w-full shrink-0 relative"
+                className="w-full shrink-0 relative pointer-events-auto"
               >
                 {isLayoutEditMode && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
@@ -671,13 +671,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         }
 
         return (
-          <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham" style={{ zoom: currentSlideScale } as React.CSSProperties}>
+          <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
             {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
             <div
               style={makeDragStyle(titlePos, 'title')}
               onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
               onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-              className="w-full shrink-0 relative"
+              className="w-full shrink-0 relative pointer-events-auto"
             >
               {isLayoutEditMode && (
                 <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
