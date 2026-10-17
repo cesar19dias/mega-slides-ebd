@@ -59,7 +59,8 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
 export async function callGeminiRaw(
   prompt: string, 
   modelName: string = 'gemini-3.6-flash',
-  isJsonResponse: boolean = true
+  isJsonResponse: boolean = true,
+  temperature: number = 0.5
 ): Promise<string> {
   const apiKey = getStoredApiKey();
   if (!apiKey) {
@@ -90,7 +91,7 @@ export async function callGeminiRaw(
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
       const generationConfig: any = {
-        temperature: 0.3,
+        temperature: temperature,
         maxOutputTokens: 65536,
       };
 

@@ -10,6 +10,24 @@ import { callGeminiRaw } from './geminiService';
 import { jsonrepair } from 'jsonrepair';
 import { fillMissingLessonPrompts } from './promptGeneratorService';
 
+export function isCopyOrEmptyExplanation(explicacao?: string, projetor?: string): boolean {
+  if (!explicacao || explicacao.trim().length < 25) return true;
+  if (!projetor) return false;
+
+  const cleanExp = explicacao.replace(/^\d+[\.\)\-]?\s*/, '').trim().toLowerCase();
+  const cleanProj = projetor.replace(/^\d+[\.\)\-]?\s*/, '').trim().toLowerCase();
+
+  if (cleanExp === cleanProj) return true;
+
+  // Se a explicação for quase idêntica ao projetor (diferença insignificante)
+  const lenDiff = Math.abs(cleanExp.length - cleanProj.length);
+  if (lenDiff < 40 && (cleanExp.includes(cleanProj) || cleanProj.includes(cleanExp))) {
+    return true;
+  }
+
+  return false;
+}
+
 function normalizeLessonData(raw: any): EBDLessonPreparation {
   const result: EBDLessonPreparation = {
     metadata: {
@@ -327,23 +345,30 @@ Antes de responder, você DEVE higienizar e revisar todo o conteúdo:
   É EXPRESSAMENTE PROIBIDO parar no Tópico I ou omitir o Tópico II e o Tópico III!
   A array "topicos" no JSON DEVE CONTER OBRIGATORIAMENTE 3 OBJETOS.
 
-- REGRA MANDATÓRIA DOS SUBTÓPICOS (1, 2 E 3) — NÚMERO + PARÁGRAFO LITERAL DA REVISTA NO SLIDE + EXPLICAÇÃO LINEAR:
-  Cada Tópico da revista possui seus SUBTÓPICOS OFICIAIS (Subtópico 1, Subtópico 2 e Subtópico 3).
-  1. TEXTO DO SLIDE DO QUADRO AZUL ("projetor"): Comece OBRIGATORIAMENTE com o número do subtópico (ex: "1. ", "2. ", "3. ") e em seguida transcreva O PARÁGRAFO LITERAL, COMPLETO E INTEGRAL DA REVISTA para esse subtópico, exatamente como consta na lição impressa (ipsis litteris), sem paráfrases, sem resumos de 1 frase e sem alterar nenhuma palavra.
-  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Um texto corrido, fluido e didático em parágrafos. Integre e aproveite ABSOLUTAMENTE TODAS as referências, citações, comentários, alusões históricas, culturais, exegéticas e bíblicas presentes nas transcrições. A explicação deve fluir naturalmente sem marcadores como 📌 ou 👉, revelando a profundidade do conteúdo de forma narrativa e pedagógica.
+--- 🛑 REGRA MANDATÓRIA INEGOCIÁVEL: DISTINÇÃO ENTRE "projetor" E "explicacao" (PROIBIDO COPIAR) ---
+O erro mais grave e inaceitável é copiar o texto da revista ou do "projetor" para o campo "explicacao".
+Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES:
 
-- CONCISÃO INTELIGENTE PARA GARANTIR TODOS OS TÓPICOS E SUBTÓPICOS:
-  Para que a aula completa (todos os 3 tópicos e seus subtópicos) caiba com perfeição sem truncar:
-  * "projetor": "1. " + O parágrafo literal e integral do subtópico copiado ipsis litteris da lição da revista.
-  * "explicacao": Explicação linear do professor em parágrafos fluidos — integre TODAS as referências e alusões das transcrições.
-  * "versiculos": 2 versículos de apoio com texto direto ARC que conversem com a aplicação prática.
-  * "aplicacao": 2 a 3 frases práticas e pentecostais para a vida diária.
-  * "cuidadoDoutrinario": 1 frase de alerta teológico.
-  * "imagePrompt": 1 descrição cinematográfica nobre de 2 a 3 frases.
+1. CAMADA 1 — SLIDE DO PROJETOR DOS ALUNOS ("projetor"):
+   * Origem: REVISTA DA EBD.
+   * Conteúdo: Inicie OBRIGATORIAMENTE com o número do subtópico (ex: "1. ", "2. ", "3. ") e transcreva O PARÁGRAFO LITERAL DA REVISTA daquele subtópico (texto da lição impressa para os alunos lerem no slide azul).
+   * Função: Ficar projetado na tela para leitura pública da classe.
+
+2. CAMADA 2 — EXPLICAÇÃO DIDÁTICA DO PROFESSOR ("explicacao"):
+   * Origem: TRANSCRIÇÕES 1 e 2 (Estudos e falas dos pastores/pregadores nas transcrições).
+   * Conteúdo: A AULA MINISTRADA PELO PROFESSOR. Um texto didático corrido, fluido, aprofundado e pedagógico em parágrafos bem desenvolvidos (2 a 4 parágrafos por subtópico).
+   * O que deve conter:
+     - Extraia e integre TODAS as explicações, detalhes históricos, costumes bíblicos e comentários teológicos presentes nas transcrições.
+     - Explique os versículos, o pano de fundo histórico e as lições espirituais de forma rica e envolvente.
+     - Linguagem oral culta e didática de um professor lecionando (sem bullets, sem marcadores como 📌 ou 👉).
+   * 🛑 REGRA ANTI-CÓPIA ABSOLUTA:
+     - O campo "explicacao" NUNCA, SOB HIPÓTESE ALGUMA, DEVE SER IGUAL OU COPIADO DO "projetor" NEM DO PARÁGRAFO DA REVISTA!
+     - Se o campo "explicacao" contiver o mesmo texto da revista/'projetor', o sistema falhará, pois o professor precisa de conteúdo explicativo NOVO extraído das transcrições, e não de uma cópia do slide!
+     - Se as transcrições forem sucintas sobre determinado ponto, use a teologia bíblica para enriquecer a explicação com profundidade histórica e pedagógica, mas NUNCA repita o texto do projetor!
 
 - CADA SUBTÓPICO DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES ELEMENTOS CHAVE:
   1. NÚMERO + TEXTO LITERAL DA REVISTA PARA O SLIDE ("projetor"): "1. " seguido do parágrafo original e exato (ipsis litteris) do subtópico da lição para os alunos lerem no quadro azul.
-  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos. REGRA FUNDAMENTAL: Integre na explicação LINEAR absolutamente TODAS as referências, citações, comentários e alusões históricas, culturais, linguísticas e bíblicas presentes nas transcrições fornecidas. A explicação deve encadear o contexto histórico, o significado teológico, as observações das transcrições e a aplicação de forma narrativa, sem bullets, sem frases separadas e sem exemplos avulsos.
+  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos (2 a 4 parágrafos ricos extraídos das transcrições). NUNCA copie o projetor.
   3. BASE BÍBLICA ("versiculos"):
      * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico para a conduta do crente.
      * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão ARC oficial.
@@ -437,8 +462,8 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "1",
           "title": "A conspiração judaica contra Paulo (vv.1,2)",
-          "projetor": "Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo.",
-          "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia para acusar Paulo diante do procurador romano Antônio Félix. A presença de Tértulo — um orador treinado no direito romano provincial — revela a estratégia da liderança religiosa de revestir a acusação com linguagem jurídica romana, enquadrando Paulo como agitador político e herege religioso. Essa manobra combinava o prestígio do Sinédrio com a autoridade imperial, numa tentativa coordenada de sufocar o Evangelho por dentro do sistema de poder.",
+          "projetor": "1. Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo perante o tribunal de Félix.",
+          "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia para acusar Paulo diante do procurador romano Antônio Félix. A presença de Tértulo — um orador treinado no direito romano provincial — revela a estratégia da liderança religiosa de revestir a acusação com linguagem jurídica romana, enquadrando Paulo como agitador político e herege perigoso. Conforme enfatizado nas transcrições de apoio, os líderes religiosos estavam dispostos a bajular um governador pagão apenas para destruir o mensageiro da graça, demonstrando como a religiosidade corrompida se alia ao poder temporal para perseguir a verdade. O professor deve destacar que a oposição ao Evangelho frequentemente assume ares de legalidade e retórica refinada, mas a fidelidade de Deus sustenta Seus servos em qualquer tribunal terreno.",
           "versiculos": [
             { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois...", "explicacao": "Breve explicação bíblica de como este versículo fundamenta o subtópico..." }
           ],
@@ -458,10 +483,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "2",
           "title": "Título do Subtópico 2 da Revista",
-          "projetor": "Frase síntese do subtópico 2 para o projetor.",
-          "explicacao": "Explicação didática do subtópico 2 integrando o contexto histórico do século I...",
+          "projetor": "2. [Parágrafo literal e integral da revista correspondente ao subtópico 2 para o slide do projetor]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. Explique detalhadamente o contexto histórico, os comentários e a teologia. NUNCA copie o texto do projetor.]",
           "versiculos": [
-            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC..." }
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC...", "explicacao": "Breve explicação didática do versículo..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário para a sala de aula...",
@@ -470,10 +495,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "3",
           "title": "Título do Subtópico 3 da Revista",
-          "projetor": "Frase síntese do subtópico 3 para o projetor.",
-          "explicacao": "Explicação didática do subtópico 3 integrando o contexto histórico...",
+          "projetor": "3. [Parágrafo literal e integral da revista correspondente ao subtópico 3 para o slide do projetor]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. Explique detalhadamente o contexto histórico, os comentários e a teologia. NUNCA copie o texto do projetor.]",
           "versiculos": [
-            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC..." }
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC...", "explicacao": "Breve explicação didática do versículo..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário...",
@@ -492,9 +517,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "1",
           "title": "Título do Subtópico 1 do Tópico II",
-          "projetor": "Frase síntese do subtópico 1 para o projetor.",
-          "explicacao": "Explicação didática com contexto histórico integrado...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "1. [Parágrafo literal da revista para o subtópico 1 do Tópico II]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação do versículo..." } ],
           "aplicacao": "Aplicação prática...",
           "cuidadoDoutrinario": "Cuidado doutrinário...",
           "imagePrompt": "Cinematic 16:9 prompt..."
@@ -502,9 +527,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "2",
           "title": "Título do Subtópico 2 do Tópico II",
-          "projetor": "Frase síntese...",
-          "explicacao": "Explicação didática com contexto histórico...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "2. [Parágrafo literal da revista para o subtópico 2 do Tópico II]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -512,9 +537,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "3",
           "title": "Título do Subtópico 3 do Tópico II",
-          "projetor": "Frase síntese...",
-          "explicacao": "Explicação didática...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "3. [Parágrafo literal da revista para o subtópico 3 do Tópico II]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -532,9 +557,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "1",
           "title": "Título do Subtópico 1 do Tópico III",
-          "projetor": "Frase síntese...",
-          "explicacao": "Explicação didática com contexto histórico...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "1. [Parágrafo literal da revista para o subtópico 1 do Tópico III]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -542,9 +567,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "2",
           "title": "Título do Subtópico 2 do Tópico III",
-          "projetor": "Frase síntese...",
-          "explicacao": "Explicação didática...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "2. [Parágrafo literal da revista para o subtópico 2 do Tópico III]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -552,9 +577,9 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "3",
           "title": "Título do Subtópico 3 do Tópico III",
-          "projetor": "Frase síntese...",
-          "explicacao": "Explicação didática...",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo..." } ],
+          "projetor": "3. [Parágrafo literal da revista para o subtópico 3 do Tópico III]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
+          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Alerta...",
           "imagePrompt": "Cinematic 16:9 prompt..."
@@ -592,9 +617,75 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
 `;
 
   try {
-    // Solicita com responseMimeType: "application/json" ativado
-    const rawResult = await callGeminiRaw(prompt, options.selectedAiModel || 'gemini-2.5-flash', true);
+    // Solicita com responseMimeType: "application/json" ativado e temperature 0.6 para síntese didática
+    const rawResult = await callGeminiRaw(prompt, options.selectedAiModel || 'gemini-2.5-flash', true, 0.6);
     const parsedData: EBDLessonPreparation = repairAndParseTruncatedJSON(rawResult);
+
+    // 🛡️ VALIDAÇÃO E AUTO-REPARO DE EXPLICAÇÕES DIDÁTICAS
+    // Se a IA tiver copiado o texto do projetor para a explicação em algum subtópico,
+    // garantimos a geração das explicações reais profundas a partir das transcrições!
+    const problematicSubtopics: Array<{ tIdx: number; sIdx: number; topicTitle: string; subTitle: string; projetor: string }> = [];
+
+    parsedData.topicos.forEach((t, tIdx) => {
+      t.subtopicos.forEach((s, sIdx) => {
+        if (isCopyOrEmptyExplanation(s.explicacao, s.projetor)) {
+          problematicSubtopics.push({
+            tIdx,
+            sIdx,
+            topicTitle: t.title,
+            subTitle: s.title,
+            projetor: s.projetor
+          });
+        }
+      });
+    });
+
+    if (problematicSubtopics.length > 0) {
+      console.warn(`[Motor Preparador] Detectados ${problematicSubtopics.length} subtópicos com explicação copiada do projetor ou vazia. Executando síntese didática a partir das transcrições...`);
+      try {
+        const repairPrompt = `Você é um Doutor em Teologia e Pedagogia especialista na Escola Bíblica Dominical (EBD).
+O professor precisa da EXPLICAÇÃO DIDÁTICA DO PROFESSOR (o que o professor vai falar para dar a aula) para ${problematicSubtopics.length} subtópico(s) da lição "${parsedData.metadata.title}".
+
+${problematicSubtopics.map((p, idx) => `
+--- SUBTÓPICO ${idx + 1} ---
+Tópico: ${p.topicTitle}
+Subtópico: ${p.subTitle}
+Texto do slide do projetor (resumo da revista): "${p.projetor}"
+`).join('\n')}
+
+TRANSCRIÇÕES DE APOIO DOS PASTORES/ESTUDOS:
+${transcriptionsText.substring(0, 25000)}
+
+REGRAS MANDATÓRIAS INEGOCIÁVEIS:
+1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR! O projetor é apenas o parágrafo resumido que fica na tela para os alunos.
+2. Para CADA subtópico, gere uma EXPLICAÇÃO DIDÁTICA DO PROFESSOR rica, aprofundada e envolvente (2 a 3 parágrafos fluentes) baseada nas TRANSCRIÇÕES fornecidas.
+3. Aborde o contexto histórico bíblico, a nuance teológica dos versículos e como o professor deve ministrar para a classe.
+4. Responda em JSON puro neste formato exato:
+{
+  "explicacoes": [
+    {
+      "index": 0,
+      "explicacao": "Texto rico e profundo da aula didática do professor..."
+    }
+  ]
+}
+`;
+        const repairResult = await callGeminiRaw(repairPrompt, options.selectedAiModel || 'gemini-2.5-flash', true, 0.6);
+        const parsedRepair = JSON.parse(repairResult.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim());
+        if (Array.isArray(parsedRepair.explicacoes)) {
+          parsedRepair.explicacoes.forEach((item: any) => {
+            const prob = problematicSubtopics[item.index];
+            if (prob && item.explicacao && item.explicacao.trim().length > 30) {
+              parsedData.topicos[prob.tIdx].subtopicos[prob.sIdx].explicacao = item.explicacao.trim();
+              console.log(`[Motor Preparador] Explicação do subtópico "${prob.subTitle}" reparada e gerada com sucesso!`);
+            }
+          });
+        }
+      } catch (repairErr) {
+        console.warn('[Motor Preparador] Falha no auto-reparo de explicações, mantendo fallback:', repairErr);
+      }
+    }
+
     return parsedData;
   } catch (err: any) {
     console.error('Erro ao processar lição no Motor Preparador:', err);

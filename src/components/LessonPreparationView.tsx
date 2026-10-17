@@ -3134,11 +3134,30 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         ? sub.ideias[ideiaIdx].professor.explicacao 
         : sub.explicacao;
 
-      const prompt = `Como especialista em EBD, reescreva e aprimore somente o campo ${targetType.toUpperCase()} para o subtópico: "${targetTitle}".
-Explicação atual: ${currentExp}.
-Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
+      let prompt = '';
+      if (targetType === 'explicacao') {
+        const projContext = sub.projetor ? `\nTexto oficial do slide do projetor (resumo da revista): "${sub.projetor}".` : '';
+        prompt = `Você é um doutor em Teologia e Pedagogia especialista na Escola Bíblica Dominical (EBD).
+Sua missão é gerar a EXPLICAÇÃO DIDÁTICA DO PROFESSOR (o roteiro falado e pedagógico para ministrar a aula aos alunos) para o subtópico:
+Título do Subtópico: "${targetTitle}" (dentro da lição "${lesson.metadata?.title || 'Lição da EBD'}").${projContext}
 
-      const newText = await callGeminiRaw(prompt, 'gemini-2.5-flash');
+REGRAS MANDATÓRIAS INEGOCIÁVEIS:
+1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR OU DO PARÁGRAFO DA REVISTA!
+2. O projetor é para os alunos lerem no slide. A sua resposta é a AULA DO PROFESSOR: produza uma explicação didática profunda, clara, envolvente e bíblica (2 a 3 parágrafos bem desenvolvidos).
+3. Desenvolva o contexto histórico, costumes da época bíblica, o significado teológico e espiritual dos versículos e como o professor deve guiar a classe.
+4. Escreva em texto corrido pedagógico e fluido, sem marcadores ou tópicos com bullets.
+5. Retorne DIRETAMENTE apenas o texto da explicação didática.`;
+      } else if (targetType === 'projetor') {
+        prompt = `Você é um especialista em EBD. Reescreva o TEXTO DO SLIDE DO PROJETOR (Quadro Azul) para o subtópico: "${targetTitle}".
+O texto deve ser uma síntese clara, impactante e direta para ser projetada na tela para os alunos lerem durante a aula.
+Texto atual: "${sub.projetor || currentExp}".
+Retorne DIRETAMENTE apenas o novo texto para o slide do projetor.`;
+      } else {
+        prompt = `Como especialista em EBD, escreva uma aplicação prática e pentecostal impactante para o subtópico: "${targetTitle}".
+Retorne DIRETAMENTE apenas o texto da aplicação.`;
+      }
+
+      const newText = await callGeminiRaw(prompt, 'gemini-2.5-flash', false, 0.6);
 
       const updated = { ...lesson };
       const targetSub = updated.topicos[topicIdx].subtopicos[subIdx];
@@ -4102,7 +4121,7 @@ Retorne APENAS o novo texto diretamente, claro, didático e bíblico.`;
                           if (textoQuadroAzul === undefined || textoQuadroAzul === null || (textoQuadroAzul === '' && !isEditMode)) {
                             textoQuadroAzul = (subtopico.frasesExplicativas && subtopico.frasesExplicativas.length > 0)
                               ? subtopico.frasesExplicativas.map(f => f.frase).filter(Boolean).join(' ')
-                              : (subtopico.explicacao || '');
+                              : '';
                           }
 
                           if (!textoQuadroAzul && !isEditMode) return null;

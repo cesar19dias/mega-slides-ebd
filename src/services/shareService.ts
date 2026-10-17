@@ -228,8 +228,8 @@ export function sanitizeLessonData(raw: any): EBDLessonPreparation {
       subtopicos: (t.subtopicos || []).map((sub: any) => ({
         number: sub.number || '',
         title: sub.title || '',
-        projetor: sub.projetor || sub.explicacao || '',
-        explicacao: sub.explicacao || sub.projetor || '',
+        projetor: sub.projetor || '',
+        explicacao: sub.explicacao || '',
         frasesExplicativas: sub.frasesExplicativas || [],
         ideias: sub.ideias || [],
         versiculos: sub.versiculos || [],
@@ -342,7 +342,7 @@ export function decodeLessonFromUrl(): EBDLessonPreparation | null {
             number: sub.n,
             title: sub.t,
             projetor: sub.p || '',
-            explicacao: sub.p || '',
+            explicacao: sub.e || sub.p || '',
             imagePrompt: ''
           }))
         })),
@@ -606,7 +606,8 @@ export async function generateQrCodeDataUrl(
           s: (tp.subtopicos || []).map((sub) => ({
             n: sub.number,
             t: sub.title,
-            p: sub.projetor || sub.explicacao?.slice(0, 150),
+            p: sub.projetor || '',
+            e: sub.explicacao || '',
           })),
         })),
         c: { p: lesson.conclusao.projetor || lesson.conclusao.takeaway },
