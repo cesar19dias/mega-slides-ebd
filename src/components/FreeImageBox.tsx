@@ -43,6 +43,8 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
   onSelect,
   onCommit,
 }) => {
+  const boxRef = useRef<HTMLDivElement>(null);
+
   // Estado local durante o arraste para garantir fluidez a 60fps
   const [activeDrag, setActiveDrag] = useState<{
     handle: HandleType;
@@ -50,6 +52,28 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
   } | null>(null);
 
   const currentBox = activeDrag?.tempBox ?? box;
+
+  // Bloqueio nativo do gesto de rolagem/pull-to-refresh no tablet/celular
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || !editable) return;
+
+    const preventTouchScroll = (e: TouchEvent) => {
+      if (selected || (e.target as HTMLElement)?.closest('[data-image-box]')) {
+        if (e.cancelable) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    el.addEventListener('touchstart', preventTouchScroll, { passive: false });
+    el.addEventListener('touchmove', preventTouchScroll, { passive: false });
+
+    return () => {
+      el.removeEventListener('touchstart', preventTouchScroll);
+      el.removeEventListener('touchmove', preventTouchScroll);
+    };
+  }, [editable, selected]);
 
   // Guarda estado de início do ponteiro
   const dragStartRef = useRef<{
@@ -169,7 +193,8 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
       const boxCenterY = stageTop + ((startBox.y + startBox.h / 2) / 100) * stageHeight;
 
       const rad = Math.atan2(e.clientY - boxCenterY, e.clientX - boxCenterX);
-      let deg = (rad * 180) / Math.PI + 90; // O handle está acima (-90°)
+      const isRotAtBottom = startBox.y < 9 && (startBox.y + startBox.h) <= 90;
+      let deg = (rad * 180) / Math.PI + (isRotAtBottom ? -90 : 90);
       if (deg < 0) deg += 360;
       deg = deg % 360;
 
@@ -251,10 +276,17 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
     }
   }, [activeDrag, onCommit]);
 
+  const isNearTopEdge = currentBox.y < 8;
+  const isNearBottomEdge = (currentBox.y + currentBox.h) > 92;
+  const isNearLeftEdge = currentBox.x < 3;
+  const isNearRightEdge = (currentBox.x + currentBox.w) > 97;
+  const isRotAtBottom = isNearTopEdge && !isNearBottomEdge;
+
   return (
     <div
+      ref={boxRef}
       data-image-box="true"
-      className={`absolute transition-shadow select-none ${
+      className={`absolute transition-shadow select-none touch-none ${
         selected ? 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-slate-900/50' : ''
       }`}
       style={{
@@ -266,6 +298,10 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
         transformOrigin: 'center center',
         zIndex: selected ? 45 : currentBox.layer === 'front' ? 42 : 8,
         cursor: editable ? (activeDrag?.handle === 'move' ? 'grabbing' : 'grab') : 'default',
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
       }}
       onPointerDown={(e) => {
         if (editable && !selected) {
@@ -291,14 +327,16 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
 
       {/* Alças de Redimensionamento e Giro (Ativas apenas quando selecionado) */}
       {selected && editable && (
-        <div className="absolute inset-0 pointer-events-none select-none">
+        <div className="absolute inset-0 pointer-events-none select-none touch-none">
           {/* Caixa de contorno suave estilo vetor Corel */}
           <div className="absolute inset-0 border-2 border-dashed border-cyan-400/90 pointer-events-none rounded-xl" />
 
           {/* Badge flutuante com medidas ao vivo durante o arraste */}
           {activeDrag && (
             <div
-              className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-950/90 border border-cyan-400 text-cyan-200 text-[10px] font-black font-mono px-2.5 py-0.5 rounded-full shadow-2xl pointer-events-none whitespace-nowrap z-50 flex items-center gap-1.5"
+              className={`absolute left-1/2 -translate-x-1/2 bg-slate-950/90 border border-cyan-400 text-cyan-200 text-[10px] font-black font-mono px-2.5 py-0.5 rounded-full shadow-2xl pointer-events-none whitespace-nowrap z-50 flex items-center gap-1.5 ${
+                isNearTopEdge ? '-bottom-9' : '-top-9'
+              }`}
               style={{ transform: `translateX(-50%) rotate(-${currentBox.rot}deg)` }}
             >
               {activeDrag.handle === 'rot' ? (
@@ -311,61 +349,126 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
             </div>
           )}
 
-          {/* Haste e Bolinha de Giro Superior */}
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto cursor-grab active:cursor-grabbing">
+          {/* Haste e Bolinha de Giro (Inverte para baixo se encostada no topo) */}
+          <div
+            className={`absolute left-1/2 -translate-x-1/2 flex items-center pointer-events-auto cursor-grab active:cursor-grabbing select-none z-50 ${
+              isRotAtBottom ? '-bottom-8 flex-col-reverse' : '-top-8 flex-col'
+            }`}
+            style={{ touchAction: 'none' }}
+          >
             <div
               onPointerDown={(e) => handlePointerDown(e, 'rot')}
-              className="w-4.5 h-4.5 rounded-full bg-emerald-500 hover:bg-emerald-400 border-2 border-white shadow-xl flex items-center justify-center transition-transform hover:scale-125"
+              className="w-8 h-8 md:w-6 md:h-6 flex items-center justify-center p-0.5 cursor-grab active:cursor-grabbing"
               title="Girar imagem livremente • Segure Shift para travar a cada 15°"
             >
-              <RotateCw className="w-2.5 h-2.5 text-slate-950" />
+              <div className="w-5.5 h-5.5 md:w-5 md:h-5 rounded-full bg-emerald-500 hover:bg-emerald-400 border-2 border-white shadow-xl flex items-center justify-center transition-transform hover:scale-125">
+                <RotateCw className="w-3 h-3 md:w-2.5 md:h-2.5 text-slate-950" />
+              </div>
             </div>
             <div className="w-0.5 h-2 bg-emerald-400" />
           </div>
 
-          {/* 4 Cantos (Proporcionais • Shift deixa livre • Alt pelo centro) */}
+          {/* 4 Cantos (Proporcionais • Alças ampliadas para toque e presas dentro da tela) */}
           <div
             onPointerDown={(e) => handlePointerDown(e, 'nw')}
-            className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform"
+            className="absolute w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-45"
+            style={{
+              top: isNearTopEdge ? '0px' : '-10px',
+              left: isNearLeftEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Redimensionar canto • Segure Shift para livre • Alt pelo centro"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 'ne')}
-            className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform"
+            className="absolute w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-45"
+            style={{
+              top: isNearTopEdge ? '0px' : '-10px',
+              right: isNearRightEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Redimensionar canto • Segure Shift para livre • Alt pelo centro"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 'sw')}
-            className="absolute -bottom-1.5 -left-1.5 w-3.5 h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform"
+            className="absolute w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-nesw-resize z-45"
+            style={{
+              bottom: isNearBottomEdge ? '0px' : '-10px',
+              left: isNearLeftEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Redimensionar canto • Segure Shift para livre • Alt pelo centro"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 'se')}
-            className="absolute -bottom-1.5 -right-1.5 w-3.5 h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform"
+            className="absolute w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-nwse-resize z-45"
+            style={{
+              bottom: isNearBottomEdge ? '0px' : '-10px',
+              right: isNearRightEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Redimensionar canto • Segure Shift para livre • Alt pelo centro"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-cyan-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
 
-          {/* 4 Laterais (Esticam apenas largura ou altura) */}
+          {/* 4 Laterais (Esticam largura ou altura) */}
           <div
             onPointerDown={(e) => handlePointerDown(e, 'n')}
-            className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform"
+            className="absolute left-1/2 -translate-x-1/2 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-ns-resize z-45"
+            style={{
+              top: isNearTopEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Ajustar altura (topo)"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 's')}
-            className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform"
+            className="absolute left-1/2 -translate-x-1/2 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-ns-resize z-45"
+            style={{
+              bottom: isNearBottomEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Ajustar altura (base)"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 'w')}
-            className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform"
+            className="absolute top-1/2 -translate-y-1/2 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-45"
+            style={{
+              left: isNearLeftEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Ajustar largura (esquerda)"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
+
           <div
             onPointerDown={(e) => handlePointerDown(e, 'e')}
-            className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform"
+            className="absolute top-1/2 -translate-y-1/2 w-8 h-8 md:w-6 md:h-6 flex items-center justify-center pointer-events-auto cursor-ew-resize z-45"
+            style={{
+              right: isNearRightEdge ? '0px' : '-10px',
+              touchAction: 'none',
+            }}
             title="Ajustar largura (direita)"
-          />
+          >
+            <div className="w-4 h-4 md:w-3.5 md:h-3.5 bg-white border-2 border-indigo-500 rounded-sm shadow-md hover:scale-125 transition-transform" />
+          </div>
         </div>
       )}
     </div>
