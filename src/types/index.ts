@@ -145,6 +145,10 @@ export interface EBDLessonPreparation {
     item: string;
     status: boolean;
   }>;
+  perguntasFixacao?: Array<{
+    pergunta: string;
+    respostaEsperada?: string;
+  }>;
   extraSlides?: EBDExtraSlide[];
   customSlideOrder?: string[];
   slideFontScales?: Record<string | number, number>;
@@ -277,3 +281,44 @@ export interface GenerationOptions {
   includeApplications: boolean;
   selectedAiModel: string;
 }
+
+export type ProjectorItemType =
+  | 'cover'
+  | 'aureo'
+  | 'pratica'
+  | 'palavra_chave'
+  | 'na_licao_anterior'
+  | 'ponte_contextual'
+  | 'leitura'
+  | 'topic_synopsis'
+  | 'subtopic'
+  | 'subtopic_explanation'
+  | 'subtopic_verses'
+  | 'subtopic_aplicacao'
+  | 'enfase_palavra'
+  | 'conclusao'
+  | 'verdades'
+  | 'extra';
+
+export interface ProjectorItem {
+  id: string;
+  type: ProjectorItemType;
+  title: string;
+  subtitle?: string;
+  bulletPoints?: string[];
+  badgeText?: string;
+  projetorText?: string;
+  ideiaText?: string;
+  reference?: string;
+  imagePrompt?: string;
+  imageUrl?: string;
+  imageScale?: number;
+  imageFit?: 'cover' | 'contain';
+  imageBox?: ImageBox;
+  onUpdateText?: (val: string) => void;
+  onUpdateTitle?: (val: string) => void;
+  onUpdateSubtitle?: (val: string) => void;
+  onUpdateReference?: (val: string) => void;
+  onUpdateBulletPoint?: (idx: number, val: string) => void;
+}
+
