@@ -34,7 +34,7 @@ export interface ProjectorHeaderActionsProps {
   setImageSelected: (val: boolean) => void;
   handleOpenCropForSlide: () => void;
   handleRemoveSlideImage: () => void;
-  imageMenuRef: React.RefObject<HTMLDivElement>;
+  imageMenuRef: React.RefObject<HTMLDivElement | null>;
 
   handleAddExtraSlide: () => void;
   isSlideMenuOpen: boolean;
@@ -44,7 +44,7 @@ export interface ProjectorHeaderActionsProps {
   handleMoveSlideRight: () => void;
   handleDeleteSlide: () => void;
   projectorItems: ProjectorItem[];
-  slideMenuRef: React.RefObject<HTMLDivElement>;
+  slideMenuRef: React.RefObject<HTMLDivElement | null>;
 
   customBg: string | null;
   handleCustomBgUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -53,7 +53,7 @@ export interface ProjectorHeaderActionsProps {
   handleOpenCropForBg: () => void;
   setCustomBg: (bg: string | null) => void;
   updateLesson: (updater: (prev: EBDLessonPreparation) => EBDLessonPreparation) => void;
-  modelMenuRef: React.RefObject<HTMLDivElement>;
+  modelMenuRef: React.RefObject<HTMLDivElement | null>;
 
   onExportPowerPoint: () => void;
   onExportPngZip: () => void;

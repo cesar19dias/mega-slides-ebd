@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { EBDLessonPreparation, EBDExtraSlide, ImageBox } from '../types';
-import { FreeImageBox, ImageBoxToolbar, DEFAULT_IMAGE_BOX } from './FreeImageBox';
-import { RefreshCw, RotateCcw, Check, ChevronDown, ChevronLeft, ChevronRight, FileText, ArrowLeft, ArrowRight, Copy, ImageDown, FileDown, LayoutTemplate, Edit3, Trash2, Eraser, ZoomIn, ZoomOut, Type, Move, PlusCircle, Download, Image as ImageIcon, Columns, Crop, Crosshair } from 'lucide-react';
+import { DEFAULT_IMAGE_BOX } from './FreeImageBox';
+import { FileText, FileDown, Edit3 } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
 import { exportProjectorItemsToPowerPoint } from '../services/pptxService';
 import { THEMES } from '../constants/themes';
 
-import { TextHighlightToolbar, HIGHLIGHT_COLORS } from './TextHighlightToolbar';
 import { QrCodeModal } from './QrCodeModal';
 import { ImageCropModal } from './ImageCropModal';
 import { TeacherPreparationView } from './TeacherPreparationView';
+import { ProjectorHeaderActions, ProjectorToolbar } from './ProjectorToolbar';
+import { ProjectorStage } from './ProjectorStage';
 import { optimizeImageBase64 } from '../services/shareService';
 import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
 
@@ -1742,7 +1743,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // ── Inline Text Highlight State ──────────────────────────────────
   const [slideHighlights, setSlideHighlights] = useState<SlideHighlights>(() => loadSlideHighlights(lessonData));
   const [hlToolbar, setHlToolbar] = useState<{ x: number; y: number; text: string } | null>(null);
-  void HIGHLIGHT_COLORS; // keep import used
 
   const [slideImageOpacity, setSlideImageOpacity] = useState<number>(() => {
     try {
@@ -2642,6 +2642,38 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
     bodyTextColor,
   ]);
 
+  const handleExportPowerPoint = () => {
+    const theme = THEMES[0];
+    const itemsWithImages = projectorItems.map((item, idx) => {
+      const id = item.id;
+      return {
+        ...item,
+        imageUrl: (id ? projectorSlideImages[id] : undefined) || projectorSlideImages[idx] || item.imageUrl,
+        imageScale: (id && slideImageScales[id] !== undefined ? slideImageScales[id] : slideImageScales[idx]) ?? 1.0,
+        imageFit: (id && slideImageFits[id] !== undefined ? slideImageFits[id] : slideImageFits[idx]) ?? 'cover',
+        imageBox: (id && slideImageBoxes[id] !== undefined ? slideImageBoxes[id] : slideImageBoxes[String(idx)]),
+      };
+    });
+    exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
+  };
+
+  const handleExportPngZip = async () => {
+    if (isExporting) return;
+    setIsExporting('png');
+    const origIdx = projectorIndex;
+    try {
+      await exportAllSlidesPNGZipFromStage(
+        projectorItems.length,
+        (i) => setProjectorIndex(i),
+        () => projectorStageRef.current,
+        lesson.metadata.title || 'mega-ebd'
+      );
+    } finally {
+      setProjectorIndex(origIdx);
+      setIsExporting(null);
+    }
+  };
+
   return (
     <div className="preparation-view-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
       {/* Barra de Ferramentas da Lição */}
@@ -2706,307 +2738,45 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
 
           {/* Botões de Ação do Projetor: Imagem (1 Botão), Slide Extra, QR Code, Modelo, PPTX, ZIP, Editar, Mover */}
           {activeTab === 'projetor' && (
-            <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2 rounded-2xl border border-slate-800">
-              {/* 1 BOTÃO UNIFICADO: IMAGEM DO SLIDE */}
-              <div className="relative inline-block" ref={imageMenuRef}>
-                <div className="inline-flex items-center rounded-xl shadow-md border border-purple-400/50 bg-purple-700 overflow-hidden min-h-[42px]">
-                  <label
-                    className="hover:bg-purple-600 text-white font-black px-4 py-2.5 flex items-center gap-2 text-sm cursor-pointer transition-all active:scale-95"
-                    title="Adicionar ou alterar imagem ilustrativa neste slide"
-                  >
-                    <ImageIcon className="w-4.5 h-4.5 text-purple-200" />
-                    <span>{(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) ? '📷 Imagem' : '🖼️ + Imagem'}</span>
-                    <input type="file" accept="image/*" onChange={handleSlideImageUpload} className="hidden" />
-                  </label>
-                  {(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                    <button
-                      onClick={() => setIsImageMenuOpen(prev => !prev)}
-                      className="hover:bg-purple-600 text-white font-black px-3 py-2.5 border-l border-purple-500/80 flex items-center justify-center cursor-pointer transition-all min-h-[42px]"
-                      title="Mais opções da imagem (Recortar, Remover)"
-                    >
-                      <ChevronDown className={`w-4 h-4 text-purple-100 transition-transform duration-200 ${isImageMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                  )}
-                </div>
-
-                {isImageMenuOpen && (projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl) && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                    <label className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-purple-200 hover:bg-purple-950/60 font-bold transition-colors cursor-pointer">
-                      <ImageIcon className="w-4 h-4 text-purple-400" />
-                      <span>📷 Alterar Imagem</span>
-                      <input type="file" accept="image/*" onChange={(e) => { handleSlideImageUpload(e); setIsImageMenuOpen(false); }} className="hidden" />
-                    </label>
-
-                    <button
-                      onClick={() => {
-                        setImageSelected(true);
-                        setIsImageMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-cyan-300 hover:bg-cyan-950/60 font-bold transition-colors cursor-pointer"
-                    >
-                      <Move className="w-4 h-4 text-cyan-400" />
-                      <span>🎯 Redimensionar / Mover Imagem</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleOpenCropForSlide(); setIsImageMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
-                    >
-                      <Crop className="w-4 h-4 text-pink-400" />
-                      <span>✂️ Recortar (Crop)</span>
-                    </button>
-
-                    <div className="border-t border-slate-800 my-1" />
-
-                    <button
-                      onClick={() => { handleRemoveSlideImage(); setIsImageMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                      <span>🗑️ Remover Imagem</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
-              <div className="relative inline-block" ref={slideMenuRef}>
-                <div className="inline-flex items-center rounded-xl shadow-md border border-emerald-400/50 bg-emerald-600 overflow-hidden min-h-[42px]">
-                  <button
-                    onClick={handleAddExtraSlide}
-                    className="hover:bg-emerald-500 text-white font-black px-4 py-2.5 flex items-center gap-2 text-sm cursor-pointer transition-all active:scale-95"
-                    title="Adicionar um novo slide extra personalizado nesta lição"
-                  >
-                    <PlusCircle className="w-4.5 h-4.5 text-emerald-100" />
-                    <span>➕ Adicionar Slide Extra</span>
-                  </button>
-                  <button
-                    onClick={() => setIsSlideMenuOpen(prev => !prev)}
-                    className="hover:bg-emerald-500 text-white font-black px-3 py-2.5 border-l border-emerald-500/80 flex items-center justify-center cursor-pointer transition-all min-h-[42px]"
-                    title="Mais ações do slide (Duplicar, Mover, Excluir)"
-                  >
-                    <ChevronDown className={`w-4 h-4 text-emerald-100 transition-transform duration-200 ${isSlideMenuOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                </div>
-
-                {isSlideMenuOpen && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-60 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                    <button
-                      onClick={() => { handleAddExtraSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
-                    >
-                      <PlusCircle className="w-4 h-4 text-emerald-400" />
-                      <span>➕ Novo Slide Extra</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleDuplicateSlide(); setIsSlideMenuOpen(false); }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer"
-                    >
-                      <Copy className="w-4 h-4 text-cyan-400" />
-                      <span>📋 Duplicar Slide Atual</span>
-                    </button>
-
-                    <div className="border-t border-slate-800 my-1" />
-
-                    <button
-                      onClick={() => { handleMoveSlideLeft(); setIsSlideMenuOpen(false); }}
-                      disabled={projectorIndex === 0}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
-                    >
-                      <ArrowLeft className="w-4 h-4 text-amber-400" />
-                      <span>⬅️ Mover para Esquerda</span>
-                    </button>
-
-                    <button
-                      onClick={() => { handleMoveSlideRight(); setIsSlideMenuOpen(false); }}
-                      disabled={projectorIndex === projectorItems.length - 1}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none font-bold transition-colors cursor-pointer"
-                    >
-                      <ArrowRight className="w-4 h-4 text-amber-400" />
-                      <span>➡️ Mover para Direita</span>
-                    </button>
-
-                    {projectorItems.length > 1 && (
-                      <>
-                        <div className="border-t border-slate-800 my-1" />
-                        <button
-                          onClick={() => { handleDeleteSlide(); setIsSlideMenuOpen(false); }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                          <span>🗑️ Excluir Slide Atual</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-
-
-              {/* Upload do Meu Modelo / Gerenciador de Modelo */}
-              <div className="relative inline-block" ref={modelMenuRef}>
-                {!customBg ? (
-                  <label
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-                    title="Enviar imagem como fundo de todos os slides do projetor"
-                  >
-                    <LayoutTemplate className="w-4 h-4 text-amber-300" />
-                    <span>📁 Meu Modelo</span>
-                    <input type="file" accept="image/*" onChange={handleCustomBgUpload} className="hidden" />
-                  </label>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setIsModelMenuOpen(prev => !prev)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white text-sm font-bold cursor-pointer border border-indigo-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-                      title="Gerenciar imagem de fundo do modelo (Trocar, Recortar, Remover)"
-                    >
-                      <LayoutTemplate className="w-4 h-4 text-amber-300" />
-                      <span>📁 Modelo de Fundo</span>
-                      <ChevronDown className={`w-4 h-4 text-indigo-200 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    {isModelMenuOpen && (
-                      <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
-                        <label className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-slate-200 hover:bg-slate-800 font-bold transition-colors cursor-pointer">
-                          <LayoutTemplate className="w-4 h-4 text-indigo-400" />
-                          <span>📁 Trocar Modelo</span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => {
-                              handleCustomBgUpload(e);
-                              setIsModelMenuOpen(false);
-                            }}
-                            className="hidden"
-                          />
-                        </label>
-
-                        <button
-                          onClick={() => {
-                            handleOpenCropForBg();
-                            setIsModelMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-pink-300 hover:bg-pink-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Crop className="w-4 h-4 text-pink-400" />
-                          <span>✂️ Recortar Fundo (16:9)</span>
-                        </button>
-
-                        <div className="border-t border-slate-800 my-1" />
-
-                        <button
-                          onClick={() => {
-                            setCustomBg(null);
-                            try { localStorage.removeItem('mega_ebd_custom_bg'); } catch {}
-                            updateLesson(l => ({ ...l, customBg: null }));
-                            setIsModelMenuOpen(false);
-                          }}
-                          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-red-400 hover:bg-red-950/60 font-bold transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-400" />
-                          <span>✕ Remover Modelo</span>
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {/* Exportar PPTX com todos os slides */}
-              <button
-                onClick={() => {
-                  const theme = THEMES[0];
-                  const itemsWithImages = projectorItems.map((item, idx) => {
-                    const id = item.id;
-                    return {
-                      ...item,
-                      imageUrl: (id ? projectorSlideImages[id] : undefined) || projectorSlideImages[idx] || item.imageUrl,
-                      imageScale: (id && slideImageScales[id] !== undefined ? slideImageScales[id] : slideImageScales[idx]) ?? 1.0,
-                      imageFit: (id && slideImageFits[id] !== undefined ? slideImageFits[id] : slideImageFits[idx]) ?? 'cover',
-                      imageBox: (id && slideImageBoxes[id] !== undefined ? slideImageBoxes[id] : slideImageBoxes[String(idx)]),
-                    };
-                  });
-                  exportProjectorItemsToPowerPoint(itemsWithImages, lesson.metadata.title, theme, customBg);
-                }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-                title="Exportar apresentação completa (.pptx) com todos os slides, imagens e anotações do orador"
-              >
-                <Download className="w-4 h-4 text-white" />
-                <span>PowerPoint (.pptx)</span>
-              </button>
-
-              {/* TODOS OS SLIDES - PNG/ZIP */}
-              <button
-                onClick={async () => {
-                  if (isExporting) return;
-                  setIsExporting('png');
-                  const origIdx = projectorIndex;
-                  try {
-                    await exportAllSlidesPNGZipFromStage(
-                      projectorItems.length,
-                      (i) => setProjectorIndex(i),
-                      () => projectorStageRef.current,
-                      lesson.metadata.title || 'mega-ebd'
-                    );
-                  } finally {
-                    setProjectorIndex(origIdx);
-                    setIsExporting(null);
-                  }
-                }}
-                disabled={!!isExporting}
-                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white text-sm font-bold cursor-pointer disabled:opacity-50 transition-all shadow-sm hover:scale-105 active:scale-95 min-h-[42px]"
-                title="Exportar todos os slides como ZIP com PNGs"
-              >
-                {isExporting === 'png' ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ImageDown className="w-4 h-4" />}
-                <span>{isExporting === 'png' ? 'Gerando...' : 'Todos (ZIP)'}</span>
-              </button>
-
-              {/* BOTÃO DE EDITAR SLIDE (MODO PROJETOR) */}
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-                  isEditMode
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-400 ring-2 ring-amber-400/50'
-                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
-                }`}
-                title="Ativar/desativar modo de edição livre de texto do slide"
-              >
-                <Edit3 className="w-4 h-4 text-current" />
-                <span>{isEditMode ? '✓ Concluir Edição' : '✏️ Editar Slide'}</span>
-              </button>
-
-              {/* BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) */}
-              <button
-                onClick={() => setIsLayoutEditMode(prev => !prev)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-                  isLayoutEditMode
-                    ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
-                    : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
-                }`}
-                title="Arrastar título e texto livremente no slide para reposicioná-los"
-              >
-                <Move className="w-4 h-4 text-current" />
-                <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
-              </button>
-
-              {/* BOTÃO DE LINHAS GUIA HORIZONTAL E VERTICAL */}
-              <button
-                onClick={toggleAlignmentGuides}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-                  showAlignmentGuides
-                    ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
-                    : 'bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border-cyan-500/40'
-                }`}
-                title="Linhas-guia de alinhamento: exibe réguas e guias na horizontal e vertical para posicionar textos com perfeição"
-              >
-                <Crosshair className="w-4 h-4 text-current" />
-                <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
-              </button>
-            </div>
+            <ProjectorHeaderActions
+              projectorSlideImages={projectorSlideImages}
+              projectorIndex={projectorIndex}
+              currentProjectorItem={currentProjectorItem}
+              handleSlideImageUpload={handleSlideImageUpload}
+              isImageMenuOpen={isImageMenuOpen}
+              setIsImageMenuOpen={setIsImageMenuOpen}
+              setImageSelected={setImageSelected}
+              handleOpenCropForSlide={handleOpenCropForSlide}
+              handleRemoveSlideImage={handleRemoveSlideImage}
+              imageMenuRef={imageMenuRef}
+              handleAddExtraSlide={handleAddExtraSlide}
+              isSlideMenuOpen={isSlideMenuOpen}
+              setIsSlideMenuOpen={setIsSlideMenuOpen}
+              handleDuplicateSlide={handleDuplicateSlide}
+              handleMoveSlideLeft={handleMoveSlideLeft}
+              handleMoveSlideRight={handleMoveSlideRight}
+              handleDeleteSlide={handleDeleteSlide}
+              projectorItems={projectorItems}
+              slideMenuRef={slideMenuRef}
+              customBg={customBg}
+              handleCustomBgUpload={handleCustomBgUpload}
+              isModelMenuOpen={isModelMenuOpen}
+              setIsModelMenuOpen={setIsModelMenuOpen}
+              handleOpenCropForBg={handleOpenCropForBg}
+              setCustomBg={setCustomBg}
+              updateLesson={updateLesson}
+              modelMenuRef={modelMenuRef}
+              onExportPowerPoint={handleExportPowerPoint}
+              onExportPngZip={handleExportPngZip}
+              isExporting={isExporting}
+              isEditMode={isEditMode}
+              setIsEditMode={setIsEditMode}
+              isLayoutEditMode={isLayoutEditMode}
+              setIsLayoutEditMode={setIsLayoutEditMode}
+              showAlignmentGuides={showAlignmentGuides}
+              toggleAlignmentGuides={toggleAlignmentGuides}
+            />
           )}
-
 
         </div>
       </div>
@@ -3049,1177 +2819,106 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
       {/* ========================================================= */}
       {activeTab === 'projetor' && (
         <div className="space-y-5">
-          {/* Barra de Ajustes Finos do Slide (Fontes, Larguras e Posicionamentos) */}
-          <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg">
-
-          {/* ── CONTROLES SEPARADOS DE TAMANHO DE FONTE: TÍTULO vs TEXTO ── */}
-          <div className="flex items-center gap-2 flex-wrap">
-                {/* Fonte do Título */}
-                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TÍTULO deste slide">
-                  <Type className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span className="text-xs font-black text-amber-300 uppercase tracking-wider">Título:</span>
-                  <button
-                    onClick={() => {
-                      const next = Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100);
-                      setSingleTitleScale(projectorIndex, next);
-                    }}
-                    disabled={currentTitleScale <= 0.5}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Diminuir fonte do título (A-)"
-                  >
-                    <ZoomOut className="w-4 h-4 text-amber-400" />
-                  </button>
-                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentTitleCustom ? 'text-yellow-300 font-black' : 'text-amber-300'}`}>
-                    {Math.round(currentTitleScale * 100)}%
-                  </span>
-                  <button
-                    onClick={() => {
-                      const next = Math.min(3.0, Math.round((currentTitleScale + 0.05) * 100) / 100);
-                      setSingleTitleScale(projectorIndex, next);
-                    }}
-                    disabled={currentTitleScale >= 3.0}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Aumentar fonte do título (A+)"
-                  >
-                    <ZoomIn className="w-4 h-4 text-amber-400" />
-                  </button>
-                  {isCurrentTitleCustom && (
-                    <button
-                      onClick={() => setSingleTitleScale(projectorIndex, null)}
-                      className="text-xs font-black text-amber-400 hover:text-white px-2 py-1 rounded-lg bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
-                      title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
-                    >
-                      ↺ {Math.round(defaultTitleScale * 100)}%
-                    </button>
-                  )}
-                </div>
-
-                {/* Fonte do Texto */}
-                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
-                  <Type className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
-                  <button
-                    onClick={() => {
-                      const next = Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100);
-                      setSingleBodyScale(projectorIndex, next);
-                    }}
-                    disabled={currentBodyScale <= 0.5}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Diminuir fonte do texto (A-)"
-                  >
-                    <ZoomOut className="w-4 h-4 text-cyan-400" />
-                  </button>
-                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentBodyCustom ? 'text-cyan-200 font-black' : 'text-cyan-300'}`}>
-                    {Math.round(currentBodyScale * 100)}%
-                  </span>
-                  <button
-                    onClick={() => {
-                      const next = Math.min(3.0, Math.round((currentBodyScale + 0.05) * 100) / 100);
-                      setSingleBodyScale(projectorIndex, next);
-                    }}
-                    disabled={currentBodyScale >= 3.0}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Aumentar fonte do texto (A+)"
-                  >
-                    <ZoomIn className="w-4 h-4 text-cyan-400" />
-                  </button>
-                  {isCurrentBodyCustom && (
-                    <button
-                      onClick={() => setSingleBodyScale(projectorIndex, null)}
-                      className="text-xs font-black text-cyan-400 hover:text-white px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
-                      title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
-                    >
-                      ↺ {Math.round(defaultBodyScale * 100)}%
-                    </button>
-                  )}
-                </div>
-
-                {/* Largura da Caixa de Texto */}
-                <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-sm min-h-[40px]" title="Ajustar largura da caixa de texto (permite colocar texto de um lado e imagem do outro)">
-                  <Columns className="w-4 h-4 text-sky-400 shrink-0" />
-                  <span className="text-xs font-black text-sky-300 uppercase tracking-wider">Largura:</span>
-                  <button
-                    onClick={() => {
-                      const cur = slideBodyWidths[projectorIndex] ?? 100;
-                      setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
-                    }}
-                    disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Diminuir largura do texto (-10%)"
-                  >
-                    <ZoomOut className="w-4 h-4 text-sky-400" />
-                  </button>
-                  <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200 font-black' : 'text-sky-300'}`}>
-                    {slideBodyWidths[projectorIndex] ?? 100}%
-                  </span>
-                  <button
-                    onClick={() => {
-                      const cur = slideBodyWidths[projectorIndex] ?? 100;
-                      setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
-                    }}
-                    disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
-                    className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-                    title="Aumentar largura do texto (+10%)"
-                  >
-                    <ZoomIn className="w-4 h-4 text-sky-400" />
-                  </button>
-                  {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
-                    <button
-                      onClick={resetSlideBodyWidth}
-                      className="text-xs font-black text-sky-400 hover:text-white px-2 py-1 rounded-lg bg-sky-950 border border-sky-500/40 transition-colors cursor-pointer"
-                      title="Restaurar largura inteira (100%)"
-                    >
-                      ↺ 100%
-                    </button>
-                  )}
-                </div>
-
-                {/* Atalho Rápido: Lado a Lado (Texto de um lado, imagem do outro) */}
-                <button
-                  onClick={toggleSideBySideLayout}
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-900/60 to-purple-900/60 hover:from-sky-800/80 hover:to-purple-800/80 text-sky-200 border border-sky-400/50 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-                  title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
-                >
-                  <Columns className="w-4 h-4 text-sky-300" />
-                  <span>🌓 Lado a Lado</span>
-                </button>
-
-                {/* Atalho Rápido: Linhas Guia H / V */}
-                <button
-                  onClick={toggleAlignmentGuides}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] border active:scale-95 ${
-                    showAlignmentGuides
-                      ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
-                      : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40'
-                  }`}
-                  title="Exibir réguas e linhas-guia na horizontal e vertical para posicionar e alinhar textos e títulos"
-                >
-                  <Crosshair className="w-4 h-4 text-cyan-300" />
-                  <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
-                </button>
-
-                {/* Controle e Barra de Ferramentas de Imagem Estilo Corel Draw */}
-                {curImageSrc && imageSelected && (
-                  <ImageBoxToolbar
-                    box={curBox}
-                    src={curImageSrc}
-                    stageRef={projectorStageRef}
-                    onChange={commitBox}
-                    onRemove={() => {
-                      handleRemoveSlideImage();
-                      setImageSelected(false);
-                    }}
-                    onDone={() => setImageSelected(false)}
-                  />
-                )}
-
-                {curImageSrc && !imageSelected && (
-                  <button
-                    onClick={() => setImageSelected(true)}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-                    title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
-                  >
-                    <ImageIcon className="w-4 h-4 text-purple-400" />
-                    <span>🎯 Mover / Redimensionar Imagem</span>
-                  </button>
-                )}
-
-                {/* Reset de Posições, Enquadramentos e Destaques (quando arrastado livremente ou cores ativas) */}
-                {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom || hasSlideHighlights) && (
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {hasSlideHighlights && (
-                      <button
-                        onClick={clearCurrentSlideHighlights}
-                        className="text-xs font-black text-rose-200 hover:text-white px-3.5 py-1.5 rounded-xl bg-rose-950/90 border border-rose-500/70 hover:bg-rose-900 transition-all cursor-pointer min-h-[38px] active:scale-95 flex items-center gap-1.5 shadow-lg shadow-rose-950/50"
-                        title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
-                      >
-                        <Eraser className="w-4 h-4 text-rose-400" />
-                        <span>🧹 Limpar Cores deste Slide</span>
-                      </button>
-                    )}
-                    {isTitleMoved && (
-                      <button
-                        onClick={() => resetSlidePosition('title')}
-                        className="text-xs font-black text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                        title="Restaurar posição original do título"
-                      >
-                        ↺ Pos. Título
-                      </button>
-                    )}
-                    {isBodyMoved && (
-                      <button
-                        onClick={() => resetSlidePosition('body')}
-                        className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                        title="Restaurar posição original do texto"
-                      >
-                        ↺ Pos. Texto
-                      </button>
-                    )}
-                    {isImageMoved && (
-                      <button
-                        onClick={() => resetSlidePosition('image')}
-                        className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                        title="Restaurar posição original da imagem"
-                      >
-                        ↺ Pos. Img
-                      </button>
-                    )}
-                    {(isImageWidthCustom || isImageHeightCustom) && (
-                      <button
-                        onClick={() => {
-                          resetSlideImageWidth();
-                          resetSlideImageHeight();
-                        }}
-                        className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                        title="Restaurar tamanho padrão do quadro da imagem"
-                      >
-                        ↺ Quadro
-                      </button>
-                    )}
-                    {isImageCropCustom && (
-                      <button
-                        onClick={resetSlideImageCrop}
-                        className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                        title="Restaurar enquadramento e corte original da imagem"
-                      >
-                        ↺ Recorte
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-          {/* ── BARRA DE MINIATURAS VISUAIS DOS SLIDES ── */}
-          <div className="slides-navigation-bar flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 overflow-x-auto custom-scrollbar">
-            {projectorItems.map((item, idx) => (
-              <button
-                key={item.id || idx}
-                onClick={() => setProjectorIndex(idx)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold border text-left truncate min-w-[130px] max-w-[170px] transition-all cursor-pointer font-sans shrink-0 ${
-                  idx === projectorIndex
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg font-black scale-105 ring-2 ring-amber-400/50'
-                    : 'bg-slate-900/90 text-slate-300 border-slate-800 hover:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center justify-between text-[10px] opacity-80 font-bold uppercase mb-0.5">
-                  <span>Slide {idx + 1}</span>
-                  {item.type === 'extra' && <span className="text-[9px] bg-emerald-950 text-emerald-300 border border-emerald-500/50 px-1 rounded font-black">EXTRA</span>}
-                </div>
-                <span className="truncate block font-extrabold">{item.badgeText || item.title || `Slide ${idx + 1}`}</span>
-              </button>
-            ))}
-          </div>
-
-          {/* ── Painel de Edição Direta do Slide Atual (Modo Projetor) ── */}
-          {isEditMode && currentProjectorItem && !isExporting && (
-            <div className="bg-amber-950/90 border-2 border-amber-500/80 p-4 rounded-2xl shadow-2xl space-y-3 mb-3 text-left animate-in fade-in duration-200">
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/40 pb-2">
-                <span className="text-amber-300 font-extrabold text-xs uppercase flex items-center gap-2 flex-wrap">
-                  <Edit3 className="w-4 h-4 text-amber-400" />
-                  <span>✏️ Editor de Texto do Slide ({projectorIndex + 1} / {projectorItems.length}) — {currentProjectorItem.title}</span>
-                  {isIpsisLitterisVerified !== null && (
-                    isIpsisLitterisVerified ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 normal-case" title="Texto confirmado 100% literal da revista enviada">
-                        ✓ Ipsis litteris (Revista)
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40 normal-case" title="Atenção: este parágrafo pode ter sido adaptado ou resumido em vez de ser cópia literal da revista">
-                        ⚠️ Texto adaptado
-                      </span>
-                    )
-                  )}
-                </span>
-
-                {/* Controles do Editor de Texto */}
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Cor das Letras do Corpo */}
-                  <div className="flex items-center gap-1 bg-slate-950/90 px-2 py-1 rounded-xl border border-cyan-500/50">
-                    <span className="text-[10px] font-black text-cyan-300 uppercase">Cor Letras:</span>
-                    <button
-                      onClick={toggleBodyTextColor}
-                      className="px-2 py-0.5 rounded text-xs font-black transition-all flex items-center gap-1 cursor-pointer border"
-                      style={{
-                        backgroundColor: bodyTextColor === 'black' ? '#0f172a' : '#ffffff',
-                        color: bodyTextColor === 'black' ? '#38bdf8' : '#0f172a',
-                        borderColor: bodyTextColor === 'black' ? '#38bdf8' : '#cbd5e1'
-                      }}
-                      title="Alternar cor das letras do corpo entre Preto e Branco"
-                    >
-                      {bodyTextColor === 'black' ? '⚫ Letras Pretas' : '⚪ Letras Brancas'}
-                    </button>
-                  </div>
-
-                  {/* Limpar Cores deste Slide */}
-                  {hasSlideHighlights && (
-                    <button
-                      onClick={clearCurrentSlideHighlights}
-                      className="text-xs font-black text-rose-300 hover:text-white px-2.5 py-1 rounded-xl bg-rose-950/90 border border-rose-500/60 hover:bg-rose-900 transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                      title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
-                    >
-                      <Eraser className="w-3.5 h-3.5 text-rose-400" />
-                      <span>Limpar Cores deste Slide</span>
-                    </button>
-                  )}
-
-                  {/* Opacidade da Imagem do Slide */}
-                  <div className="flex items-center gap-1.5 bg-slate-950/90 px-2 py-1 rounded-xl border border-indigo-500/50">
-                    <span className="text-[10px] font-black text-indigo-300 uppercase shrink-0">Opacidade Imagem:</span>
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      step="5"
-                      value={slideImageOpacity}
-                      onChange={(e) => changeSlideImageOpacity(parseInt(e.target.value, 10))}
-                      className="w-16 accent-indigo-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-                      title="Ajustar nitidez/transparência da imagem de fundo do slide"
-                    />
-                    <span className="text-xs font-mono font-black min-w-[32px] text-center text-indigo-200">
-                      {slideImageOpacity}%
-                    </span>
-                  </div>
-
-                  {(isCurrentTitleCustom || isCurrentBodyCustom) && (
-                    <button
-                      onClick={applyCurrentScalesToAllSlides}
-                      className="text-[10px] font-bold text-amber-300 hover:text-white px-2.5 py-1 rounded-xl bg-amber-950/80 border border-amber-500/50 hover:bg-amber-900 transition-all cursor-pointer flex items-center gap-1 shrink-0"
-                      title="Aplicar tamanhos de título e texto deste slide a todos os slides da lição"
-                    >
-                      <span>🔗 Aplicar tamanhos a todos</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Título do Slide */}
-                {(currentProjectorItem.onUpdateTitle || currentProjectorItem.type === 'cover') && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-amber-300 uppercase block">Título / Rótulo do Slide</label>
-                    <input
-                      type="text"
-                      value={currentProjectorItem.title || ''}
-                      onChange={(e) => {
-                        if (currentProjectorItem.onUpdateTitle) currentProjectorItem.onUpdateTitle(e.target.value);
-                      }}
-                      placeholder="Título do slide..."
-                      className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-2 text-xs outline-none"
-                    />
-                  </div>
-                )}
-
-                {/* Subtítulo / Referência */}
-                {(currentProjectorItem.subtitle !== undefined || currentProjectorItem.reference !== undefined) && (
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-amber-300 uppercase block">
-                      {currentProjectorItem.reference !== undefined ? 'Referência Bíblica' : 'Subtítulo do Slide'}
-                    </label>
-                    <input
-                      type="text"
-                      value={currentProjectorItem.reference || currentProjectorItem.subtitle || ''}
-                      onChange={(e) => {
-                        if (currentProjectorItem.onUpdateReference) currentProjectorItem.onUpdateReference(e.target.value);
-                        else if (currentProjectorItem.onUpdateSubtitle) currentProjectorItem.onUpdateSubtitle(e.target.value);
-                      }}
-                      placeholder="Subtítulo ou referência..."
-                      className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-2 text-xs outline-none"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Texto Principal do Slide */}
-              {currentProjectorItem.projetorText !== undefined && (
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-amber-300 uppercase block">Texto Principal do Slide (Projetor)</label>
-                  <textarea
-                    rows={3}
-                    value={currentProjectorItem.projetorText || ''}
-                    onChange={(e) => {
-                      if (currentProjectorItem.onUpdateText) currentProjectorItem.onUpdateText(e.target.value);
-                    }}
-                    placeholder="Digite ou cole o texto para exibir no projetor..."
-                    className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl p-3 text-xs outline-none resize-y font-sans"
-                  />
-                </div>
-              )}
-
-              {/* Pontos Principais (se slide de verdades) */}
-              {currentProjectorItem.type === 'verdades' && currentProjectorItem.bulletPoints && (
-                <div className="space-y-2">
-                  <label className="text-[11px] font-bold text-amber-300 uppercase block">Pontos Principais (Verdades para Guardar)</label>
-                  {currentProjectorItem.bulletPoints.map((pt, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-amber-400 font-bold text-xs shrink-0">{idx + 1}.</span>
-                      <input
-                        type="text"
-                        value={pt}
-                        onChange={(e) => {
-                          if (currentProjectorItem.onUpdateBulletPoint) currentProjectorItem.onUpdateBulletPoint(idx, e.target.value);
-                        }}
-                        placeholder={`Ponto ${idx + 1}...`}
-                        className="flex-1 bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl px-3 py-1.5 text-xs outline-none"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-
-
-
-          {/* PALCO DO PROJETOR 16:9 GIGANTE LIMPO DEDICADO AOS ALUNOS (MODELO OFICIAL EXATO) */}
-          <div
-            ref={projectorStageRef}
-            className={`slide-stage-wrapper ${isLayoutEditMode ? 'layout-mode' : ''} rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4`}
-            style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
-            onPointerDown={(e) => {
-              if (!(e.target as HTMLElement).closest('[data-image-box]')) {
-                setImageSelected(false);
-              }
-            }}
-            onMouseUp={handleSlideMouseUp}
-            onTouchEnd={handleSlideMouseUp}
-          >
-
-
-
-            {/* Toolbar de Destaque de Texto (aparece ao selecionar texto no slide) */}
-            {hlToolbar && (
-              <TextHighlightToolbar
-                x={hlToolbar.x}
-                y={hlToolbar.y}
-                onApply={applyHighlight}
-                onRemove={removeHighlight}
-                onClose={() => { setHlToolbar(null); window.getSelection()?.removeAllRanges(); }}
-                onClearSlide={hasSlideHighlights ? clearCurrentSlideHighlights : undefined}
-              />
-            )}
-
-            {/* Botão Flutuante Rápido de Limpar Cores deste Slide no Palco */}
-            {!isExporting && hasSlideHighlights && (
-              <button
-                onClick={clearCurrentSlideHighlights}
-                className="absolute top-4 right-4 z-40 bg-rose-950/90 hover:bg-rose-900 text-rose-200 hover:text-white px-3 py-1.5 rounded-xl border border-rose-500/70 shadow-2xl backdrop-blur-md text-xs font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer group"
-                title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
-              >
-                <Eraser className="w-3.5 h-3.5 text-rose-400 group-hover:text-rose-200" />
-                <span>🧹 Limpar Cores do Slide</span>
-              </button>
-            )}
-
-            {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
-            {!isExporting && (
-              <>
-                <button
-                  onClick={() => setProjectorIndex(prev => Math.max(0, prev - 1))}
-                  disabled={projectorIndex === 0}
-                  title="Slide Anterior (Seta Esquerda)"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
-                >
-                  <ChevronLeft className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
-                </button>
-
-                <button
-                  onClick={() => setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1))}
-                  disabled={projectorIndex === projectorItems.length - 1}
-                  title="Próximo Slide (Seta Direita)"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-40 bg-slate-950/60 hover:bg-slate-900/90 text-white p-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-0 disabled:pointer-events-none group cursor-pointer"
-                >
-                  <ChevronRight className="w-6 h-6 text-white group-hover:text-yellow-400 transition-colors" />
-                </button>
-              </>
-            )}
-
-
-            {/* Barra Flutuante de Recorte Fluido Estilo Canva no Palco */}
-            {isCanvaCropping && (
-              <div
-                className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-950/95 border-2 border-cyan-400 shadow-2xl shadow-cyan-500/30 rounded-2xl px-4 py-2 backdrop-blur-xl flex flex-wrap items-center gap-3 text-white animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-auto"
-                onMouseDown={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-2 pr-2 border-r border-slate-700">
-                  <Crop className="w-4 h-4 text-cyan-400 animate-pulse" />
-                  <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Recorte Canva</span>
-                </div>
-
-                {/* Botão de Encaixe na Área Branca */}
-                <button
-                  onClick={occupyFullArea}
-                  className="text-xs font-black text-white px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 shadow-md border border-emerald-400 transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                  title="Encaixar a imagem perfeitamente na área branca abaixo do cabeçalho"
-                >
-                  <span>📐 Área Branca (Embaixo)</span>
-                </button>
-                <button
-                  onClick={occupyEntireStage}
-                  className="text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                  title="Cobrir a tela inteira (100% de todo o slide)"
-                >
-                  <span>🖥️ Tela Toda</span>
-                </button>
-
-                {/* Slider de Zoom no Quadro */}
-                <div className="flex items-center gap-1.5 bg-slate-900/90 px-2.5 py-1 rounded-xl border border-cyan-500/40">
-                  <span className="text-[10px] font-bold text-slate-300 uppercase">Zoom:</span>
-                  <button
-                    onClick={() => {
-                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
-                      const nextZ = Math.max(1.0, Math.round((curCrop.zoom - 0.1) * 10) / 10);
-                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
-                    }}
-                    className="p-1 rounded bg-slate-800 text-cyan-400 hover:bg-slate-700 text-xs font-bold cursor-pointer"
-                    title="Reduzir zoom (-)"
-                  >
-                    <ZoomOut className="w-3.5 h-3.5" />
-                  </button>
-                  <input
-                    type="range"
-                    min="100"
-                    max="300"
-                    step="5"
-                    value={Math.round((slideImageCrops[projectorIndex]?.zoom ?? 1.0) * 100)}
-                    onChange={(e) => {
-                      const zVal = parseFloat(e.target.value) / 100;
-                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
-                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: zVal });
-                    }}
-                    className="w-20 md:w-28 accent-cyan-400 h-1.5 bg-slate-700 rounded-lg cursor-pointer"
-                    title="Ajuste o zoom da imagem no enquadramento"
-                  />
-                  <button
-                    onClick={() => {
-                      const curCrop = slideImageCrops[projectorIndex] ?? { panX: 0, panY: 0, zoom: 1.0 };
-                      const nextZ = Math.min(3.0, Math.round((curCrop.zoom + 0.1) * 10) / 10);
-                      setSingleImageCrop(projectorIndex, { ...curCrop, zoom: nextZ });
-                    }}
-                    className="p-1 rounded bg-slate-800 text-cyan-400 hover:bg-slate-700 text-xs font-bold cursor-pointer"
-                    title="Aumentar zoom (+)"
-                  >
-                    <ZoomIn className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="text-xs font-mono font-black text-cyan-200 min-w-[36px] text-center">
-                    {Math.round((slideImageCrops[projectorIndex]?.zoom ?? 1.0) * 100)}%
-                  </span>
-                </div>
-
-                {/* Preencher vs Ajustar */}
-                <button
-                  onClick={() => toggleImageFit(projectorIndex)}
-                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
-                    imageFit === 'contain'
-                      ? 'bg-purple-900/60 text-purple-200 border-purple-400'
-                      : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                  }`}
-                  title="Alternar entre Preencher o quadro ou Ajustar foto inteira"
-                >
-                  {imageFit === 'contain' ? '🔍 Inteira' : '🖼️ Preencher'}
-                </button>
-
-                {/* Resetar Recorte */}
-                <button
-                  onClick={resetSlideImageCrop}
-                  className="text-xs font-bold text-slate-300 hover:text-white px-2.5 py-1 rounded-xl bg-slate-900 border border-slate-700 hover:bg-slate-800 transition-all cursor-pointer flex items-center gap-1"
-                  title="Restaurar enquadramento original (centralizado)"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Resetar</span>
-                </button>
-
-                {/* Concluir Recorte */}
-                <button
-                  onClick={() => setIsCanvaCropping(false)}
-                  className="text-xs font-black text-white px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 shadow-lg shadow-cyan-600/30 border border-cyan-300 transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                  title="Concluir e fixar o recorte da imagem (ou pressione ESC)"
-                >
-                  <Check className="w-4 h-4 text-white" />
-                  <span>Concluir</span>
-                </button>
-              </div>
-            )}
-
-            {/* LINHAS-GUIA DE ALINHAMENTO HORIZONTAL E VERTICAL (TEXTOS E TÍTULOS) */}
-            {!isExporting && (showAlignmentGuides || isLayoutEditMode) && (
-              <div className="absolute inset-0 pointer-events-none z-35 overflow-hidden no-print select-none">
-                {/* Linhas centrais de referência sutis (50% X e 50% Y) */}
-                <div
-                  className="absolute left-0 right-0 border-t border-dashed border-cyan-400/20 pointer-events-none"
-                  style={{ top: '50%' }}
-                />
-                <div
-                  className="absolute top-0 bottom-0 border-l border-dashed border-amber-400/20 pointer-events-none"
-                  style={{ left: '50%' }}
-                />
-
-                {/* Margem Segura do Projetor (Safe Margin 8%) */}
-                <div
-                  className="absolute inset-[8%] border border-dashed border-slate-400/20 rounded-2xl pointer-events-none"
-                />
-
-                {/* LINHA GUIA HORIZONTAL (EIXO Y) */}
-                <div
-                  className="absolute left-0 right-0 z-40 transition-none pointer-events-none"
-                  style={{ top: `${guideHPos}%` }}
-                >
-                  <div className="w-full border-t-2 border-dashed border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.9)]" />
-
-                  {/* Alça arrastável interativa da Linha Horizontal */}
-                  <div
-                    onMouseDown={(e) => handleGuideDragStart(e, 'h')}
-                    onTouchStart={(e) => handleGuideDragStart(e, 'h')}
-                    onDoubleClick={() => setGuideHPos(50)}
-                    className="absolute left-4 -translate-y-1/2 pointer-events-auto bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full shadow-lg border border-cyan-300 flex items-center gap-1.5 cursor-ns-resize backdrop-blur-md active:scale-95 group transition-transform"
-                    title="Arrastar Guia Horizontal (Y) para cima/baixo • Duplo clique para 50%"
-                  >
-                    <span>↔ Guia H: {guideHPos}%</span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setGuideHPos(50); }}
-                      className="opacity-75 hover:opacity-100 hover:text-cyan-200 text-[9px] bg-cyan-800/80 px-1 rounded cursor-pointer"
-                      title="Centralizar em 50%"
-                    >
-                      50%
-                    </button>
-                  </div>
-                </div>
-
-                {/* LINHA GUIA VERTICAL (EIXO X) */}
-                <div
-                  className="absolute top-0 bottom-0 z-40 transition-none pointer-events-none"
-                  style={{ left: `${guideVPos}%` }}
-                >
-                  <div className="h-full border-l-2 border-dashed border-amber-400 shadow-[0_0_8px_rgba(245,158,11,0.9)]" />
-
-                  {/* Alça arrastável interativa da Linha Vertical */}
-                  <div
-                    onMouseDown={(e) => handleGuideDragStart(e, 'v')}
-                    onTouchStart={(e) => handleGuideDragStart(e, 'v')}
-                    onDoubleClick={() => setGuideVPos(50)}
-                    className="absolute top-4 -translate-x-1/2 pointer-events-auto bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] md:text-xs font-black px-2.5 py-1 rounded-full shadow-lg border border-amber-300 flex items-center gap-1.5 cursor-ew-resize backdrop-blur-md active:scale-95 group transition-transform"
-                    title="Arrastar Guia Vertical (X) para esquerda/direita • Duplo clique para 50%"
-                  >
-                    <span>↕ Guia V: {guideVPos}%</span>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setGuideVPos(50); }}
-                      className="opacity-75 hover:opacity-100 hover:text-amber-900 text-[9px] bg-amber-600/60 px-1 rounded cursor-pointer font-bold"
-                      title="Centralizar em 50%"
-                    >
-                      50%
-                    </button>
-                  </div>
-                </div>
-
-                {/* Mini Menu Flutuante de Alinhamento Rápido das Guias */}
-                <div
-                  className="absolute bottom-3 left-4 pointer-events-auto z-45 bg-slate-950/90 border border-cyan-500/50 rounded-2xl px-3 py-1.5 shadow-2xl backdrop-blur-md flex items-center gap-2 text-white text-[11px] font-bold"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <span className="text-cyan-300 font-black flex items-center gap-1">
-                    <Crosshair className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Guias:</span>
-                  </span>
-                  <button
-                    onClick={() => { setGuideHPos(50); setGuideVPos(50); }}
-                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
-                    title="Centralizar ambas as guias no meio exato do slide"
-                  >
-                    Centro (50%)
-                  </button>
-                  <button
-                    onClick={() => setGuideHPos(22)}
-                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
-                    title="Posicionar guia horizontal na altura típica do Título (22%)"
-                  >
-                    Topo (22%)
-                  </button>
-                  <button
-                    onClick={() => setGuideHPos(48)}
-                    className="hover:text-cyan-300 bg-slate-900 hover:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-700 cursor-pointer transition-colors"
-                    title="Posicionar guia horizontal no Corpo de Texto (48%)"
-                  >
-                    Texto (48%)
-                  </button>
-                  <button
-                    onClick={toggleAlignmentGuides}
-                    className="text-slate-400 hover:text-rose-400 px-1.5 py-0.5 cursor-pointer text-xs"
-                    title="Ocultar guias"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 🖼️ Imagem Livre estilo Corel Draw (alças nos 8 cantos, rotação, proporção, camadas) */}
-            {curImageSrc && (
-              <FreeImageBox
-                src={curImageSrc}
-                box={curBox}
-                selected={imageSelected && !isExporting}
-                editable={!isExporting && (isLayoutEditMode || imageSelected)}
-                stageRef={projectorStageRef}
-                onSelect={() => setImageSelected(true)}
-                onCommit={commitBox}
-              />
-            )}
-
-            {/* Bloco Central do Slide */}
-            {(() => {
-              // Substituído pelo FreeImageBox estilo Corel Draw
-              const renderSlideImageElement = () => null;
-
-              // Função auxiliar para renderizar as alças de largura e badge do texto no modo "Mover"
-              const renderBodyResizeHandles = () => {
-                if (!isLayoutEditMode) return null;
-                const curW = slideBodyWidths[projectorIndex] ?? 100;
-                return (
-                  <>
-                    {/* Badge superior informando largura da caixa de texto */}
-                    <div
-                      className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
-                      style={{ backgroundColor: '#06b6d4', color: '#0f172a' }}
-                    >
-                      <span>📄 Texto ({curW}%)</span>
-                      <span className="opacity-75">• arraste ou puxe as laterais</span>
-                    </div>
-
-                    {/* Alça Esquerda para Redimensionar Largura */}
-                    <div
-                      onMouseDown={(e) => handleBodyResizeStart(e, 'left')}
-                      onTouchStart={(e) => handleBodyResizeStart(e, 'left')}
-                      onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
-                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
-                      title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
-                    >
-                      <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
-                    </div>
-
-                    {/* Alça Direita para Redimensionar Largura */}
-                    <div
-                      onMouseDown={(e) => handleBodyResizeStart(e, 'right')}
-                      onTouchStart={(e) => handleBodyResizeStart(e, 'right')}
-                      onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
-                      title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
-                    >
-                      <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
-                    </div>
-                  </>
-                );
-              };
-
-              // 1. CAPA DA LIÇÃO (SLIDE 1)
-              if (currentProjectorItem.type === 'cover') {
-                const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
-                return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
-                    {renderSlideImageElement()}
-
-                    {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
-                    <div
-                      style={makeDragStyle(titlePos, 'title')}
-                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      className="w-full shrink-0 relative pointer-events-auto"
-                    >
-                      {isLayoutEditMode && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                          style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                          👑 Título — arraste
-                        </div>
-                      )}
-                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
-                        <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
-                          {coverBadge}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* ── CAPA: CORPO (ARRASTÁVEL) ── */}
-                    <div
-                      style={makeDragStyle(bodyPos, 'body')}
-                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                      className="flex-1 w-full relative"
-                    >
-                      {renderBodyResizeHandles()}
-                      <div className={`text-layer w-full relative z-30 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto`}>
-                        <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                          {renderHL(currentProjectorItem.title, '#facc15')}
-                        </h1>
-                        {currentProjectorItem.subtitle && (
-                          <>
-                            <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                            <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 w-full max-w-full font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {renderHL(currentProjectorItem.subtitle, '#e2e8f0')}
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>{/* /body drag wrapper */}
-
-                    <div className="w-full shrink-0 h-8" />
-                  </div>
-                );
-              }
-
-              // 2. SLIDE EXTRA PERSONALIZADO
-              if (currentProjectorItem.type === 'extra') {
-                return (
-                  <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
-                    {renderSlideImageElement()}
-
-                    {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
-                    <div
-                      style={makeDragStyle(titlePos, 'title')}
-                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                      className="w-full shrink-0 relative pointer-events-auto"
-                    >
-                      {isLayoutEditMode && (
-                        <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                          style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                          👑 Título — arraste
-                        </div>
-                      )}
-                      <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-14 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
-                        {currentProjectorItem.title && (
-                          <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
-                            {renderHL(currentProjectorItem.title, '#ffffff')}
-                          </span>
-                        )}
-                        {currentProjectorItem.reference && (
-                          <span className="text-base md:text-xl lg:text-2xl font-bold text-yellow-400 tracking-wider block text-center mt-1" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                            {renderHL(currentProjectorItem.reference, '#facc15')}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* ── EXTRA: CORPO (ARRASTÁVEL) ── */}
-                    <div
-                      style={makeDragStyle(bodyPos, 'body')}
-                      onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                      onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                      className="w-full flex-1 flex flex-col min-h-0 relative"
-                    >
-                      {renderBodyResizeHandles()}
-                      <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                        <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar">
-                          {currentProjectorItem.projetorText ? (
-                            <p className={`font-sans text-center w-full max-w-full break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                              {renderHL(currentProjectorItem.projetorText)}
-                            </p>
-                          ) : (
-                            !currentProjectorItem.title && (
-                              <p className="text-2xl md:text-3xl font-extrabold text-slate-500 text-center italic">
-                                Slide em branco — edite o título e texto acima ✏️
-                              </p>
-                            )
-                          )}
-                        </div>
-                      </div>
-                    </div>{/* /body drag wrapper */}
-
-                    <div className="w-full shrink-0 h-8" />
-                  </div>
-                );
-              }
-
-              const PROPER_NOUNS = [
-                'Deus', 'Jesus', 'Cristo', 'Espírito', 'Santo', 'Senhor', 'Pai', 'Filho',
-                'Paulo', 'Pedro', 'João', 'Ananias', 'Félix', 'Tértulo', 'Festos', 'Agripa',
-                'Sinédrio', 'Jerusalém', 'Israel', 'Evangelho', 'Bíblia', 'Trófimo', 'Ásia',
-                'Roma', 'Lei', 'EBD', 'MegaEBD', 'Igreja'
-              ];
-              const toCaixaBaixa = (text: string) => {
-                if (!text) return '';
-                let res = text.trim();
-                res = res.charAt(0).toUpperCase() + res.slice(1).toLowerCase();
-                PROPER_NOUNS.forEach(noun => {
-                  const regex = new RegExp(`\\b${noun}\\b`, 'gi');
-                  res = res.replace(regex, noun);
-                });
-                return res;
-              };
-              const badgeText = currentProjectorItem.badgeText || 'MEGA EBD';
-
-              // Suporta: TÓPICO X - SUBTÓPICO Y: TÍTULO ou SUBTÓPICO Y: TÍTULO ou TÓPICO X: TÍTULO
-              const fullTopicSubMatch = badgeText.match(/^(?:TÓPICO\s*([I|V|X|\d]+)\s*[\:\-\—\–]?\s*)?(?:SUBTÓPICO\s*([\d|A-Z]+)|SUBT\.?\s*([\d|A-Z]+))\s*[:\—\-]?\s*(.+)$/i);
-              const topMatch = badgeText.match(/^(?:TÓPICO\s*([I|V|X|\d]+))\s*[:\—\-]?\s*(.+)$/i);
-
-              let mainTitle = badgeText;
-              let isSubtopic = false;
-              let topicNumStr = '';
-              let subNumStr = '';
-
-              if (fullTopicSubMatch) {
-                topicNumStr = fullTopicSubMatch[1] || '';
-                subNumStr = fullTopicSubMatch[2] || fullTopicSubMatch[3] || '';
-                mainTitle = fullTopicSubMatch[4].trim();
-                isSubtopic = true;
-              } else if (topMatch) {
-                topicNumStr = topMatch[1] || '';
-                mainTitle = topMatch[2].trim();
-                isSubtopic = false;
-              } else if (badgeText.toUpperCase().includes('SUBT') || badgeText.toUpperCase().includes('SUBTÓPICO')) {
-                isSubtopic = true;
-              }
-
-              if (!topicNumStr) {
-                const mTop = badgeText.match(/tÓpico\s*([I|V|X|\d]+)/i);
-                if (mTop) topicNumStr = mTop[1];
-              }
-              if (isSubtopic && !subNumStr) {
-                const mSub = badgeText.match(/subtÓpico\s*([\d|A-Z]+)/i) || badgeText.match(/subt\.?\s*([\d|A-Z]+)/i);
-                if (mSub) subNumStr = mSub[1];
-              }
-
-              const parseRomanToNum = (val: string): string => {
-                if (!val) return '';
-                const s = val.trim().toUpperCase();
-                if (s === 'I') return '1';
-                if (s === 'II') return '2';
-                if (s === 'III') return '3';
-                if (s === 'IV') return '4';
-                if (s === 'V') return '5';
-                if (s === 'VI') return '6';
-                return val;
-              };
-              const formattedTopicNum = parseRomanToNum(topicNumStr);
-
-              // Remove qualquer prefixo legado tipo "Tópico 1", "Subtópico 1", "Subt.", e referências do tipo (vv.1,2) ou numerações duplicadas
-              let cleanTitle = mainTitle
-                .replace(/^(tÓpico\s*[\d|I|V|X]*\s*[\:\–\—\-]?\s*subtópico\s*[\d|A-Z]*|subtópico\s*[\d|A-Z]*|subt\.?\s*[\d|A-Z]*|tópico\s*[\d|I|V|X]*)\s*[\:\.\—\-]?\s*/i, '')
-                .replace(/\s*\(\s*v{1,2}\.?\s*[\d\s\,\–\-\.\;]+\)/gi, '')
-                .replace(/^\d+(\.\d+)?[\.\s\-\:]+\s*/, '')
-                .trim();
-
-              let formattedTitle = isSubtopic ? toCaixaBaixa(cleanTitle) : cleanTitle.toUpperCase();
-
-              if (isSubtopic) {
-                if (formattedTopicNum && subNumStr) {
-                  formattedTitle = `${formattedTopicNum}.${subNumStr}. ${formattedTitle}`;
-                } else if (subNumStr) {
-                  formattedTitle = `${subNumStr}. ${formattedTitle}`;
-                }
-              } else if (formattedTopicNum) {
-                formattedTitle = `${formattedTopicNum}. ${formattedTitle}`;
-              }
-
-              return (
-                <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none" style={{ zoom: currentSlideScale } as React.CSSProperties}>
-                  {renderSlideImageElement()}
-
-                  {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
-                  <div
-                    style={makeDragStyle(titlePos, 'title')}
-                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                    className="w-full shrink-0 relative pointer-events-auto"
-                  >
-                    {isLayoutEditMode && (
-                      <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                        style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                        👑 Título — arraste
-                      </div>
-                    )}
-                    <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-16 md:min-h-20 h-auto py-1 mt-1 md:mt-2 pt-1 pl-[18%] pr-6 my-auto">
-                      <span className={`text-base md:text-2xl lg:text-3xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
-                        {renderHL(formattedTitle, '#ffffff')}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── CONTEÚDO / CORPO (ARRASTÁVEL) ── */}
-                  <div
-                    style={makeDragStyle(bodyPos, 'body')}
-                    onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                    onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                    className="w-full flex-1 flex flex-col min-h-0 relative"
-                  >
-                    {renderBodyResizeHandles()}
-                    <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0">
-                      <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-start items-center min-h-0">
-                          {currentProjectorItem.type === 'leitura' ? (() => {
-                            const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
-                            const displayRef = currentProjectorItem.reference || parsed.reference;
-                            const showSectionHeaders = parsed.sections.length > 1 || (displayRef && displayRef.includes(';'));
-
-                            return (
-                              <div
-                                onMouseDown={(e) => e.stopPropagation()}
-                                onTouchStart={(e) => e.stopPropagation()}
-                                className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text touch-pan-y"
-                              >
-                                {displayRef && (
-                                  <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                    {renderHL(displayRef, '#0052cc')}
-                                  </h3>
-                                )}
-
-                                <div className="w-full space-y-4 text-left font-sans pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  {parsed.sections.map((section, sIdx) => (
-                                    <div key={sIdx} className="w-full space-y-3">
-                                      {/* Risco Laranja de Separação entre Livros */}
-                                      {sIdx > 0 && (
-                                        <div className="w-full flex items-center justify-center my-6">
-                                          <div className="w-full border-b-2 border-amber-500/90 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
-                                        </div>
-                                      )}
-
-                                      {/* Título do Livro / Passagem (ex: "Mateus 28.18-20", "Atos 1.8", "Efésios 2.13-18") */}
-                                      {showSectionHeaders && section.bookHeader && (
-                                        <div className="w-full text-center mt-4 mb-3">
-                                          <h4 className="text-xl md:text-3xl font-black text-amber-400 tracking-wide font-sans inline-block px-5 py-1.5 bg-amber-500/10 rounded-xl border border-amber-500/40 shadow-sm">
-                                            {renderHL(section.bookHeader, '#fbbf24')}
-                                          </h4>
-                                        </div>
-                                      )}
-
-                                      {/* Versículos do Livro */}
-                                      <div className="w-full space-y-3">
-                                        {section.verses.map((v, vIdx) => {
-                                          if (v.number) {
-                                            return (
-                                              <div key={vIdx} className="flex items-start gap-3.5 text-left w-full py-2.5 border-b border-slate-200/20 last:border-0">
-                                                <span className="shrink-0 font-black text-white text-3xl md:text-5xl lg:text-6xl leading-none mt-1 drop-shadow-sm">
-                                                  {v.number}
-                                                </span>
-                                                <span className="shrink-0 font-extrabold text-amber-400 text-xl md:text-3xl mt-1">—</span>
-                                                <p className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words flex-1 italic md:not-italic">
-                                                  {renderHL(v.text)}
-                                                </p>
-                                              </div>
-                                            );
-                                          }
-                                          return (
-                                            <p key={vIdx} className="font-extrabold text-white text-lg md:text-2xl lg:text-3xl leading-snug md:leading-normal break-words text-left py-1">
-                                              {renderHL(v.text)}
-                                            </p>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })() : currentProjectorItem.type === 'conclusao' ? (
-                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                "{renderHL(currentProjectorItem.projetorText)}"
-                              </p>
-                            </div>
-                          ) : currentProjectorItem.type === 'verdades' ? (
-                            <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                              {currentProjectorItem.bulletPoints?.map((point, idx) => (
-                                <div key={idx} className="w-full">
-                                  <div className="flex items-start gap-3 py-2.5">
-                                    <span className="mt-1 shrink-0 w-7 h-7 rounded-full bg-[#091b2c] flex items-center justify-center text-white text-xs font-black font-sans">{idx + 1}</span>
-                                    <p className={`text-base md:text-xl lg:text-2xl font-bold leading-snug font-sans text-left break-words ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                      {renderHL(point)}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            /* DEMAIS CARDS */
-                            <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-2.5 py-2 my-auto mt-1 md:mt-2">
-                              {currentProjectorItem.type === 'palavra_chave' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <h2 className={`text-4xl md:text-6xl lg:text-7xl font-black tracking-wider font-sans text-center mb-3 drop-shadow-sm ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
-                                    {renderHL(currentProjectorItem.ideiaText || '')}
-                                  </h2>
-                                  <div className="w-48 h-1.5 bg-amber-400 rounded-full mb-6 mx-auto shadow-sm" />
-                                  <p className={`font-sans text-center w-full max-w-4xl px-2 break-words leading-relaxed font-bold md:font-extrabold ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                    {renderHL(currentProjectorItem.projetorText)}
-                                  </p>
-                                </div>
-                              ) : currentProjectorItem.type === 'topic_synopsis' ? (
-                                <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 m-auto ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                                  "{renderHL(currentProjectorItem.projetorText)}"
-                                </p>
-                              ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                    {renderHL(currentProjectorItem.projetorText)}
-                                  </p>
-                                </div>
-                              ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                    {renderHL(currentProjectorItem.projetorText)}
-                                  </p>
-                                </div>
-                              ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                                  <p className={`tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                                    {renderHL(
-                                      (currentProjectorItem.projetorText || '')
-                                        .split('\n')
-                                        .filter(line => !line.trim().startsWith('💡'))
-                                        .join('\n')
-                                    )}
-                                  </p>
-                                </div>
-                              ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                                    {renderHL(currentProjectorItem.projetorText)}
-                                  </p>
-                                </div>
-                              ) : currentProjectorItem.type === 'subtopic' ? (
-                                <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                                  <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                                    {renderHL(currentProjectorItem.projetorText)}
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="w-full max-h-[460px] overflow-y-auto custom-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
-                                  {currentProjectorItem.ideiaText && (
-                                    <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                      {currentProjectorItem.ideiaText}
-                                    </h2>
-                                  )}
-                                  {currentProjectorItem.reference && (
-                                    <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0`} style={{ zoom: currentTitleScale } as React.CSSProperties}>
-                                      {currentProjectorItem.reference}
-                                    </h3>
-                                  )}
-                                  {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (
-                                    <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
-                                  )}
-                                  {currentProjectorItem.projetorText && (
-                                    <p className={`font-sans text-center w-full max-w-full px-2 break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText, currentProjectorItem.type === 'enfase_palavra')}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                                      {renderHL(currentProjectorItem.projetorText)}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>{/* /body drag wrapper */}
-
-                  {/* Spacer inferior para equilibrar o título do topo */}
-                  <div className="w-full shrink-0 h-8" />
-                </div>
-              );
-            })()}
-
-            {/* Rodapé do Projetor com Slide Number */}
-            <div className="relative z-10 flex justify-between items-center text-xs font-bold text-slate-500 border-t border-slate-200 pt-3">
-              <span>MegaEBD • {lesson.metadata.title}</span>
-              <span>{projectorIndex + 1} / {projectorItems.length}</span>
-            </div>
-          </div>
+          <ProjectorToolbar
+            projectorIndex={projectorIndex}
+            setProjectorIndex={setProjectorIndex}
+            projectorItems={projectorItems}
+            currentProjectorItem={currentProjectorItem}
+            currentTitleScale={currentTitleScale}
+            defaultTitleScale={defaultTitleScale}
+            isCurrentTitleCustom={isCurrentTitleCustom}
+            setSingleTitleScale={setSingleTitleScale}
+            currentBodyScale={currentBodyScale}
+            defaultBodyScale={defaultBodyScale}
+            isCurrentBodyCustom={isCurrentBodyCustom}
+            setSingleBodyScale={setSingleBodyScale}
+            slideBodyWidths={slideBodyWidths}
+            setSingleBodyWidth={setSingleBodyWidth}
+            resetSlideBodyWidth={resetSlideBodyWidth}
+            toggleSideBySideLayout={toggleSideBySideLayout}
+            showAlignmentGuides={showAlignmentGuides}
+            toggleAlignmentGuides={toggleAlignmentGuides}
+            curImageSrc={curImageSrc}
+            curBox={curBox}
+            imageSelected={imageSelected}
+            setImageSelected={setImageSelected}
+            projectorStageRef={projectorStageRef}
+            commitBox={commitBox}
+            handleRemoveSlideImage={handleRemoveSlideImage}
+            isTitleMoved={isTitleMoved}
+            isBodyMoved={isBodyMoved}
+            isImageMoved={isImageMoved}
+            isImageWidthCustom={isImageWidthCustom}
+            isImageHeightCustom={isImageHeightCustom}
+            isImageCropCustom={isImageCropCustom}
+            hasSlideHighlights={hasSlideHighlights}
+            clearCurrentSlideHighlights={clearCurrentSlideHighlights}
+            resetSlidePosition={resetSlidePosition}
+            resetSlideImageWidth={resetSlideImageWidth}
+            resetSlideImageHeight={resetSlideImageHeight}
+            resetSlideImageCrop={resetSlideImageCrop}
+            isEditMode={isEditMode}
+            isExporting={isExporting}
+            isIpsisLitterisVerified={isIpsisLitterisVerified}
+            bodyTextColor={bodyTextColor}
+            toggleBodyTextColor={toggleBodyTextColor}
+            slideImageOpacity={slideImageOpacity}
+            changeSlideImageOpacity={changeSlideImageOpacity}
+            applyCurrentScalesToAllSlides={applyCurrentScalesToAllSlides}
+          />
+
+          <ProjectorStage
+            projectorStageRef={projectorStageRef}
+            isLayoutEditMode={isLayoutEditMode}
+            customBg={customBg}
+            imageSelected={imageSelected}
+            setImageSelected={setImageSelected}
+            handleSlideMouseUp={handleSlideMouseUp}
+            hlToolbar={hlToolbar}
+            setHlToolbar={setHlToolbar}
+            applyHighlight={applyHighlight}
+            removeHighlight={removeHighlight}
+            hasSlideHighlights={hasSlideHighlights}
+            clearCurrentSlideHighlights={clearCurrentSlideHighlights}
+            isExporting={isExporting}
+            projectorIndex={projectorIndex}
+            setProjectorIndex={setProjectorIndex}
+            projectorItems={projectorItems}
+            currentProjectorItem={currentProjectorItem}
+            isCanvaCropping={isCanvaCropping}
+            setIsCanvaCropping={setIsCanvaCropping}
+            occupyFullArea={occupyFullArea}
+            occupyEntireStage={occupyEntireStage}
+            slideImageCrops={slideImageCrops}
+            setSingleImageCrop={setSingleImageCrop}
+            toggleImageFit={toggleImageFit}
+            imageFit={imageFit}
+            resetSlideImageCrop={resetSlideImageCrop}
+            showAlignmentGuides={showAlignmentGuides}
+            guideHPos={guideHPos}
+            setGuideHPos={setGuideHPos}
+            guideVPos={guideVPos}
+            setGuideVPos={setGuideVPos}
+            handleGuideDragStart={handleGuideDragStart}
+            toggleAlignmentGuides={toggleAlignmentGuides}
+            curImageSrc={curImageSrc}
+            curBox={curBox}
+            commitBox={commitBox}
+            slideBodyWidths={slideBodyWidths}
+            handleBodyResizeStart={handleBodyResizeStart}
+            resetSlideBodyWidth={resetSlideBodyWidth}
+            currentSlideScale={currentSlideScale}
+            currentTitleScale={currentTitleScale}
+            currentBodyScale={currentBodyScale}
+            titlePos={titlePos}
+            bodyPos={bodyPos}
+            makeDragStyle={makeDragStyle}
+            handleElementDragStart={handleElementDragStart}
+            renderHL={renderHL}
+            bodyTextColor={bodyTextColor}
+            lesson={lesson}
+            getResponsiveBodyTextClass={getResponsiveBodyTextClass}
+          />
         </div>
       )}
 
