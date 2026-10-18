@@ -177,13 +177,24 @@ function applyHighlightsToText(
         </mark>
       );
     } else {
-      // Se o highlight for Preto (#000000), o texto interno fica branco. Se for Branco (#ffffff), o texto interno fica preto.
-      let markTextColor = forcedTextColor;
-      if (iv.color.toLowerCase() === '#000000') {
-        markTextColor = '#ffffff';
-      } else if (iv.color.toLowerCase() === '#ffffff') {
-        markTextColor = '#000000';
-      }
+      // Contraste automático da letra no fundo marcado
+      const isDark = (() => {
+        const hex = iv.color.replace('#', '');
+        if (hex.length === 3) {
+          const r = parseInt(hex[0] + hex[0], 16) || 0;
+          const g = parseInt(hex[1] + hex[1], 16) || 0;
+          const b = parseInt(hex[2] + hex[2], 16) || 0;
+          return (0.299 * r + 0.587 * g + 0.114 * b) < 145;
+        }
+        if (hex.length === 6) {
+          const r = parseInt(hex.slice(0, 2), 16) || 0;
+          const g = parseInt(hex.slice(2, 4), 16) || 0;
+          const b = parseInt(hex.slice(4, 6), 16) || 0;
+          return (0.299 * r + 0.587 * g + 0.114 * b) < 145;
+        }
+        return false;
+      })();
+      const markTextColor = isDark ? '#ffffff' : '#000000';
 
       nodes.push(
         <mark
@@ -191,8 +202,8 @@ function applyHighlightsToText(
           style={{
             background: iv.color,
             color: markTextColor,
-            borderRadius: '4px',
-            padding: '2px 5px',
+            borderRadius: '6px',
+            padding: '2px 6px',
             fontWeight: 'inherit',
             display: 'inline',
           }}
@@ -1652,12 +1663,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         margin: '0 auto',
         position: 'relative',
         zIndex: isLayoutEditMode ? 45 : 30,
+        pointerEvents: 'auto',
+        userSelect: isLayoutEditMode ? 'none' : 'text',
         ...(isLayoutEditMode ? {
           cursor: 'grab',
           outline: `2px dashed ${outlineColor}`,
           outlineOffset: '4px',
           borderRadius: '12px',
-          userSelect: 'none',
           touchAction: 'none',
         } : {}),
       };
@@ -1667,12 +1679,13 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       transform: `translate(${offsetX}px, ${offsetY}px)`,
       position: 'relative',
       zIndex: isLayoutEditMode ? 50 : 30,
+      pointerEvents: 'auto',
+      userSelect: isLayoutEditMode ? 'none' : 'text',
       ...(isLayoutEditMode ? {
         cursor: 'grab',
         outline: `2px dashed ${outlineColor}`,
         outlineOffset: '2px',
         borderRadius: '10px',
-        userSelect: 'none',
         touchAction: 'none',
       } : {}),
     };

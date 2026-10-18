@@ -1,90 +1,31 @@
 import React, { useState } from 'react';
 import { Copy, X, Eraser, Check } from 'lucide-react';
 
-export type HighlightStyle = 'fill' | 'outline' | 'text' | 'underline' | 'dotted';
-
-export interface MarkerColor {
-  id: string;
+export interface HighlightColor {
   name: string;
   hex: string;
+  textDark?: boolean;
 }
 
-export const MARKER_COLORS: MarkerColor[] = [
-  { id: 'pink', name: 'Rosa Choque', hex: '#ff2a6d' },
-  { id: 'purple', name: 'Roxo / Índigo', hex: '#6366f1' },
-  { id: 'blue', name: 'Azul Celeste', hex: '#00a2ff' },
-  { id: 'cyan', name: 'Ciano Neon', hex: '#00e5ff' },
-  { id: 'teal', name: 'Verde-Água / Teal', hex: '#00b894' },
-  { id: 'green', name: 'Verde Claro', hex: '#2ecc71' },
-  { id: 'yellow', name: 'Amarelo Sol', hex: '#ffe600' },
-  { id: 'amber', name: 'Dourado / Âmbar', hex: '#f59e0b' },
-  { id: 'orange', name: 'Laranja Vibrante', hex: '#ff6b00' },
+export const HIGHLIGHT_COLORS: HighlightColor[] = [
+  { name: 'Preto', hex: '#000000', textDark: false },
+  { name: 'Branco', hex: '#ffffff', textDark: true },
+  { name: 'Amarelo', hex: '#ffe600', textDark: true },
+  { name: 'Dourado', hex: '#f59e0b', textDark: true },
+  { name: 'Laranja', hex: '#ff6b00', textDark: true },
+  { name: 'Vermelho', hex: '#ef4444', textDark: false },
+  { name: 'Rosa Choque', hex: '#ff2a6d', textDark: false },
+  { name: 'Verde', hex: '#22c55e', textDark: true },
+  { name: 'Ciano', hex: '#00e5ff', textDark: true },
+  { name: 'Azul Celeste', hex: '#00a2ff', textDark: false },
+  { name: 'Roxo', hex: '#a855f7', textDark: false },
 ];
-
-export const HIGHLIGHT_COLORS = MARKER_COLORS.map(c => ({
-  name: c.name,
-  hex: c.hex,
-  textDark: c.hex === '#ffe600' || c.hex === '#00e5ff' || c.hex === '#2ecc71'
-}));
-
-/**
- * Ícone SVG de Caneta Marca-texto com ponta chanfrada estilizada
- * fiel ao design moderno de aplicativos de leitura bíblica.
- */
-export const MarkerPenIcon: React.FC<{
-  color: string;
-  size?: number;
-  className?: string;
-  active?: boolean;
-}> = ({ color, size = 22, className = '', active = false }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className={`transition-transform duration-150 shrink-0 ${className} ${active ? 'scale-115 drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]' : 'hover:scale-120'}`}
-  >
-    {/* Tampa / Topo da caneta */}
-    <path
-      d="M17.5 2.5C18.3 1.7 19.7 1.7 20.5 2.5L21.5 3.5C22.3 4.3 22.3 5.7 21.5 6.5L16.2 11.8L12.2 7.8L17.5 2.5Z"
-      stroke={color}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-      fill={color}
-      fillOpacity={active ? 0.35 : 0.15}
-    />
-    {/* Corpo do Marcador chanfrado */}
-    <path
-      d="M12.2 7.8L6.8 13.2C6.4 13.6 6.2 14.2 6.2 14.8V16.8L9.2 16.8C9.8 16.8 10.4 16.6 10.8 16.2L16.2 11.8L12.2 7.8Z"
-      stroke={color}
-      strokeWidth="1.8"
-      strokeLinejoin="round"
-      fill={color}
-      fillOpacity={0.3}
-    />
-    {/* Ponta Chanfrada de Marca-texto */}
-    <path
-      d="M6.2 16.8L3.2 19.8C2.8 20.2 2.8 20.8 3.2 21.2L3.8 21.8C4.2 22.2 4.8 22.2 5.2 21.8L8.2 18.8L6.2 16.8Z"
-      fill={color}
-      stroke={color}
-      strokeWidth="1.2"
-    />
-    {/* Traço de tinta chanfrado desenhado */}
-    <path
-      d="M1.5 22.5C2.2 22.5 3.2 22.2 4 21.5"
-      stroke={color}
-      strokeWidth="2.5"
-      strokeLinecap="round"
-    />
-  </svg>
-);
 
 export interface TextHighlightToolbarProps {
   x: number;
   y: number;
   selectedText?: string;
-  onApply: (color: string, style: HighlightStyle) => void;
+  onApply: (color: string, style: 'fill' | 'outline' | 'text') => void;
   onRemove: () => void;
   onClose: () => void;
   onClearSlide?: () => void;
@@ -99,30 +40,8 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
   onClose,
   onClearSlide,
 }) => {
-  // Cor ativa do marcador (persistida no localStorage)
-  const [activeColor, setActiveColor] = useState<string>(() => {
-    try {
-      return localStorage.getItem('mega_ebd_active_highlight_color') || '#ffe600';
-    } catch {
-      return '#ffe600';
-    }
-  });
-
-  // Estilo ativo (padrão 'fill' para marca-texto)
-  const [activeStyle, setActiveStyle] = useState<HighlightStyle>('fill');
   const [copied, setCopied] = useState(false);
 
-  // Salva a cor favorita no localStorage
-  const handleSelectColor = (colorHex: string) => {
-    setActiveColor(colorHex);
-    try {
-      localStorage.setItem('mega_ebd_active_highlight_color', colorHex);
-    } catch {}
-    // Ao clicar na caneta colorida do topo, aplica imediatamente com o estilo ativo!
-    onApply(colorHex, activeStyle);
-  };
-
-  // Copia o texto selecionado para a área de transferência
   const handleCopy = async () => {
     if (selectedText) {
       try {
@@ -130,7 +49,6 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       } catch {
-        // Fallback para seleção padrão do navegador
         document.execCommand('copy');
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -138,10 +56,10 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
     }
   };
 
-  // Cálculo de posicionamento seguro na viewport
-  const clampedX = Math.max(180, Math.min(window.innerWidth - 180, x));
-  const isNearTop = y < 140;
-  const topPos = isNearTop ? y + 16 : Math.max(20, y - 110);
+  // Posicionamento inteligente na viewport
+  const clampedX = Math.max(220, Math.min(window.innerWidth - 220, x));
+  const isNearTop = y < 150;
+  const topPos = isNearTop ? y + 20 : Math.max(20, y - 115);
 
   return (
     <div
@@ -152,151 +70,115 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
         transform: 'translateX(-50%)',
         zIndex: 99999,
       }}
-      className="flex flex-col items-center gap-2 select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
+      className="flex flex-col gap-2.5 bg-[#090e17]/97 backdrop-blur-xl border border-slate-700/80 rounded-2xl px-4 py-3 shadow-2xl shadow-black/90 min-w-max select-none animate-in fade-in zoom-in-95 duration-150 pointer-events-auto"
       onMouseDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      {/* ── CAMADA 1: PALETA HORIZONTAL DE CANETAS MARCA-TEXTO ── */}
-      <div className="flex items-center gap-2.5 md:gap-3.5 bg-[#090e17]/95 backdrop-blur-xl border border-slate-700/80 rounded-full px-4 py-2 shadow-2xl shadow-black/90">
-        {MARKER_COLORS.map((marker) => {
-          const isSelected = activeColor === marker.hex;
-          return (
-            <button
-              key={marker.id}
-              onClick={() => handleSelectColor(marker.hex)}
-              title={`${marker.name} • Clique para marcar`}
-              className={`relative flex items-center justify-center p-1 rounded-full transition-all cursor-pointer ${
-                isSelected ? 'scale-125' : 'hover:scale-115 opacity-90 hover:opacity-100'
-              }`}
-            >
-              <MarkerPenIcon color={marker.hex} active={isSelected} size={22} />
-              {isSelected && (
-                <span
-                  className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full shadow-[0_0_6px_currentColor]"
-                  style={{ backgroundColor: marker.hex, color: marker.hex }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+      {/* Seta indicadora apontando para a seleção */}
+      <div
+        style={{
+          position: 'absolute',
+          [isNearTop ? 'top' : 'bottom']: -6,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 14,
+          height: 6,
+          background: 'rgb(9 14 23 / 0.97)',
+          clipPath: isNearTop ? 'polygon(50% 0, 100% 100%, 0 100%)' : 'polygon(0 0, 100% 0, 50% 100%)',
+        }}
+      />
 
-      {/* ── CAMADA 2: MINI-MENU PÍLULA DE AÇÕES E ESTILOS (EXATO AO PRINT) ── */}
-      <div className="flex items-center gap-2 bg-[#090e17]/95 backdrop-blur-xl border border-slate-700/80 rounded-full px-3 py-1.5 shadow-2xl shadow-black/90 relative">
-        {/* 1. Botão Marca-texto (Fundo preenchido) */}
-        <div className="relative group">
-          <button
-            onClick={() => {
-              setActiveStyle('fill');
-              onApply(activeColor, 'fill');
-            }}
-            className={`flex items-center justify-center p-1.5 rounded-full transition-all cursor-pointer ${
-              activeStyle === 'fill' ? 'bg-slate-800 ring-1 ring-slate-600' : 'hover:bg-slate-800/80'
-            }`}
-            title="Marcar texto (fundo colorido)"
-          >
-            <MarkerPenIcon color={activeColor} active={true} size={21} />
-          </button>
-          {/* Badge 'Marcar' estilo pill fiel ao print */}
-          <div className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 bg-slate-200 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg border border-slate-300 pointer-events-none whitespace-nowrap animate-in fade-in duration-100">
-            Marcar
-          </div>
+      {/* ── LINHA 1: COR DA LETRA (20% MAIOR) ── */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-black text-amber-400 uppercase tracking-widest w-18 shrink-0 flex items-center gap-1">
+          <span>🔤</span>
+          <span>Letra</span>
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          {HIGHLIGHT_COLORS.map((c) => (
+            <button
+              key={`text-${c.hex}`}
+              type="button"
+              title={`Mudar cor da letra para ${c.name}`}
+              onClick={() => onApply(c.hex, 'text')}
+              className="w-7 h-7 rounded-lg transition-transform hover:scale-120 active:scale-95 flex items-center justify-center font-black text-xs shrink-0 border border-slate-700/80 hover:border-white shadow-sm cursor-pointer"
+              style={{ background: '#0f172a', color: c.hex }}
+            >
+              A
+            </button>
+          ))}
         </div>
 
-        {/* 2. Botão Sublinhado (U) */}
-        <button
-          onClick={() => {
-            setActiveStyle('underline');
-            onApply(activeColor, 'underline');
-          }}
-          className={`flex flex-col items-center justify-center w-8 h-8 rounded-full transition-all cursor-pointer ${
-            activeStyle === 'underline' ? 'bg-slate-800 ring-1 ring-slate-600' : 'hover:bg-slate-800/80'
-          }`}
-          title="Sublinhar com linha contínua"
-        >
-          <span className="text-sm font-black text-white leading-none">U</span>
-          <span
-            className="w-3.5 h-[2.5px] rounded-full mt-0.5"
-            style={{ backgroundColor: activeColor }}
-          />
-        </button>
+        <div className="w-px h-6 bg-slate-700/80 mx-1 shrink-0" />
 
-        {/* 3. Botão Cor da Letra (T) */}
-        <button
-          onClick={() => {
-            setActiveStyle('text');
-            onApply(activeColor, 'text');
-          }}
-          className={`flex items-center justify-center w-8 h-8 rounded-full transition-all cursor-pointer ${
-            activeStyle === 'text' ? 'bg-slate-800 ring-1 ring-slate-600' : 'hover:bg-slate-800/80'
-          }`}
-          title="Mudar apenas a cor das letras"
-        >
-          <span
-            className="text-base font-black leading-none drop-shadow-sm"
-            style={{ color: activeColor }}
-          >
-            T
-          </span>
-        </button>
-
-        {/* 4. Botão Copiar */}
-        <button
-          onClick={handleCopy}
-          className="flex items-center justify-center w-8 h-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800/80 transition-all cursor-pointer"
-          title="Copiar trecho selecionado"
-        >
-          {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-        </button>
-
-        {/* 5. Botão Contorno / Sublinhado Tracejado (Pontilhado) */}
-        <button
-          onClick={() => {
-            setActiveStyle('dotted');
-            onApply(activeColor, 'dotted');
-          }}
-          className={`flex items-center justify-center w-8 h-8 rounded-full transition-all cursor-pointer ${
-            activeStyle === 'dotted' ? 'bg-slate-800 ring-1 ring-slate-600' : 'hover:bg-slate-800/80'
-          }`}
-          title="Sublinhado pontilhado / tracejado"
-        >
-          <div
-            className="w-4 h-4 rounded-sm border-2 border-dashed transition-colors"
-            style={{ borderColor: activeColor }}
-          />
-        </button>
-
-        {/* Divisor sutil */}
-        <div className="w-px h-4 bg-slate-700/80 mx-0.5" />
-
-        {/* 6. Botão Borracha (Remover Destaque do Trecho) */}
-        <button
-          onClick={onRemove}
-          className="flex items-center justify-center w-8 h-8 rounded-full text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-all cursor-pointer"
-          title="Remover marcação deste trecho"
-        >
-          <Eraser className="w-4 h-4" />
-        </button>
-
-        {/* 7. Limpar Todo o Slide (Opcional) */}
-        {onClearSlide && (
+        {/* Botão Copiar */}
+        {selectedText && (
           <button
-            onClick={onClearSlide}
-            className="px-2 py-0.5 rounded-full text-[10px] font-bold text-rose-300 hover:text-white bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 cursor-pointer transition-colors"
-            title="Limpar todas as cores deste slide"
+            type="button"
+            title="Copiar texto selecionado"
+            onClick={handleCopy}
+            className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-all text-slate-300 hover:text-white shrink-0 cursor-pointer border border-slate-700"
           >
-            Limpar
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
           </button>
         )}
 
-        {/* 8. Botão Fechar */}
+        {/* Botão Borracha (Remover estilo do trecho) */}
         <button
-          onClick={onClose}
-          className="flex items-center justify-center w-6 h-6 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-          title="Fechar"
+          type="button"
+          title="Remover cor e destaque deste trecho"
+          onClick={onRemove}
+          className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-rose-900/80 text-slate-300 hover:text-rose-200 flex items-center justify-center transition-all shrink-0 cursor-pointer border border-slate-700 hover:border-rose-500/60"
         >
-          <X className="w-3.5 h-3.5" />
+          <Eraser className="w-3.5 h-3.5" />
         </button>
+
+        {/* Botão Limpar Slide */}
+        {onClearSlide && (
+          <button
+            type="button"
+            title="Limpar todas as cores exclusivamente deste slide"
+            onClick={onClearSlide}
+            className="px-2.5 h-7 rounded-lg bg-rose-950/80 hover:bg-rose-900 text-rose-300 hover:text-white flex items-center gap-1 text-[11px] font-black transition-all shrink-0 border border-rose-500/60 cursor-pointer"
+          >
+            <span>Limpar</span>
+          </button>
+        )}
+
+        {/* Fechar */}
+        <button
+          type="button"
+          title="Fechar barra"
+          onClick={onClose}
+          className="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 flex items-center justify-center transition-all text-slate-400 hover:text-white shrink-0 cursor-pointer ml-1"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+
+      {/* Divisor */}
+      <div className="w-full border-t border-slate-800" />
+
+      {/* ── LINHA 2: COR DO FUNDO / MARCADOR (20% MAIOR) ── */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest w-18 shrink-0 flex items-center gap-1">
+          <span>🖍</span>
+          <span>Fundo</span>
+        </span>
+
+        <div className="flex items-center gap-1.5">
+          {HIGHLIGHT_COLORS.map((c) => (
+            <button
+              key={`fill-${c.hex}`}
+              type="button"
+              title={`Marcar fundo com ${c.name}`}
+              onClick={() => onApply(c.hex, 'fill')}
+              className="w-7 h-7 rounded-lg transition-transform hover:scale-120 active:scale-95 ring-2 ring-transparent hover:ring-white/80 shrink-0 border border-slate-700/80 shadow-md cursor-pointer"
+              style={{ background: c.hex }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
