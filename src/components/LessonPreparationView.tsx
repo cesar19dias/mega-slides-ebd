@@ -19,7 +19,7 @@ import { getTheologicalKeywordExplanation } from '../constants/theologicalDictio
 interface TextHighlightEntry {
   text: string;
   color: string;
-  style?: 'fill' | 'outline' | 'text'; // default 'fill' for backward compat
+  style?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted'; // default 'fill' for backward compat
 }
 type SlideHighlights = Record<number, TextHighlightEntry[]>;
 const HL_STORAGE_KEY = 'mega_ebd_text_highlights_v2';
@@ -71,7 +71,7 @@ function applyHighlightsToText(
   if (!entries || !entries.length) return <span style={{ color: forcedTextColor }}>{text}</span>;
 
   // Build sorted, non-overlapping intervals
-  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' | 'text' }> = [];
+  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' | 'text' | 'underline' | 'dotted' }> = [];
   const lowerText = text.toLowerCase();
   for (const h of entries) {
     if (!h.text) continue;
@@ -123,42 +123,82 @@ function applyHighlightsToText(
           {text.slice(iv.s, iv.e)}
         </span>
       );
+    } else if (iv.style === 'underline') {
+      nodes.push(
+        <span
+          key={`m${i}`}
+          style={{
+            color: forcedTextColor,
+            textDecoration: 'underline',
+            textDecorationColor: iv.color,
+            textDecorationThickness: '3.5px',
+            textUnderlineOffset: '4px',
+            fontWeight: 'inherit',
+            display: 'inline',
+          }}
+        >
+          {text.slice(iv.s, iv.e)}
+        </span>
+      );
+    } else if (iv.style === 'dotted') {
+      nodes.push(
+        <span
+          key={`m${i}`}
+          style={{
+            color: forcedTextColor,
+            textDecoration: 'underline',
+            textDecorationStyle: 'dashed',
+            textDecorationColor: iv.color,
+            textDecorationThickness: '2.5px',
+            textUnderlineOffset: '5px',
+            fontWeight: 'inherit',
+            display: 'inline',
+          }}
+        >
+          {text.slice(iv.s, iv.e)}
+        </span>
+      );
+    } else if (iv.style === 'outline') {
+      nodes.push(
+        <mark
+          key={`m${i}`}
+          style={{
+            background: 'transparent',
+            color: forcedTextColor,
+            borderRadius: '4px',
+            padding: '1px 4px',
+            fontWeight: 'inherit',
+            display: 'inline',
+            outline: `3px solid ${iv.color}`,
+            outlineOffset: '1px',
+          }}
+        >
+          {text.slice(iv.s, iv.e)}
+        </mark>
+      );
     } else {
-      const isFill = iv.style !== 'outline';
-      
       // Se o highlight for Preto (#000000), o texto interno fica branco. Se for Branco (#ffffff), o texto interno fica preto.
       let markTextColor = forcedTextColor;
-      if (isFill) {
-        if (iv.color.toLowerCase() === '#000000') {
-          markTextColor = '#ffffff';
-        } else if (iv.color.toLowerCase() === '#ffffff') {
-          markTextColor = '#000000';
-        }
+      if (iv.color.toLowerCase() === '#000000') {
+        markTextColor = '#ffffff';
+      } else if (iv.color.toLowerCase() === '#ffffff') {
+        markTextColor = '#000000';
       }
 
       nodes.push(
         <mark
           key={`m${i}`}
-          style={isFill ? {
+          style={{
             background: iv.color,
             color: markTextColor,
-            borderRadius: '3px',
+            borderRadius: '4px',
             padding: '2px 5px',
             fontWeight: 'inherit',
             display: 'inline',
-          } : {
-            background: 'transparent',
-            color: forcedTextColor,
-            borderRadius: '3px',
-            padding: '2px 5px',
-            fontWeight: 'inherit',
-            display: 'inline',
-            outline: `4px solid ${iv.color}`,
-            outlineOffset: '1px',
           }}
         >
           {text.slice(iv.s, iv.e)}
-        </mark>,
+        </mark>
       );
     }
     cursor = iv.e;
@@ -1781,7 +1821,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return applyHighlightsToText(text, entries, forcedColor ?? (bodyTextColor === 'black' ? '#000000' : '#ffffff'));
   }, [slideHighlights, projectorIndex, bodyTextColor]);
 
-  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' | 'text' = 'fill') => {
+  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' | 'text' | 'underline' | 'dotted' = 'fill') => {
     if (!hlToolbar) return;
     const current = slideHighlights[projectorIndex] || [];
     const filtered = current.filter((h) => h.text !== hlToolbar.text);
@@ -1832,7 +1872,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const stageEl = projectorStageRef.current;
     if (!stageEl || !stageEl.contains(range.commonAncestorContainer)) { setHlToolbar(null); return; }
     const rect = range.getBoundingClientRect();
-    setHlToolbar({ text, x: rect.left + rect.width / 2, y: rect.bottom });
+    setHlToolbar({ text, x: rect.left + rect.width / 2, y: rect.top });
   }, []);
 
 

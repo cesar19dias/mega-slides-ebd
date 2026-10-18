@@ -25,7 +25,7 @@ export interface ProjectorStageProps {
 
   hlToolbar: { x: number; y: number; text: string } | null;
   setHlToolbar: (val: { x: number; y: number; text: string } | null) => void;
-  applyHighlight: (color: string, hlStyle?: 'fill' | 'outline' | 'text') => void;
+  applyHighlight: (color: string, hlStyle?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted') => void;
   removeHighlight: () => void;
   hasSlideHighlights: boolean;
   clearCurrentSlideHighlights: () => void;
@@ -226,6 +226,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         <TextHighlightToolbar
           x={hlToolbar.x}
           y={hlToolbar.y}
+          selectedText={hlToolbar.text}
           onApply={applyHighlight}
           onRemove={removeHighlight}
           onClose={() => { setHlToolbar(null); window.getSelection()?.removeAllRanges(); }}
