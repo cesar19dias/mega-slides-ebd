@@ -20,6 +20,7 @@ import {
   Download,
   ImageDown,
   RefreshCw,
+  Square,
 } from 'lucide-react';
 import type { ImageBox, EBDLessonPreparation, ProjectorItem } from '../types';
 import { ImageBoxToolbar } from './FreeImageBox';
@@ -29,6 +30,7 @@ export interface ProjectorHeaderActionsProps {
   projectorIndex: number;
   currentProjectorItem?: ProjectorItem;
   handleSlideImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleInsertSampleImage?: () => void;
   isImageMenuOpen: boolean;
   setIsImageMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
   setImageSelected: (val: boolean) => void;
@@ -65,6 +67,10 @@ export interface ProjectorHeaderActionsProps {
   setIsLayoutEditMode: React.Dispatch<React.SetStateAction<boolean>>;
   showAlignmentGuides: boolean;
   toggleAlignmentGuides: () => void;
+  titleSelected?: boolean;
+  setTitleSelected?: React.Dispatch<React.SetStateAction<boolean>>;
+  bodySelected?: boolean;
+  setBodySelected?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
@@ -72,6 +78,7 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
   projectorIndex,
   currentProjectorItem,
   handleSlideImageUpload,
+  handleInsertSampleImage,
   isImageMenuOpen,
   setIsImageMenuOpen,
   setImageSelected,
@@ -108,6 +115,10 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
   setIsLayoutEditMode,
   showAlignmentGuides,
   toggleAlignmentGuides,
+  titleSelected,
+  setTitleSelected,
+  bodySelected,
+  setBodySelected,
 }) => {
   const hasSlideImage = Boolean(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl);
 
@@ -173,6 +184,19 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
               <span>✂️ Recortar (Crop)</span>
             </button>
 
+            {handleInsertSampleImage && (
+              <button
+                onClick={() => {
+                  handleInsertSampleImage();
+                  setIsImageMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-blue-300 hover:bg-blue-950/60 font-bold transition-colors cursor-pointer"
+              >
+                <Square className="w-4 h-4 text-blue-400 fill-blue-500/30" />
+                <span>🟦 Trocar por Quadro Azul</span>
+              </button>
+            )}
+
             <div className="border-t border-slate-800 my-1" />
 
             <button
@@ -188,6 +212,19 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
           </div>
         )}
       </div>
+
+      {/* 🟦 Botão de Inserir Quadro Azul Centralizado (Teste Rápido) */}
+      {handleInsertSampleImage && (
+        <button
+          type="button"
+          onClick={handleInsertSampleImage}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white border border-blue-400/50 text-sm font-black cursor-pointer transition-all shadow-md active:scale-95 min-h-[42px]"
+          title="Inserir um quadro azul demonstrativo centralizado neste slide (X: 5% • Y: 24% • L: 90% • A: 71%)"
+        >
+          <Square className="w-4 h-4 text-blue-200 fill-blue-300/40" />
+          <span>🟦 {hasSlideImage ? 'Restaurar Quadro Azul' : '+ Quadro Azul (Teste)'}</span>
+        </button>
+      )}
 
       {/* Botão Unificado: Slide Extra e Ações Relacionadas */}
       <div className="relative inline-block" ref={slideMenuRef}>
@@ -385,17 +422,66 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
 
       {/* BOTÃO DE MOVER ELEMENTOS (MODO LAYOUT) */}
       <button
-        onClick={() => setIsLayoutEditMode(prev => !prev)}
+        onClick={() => {
+          setIsLayoutEditMode(prev => {
+            const next = !prev;
+            if (next) {
+              if (setTitleSelected) setTitleSelected(true);
+            } else {
+              if (setTitleSelected) setTitleSelected(false);
+              if (setBodySelected) setBodySelected(false);
+            }
+            return next;
+          });
+        }}
         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
           isLayoutEditMode
             ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-400 ring-2 ring-purple-400/50'
             : 'bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border-purple-500/40'
         }`}
-        title="Arrastar título e texto livremente no slide para reposicioná-los"
+        title="Arrastar título e texto livremente no slide para reposicioná-los (Estilo CorelDRAW)"
       >
         <Move className="w-4 h-4 text-current" />
-        <span>{isLayoutEditMode ? '✅ Pronto' : '🎯 Mover'}</span>
+        <span>{isLayoutEditMode ? '✅ Concluir Mover' : '🎯 Mover'}</span>
       </button>
+
+      {/* BOTÃO DE REDIMENSIONAR TÍTULO ESTILO COREL DRAW */}
+      {setTitleSelected && (
+        <button
+          onClick={() => {
+            setTitleSelected(prev => !prev);
+            if (setBodySelected) setBodySelected(false);
+          }}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
+            titleSelected
+              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/50 shadow-amber-500/30'
+              : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+          }`}
+          title="Ativar moldura com 8 alças e giro no TÍTULO (Estilo CorelDRAW)"
+        >
+          <Move className="w-4 h-4 text-current" />
+          <span>{titleSelected ? '👑 Título Ativo' : '👑 Título Corel'}</span>
+        </button>
+      )}
+
+      {/* BOTÃO DE REDIMENSIONAR TEXTO / CORPO ESTILO COREL DRAW */}
+      {setBodySelected && (
+        <button
+          onClick={() => {
+            setBodySelected(prev => !prev);
+            if (setTitleSelected) setTitleSelected(false);
+          }}
+          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
+            bodySelected
+              ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-500/30'
+              : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40'
+          }`}
+          title="Ativar moldura com 8 alças e giro no TEXTO / CONTEÚDO (Estilo CorelDRAW)"
+        >
+          <Move className="w-4 h-4 text-current" />
+          <span>{bodySelected ? '📄 Texto Ativo' : '📄 Texto Corel'}</span>
+        </button>
+      )}
 
       {/* BOTÃO DE LINHAS GUIA HORIZONTAL E VERTICAL */}
       <button
@@ -445,6 +531,8 @@ export interface ProjectorToolbarProps {
   projectorStageRef: React.RefObject<HTMLDivElement | null>;
   commitBox: (b: ImageBox) => void;
   handleRemoveSlideImage: () => void;
+  handleInsertSampleImage?: () => void;
+  onUploadImage?: (file: File) => void;
 
   isTitleMoved: boolean;
   isBodyMoved: boolean;
@@ -467,6 +555,10 @@ export interface ProjectorToolbarProps {
   slideImageOpacity: number;
   changeSlideImageOpacity: (val: number) => void;
   applyCurrentScalesToAllSlides: () => void;
+  titleSelected?: boolean;
+  setTitleSelected?: React.Dispatch<React.SetStateAction<boolean>>;
+  bodySelected?: boolean;
+  setBodySelected?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
@@ -500,6 +592,8 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   projectorStageRef,
   commitBox,
   handleRemoveSlideImage,
+  handleInsertSampleImage,
+  onUploadImage,
 
   isTitleMoved,
   isBodyMoved,
@@ -522,6 +616,10 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   slideImageOpacity,
   changeSlideImageOpacity,
   applyCurrentScalesToAllSlides,
+  titleSelected,
+  setTitleSelected,
+  bodySelected,
+  setBodySelected,
 }) => {
   return (
     <>
@@ -532,6 +630,23 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TÍTULO deste slide">
             <Type className="w-4 h-4 text-amber-400 shrink-0" />
             <span className="text-xs font-black text-amber-300 uppercase tracking-wider">Título:</span>
+            {setTitleSelected && (
+              <button
+                onClick={() => {
+                  setTitleSelected(prev => !prev);
+                  if (setBodySelected) setBodySelected(false);
+                }}
+                className={`text-xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 mr-1 ${
+                  titleSelected
+                    ? 'bg-amber-500 text-slate-950 border-amber-300 font-extrabold shadow-sm'
+                    : 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 border-amber-500/40'
+                }`}
+                title="Ativar caixa e alças de redimensionamento estilo CorelDRAW no título"
+              >
+                <Move className="w-3.5 h-3.5" />
+                <span>{titleSelected ? 'Alças Ativas' : 'Alças Corel'}</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 const next = Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100);
@@ -572,6 +687,23 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
           <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
             <Type className="w-4 h-4 text-cyan-400 shrink-0" />
             <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
+            {setBodySelected && (
+              <button
+                onClick={() => {
+                  setBodySelected(prev => !prev);
+                  if (setTitleSelected) setTitleSelected(false);
+                }}
+                className={`text-xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 mr-1 ${
+                  bodySelected
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 font-extrabold shadow-sm'
+                    : 'bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border-cyan-500/40'
+                }`}
+                title="Ativar caixa e alças de redimensionamento estilo CorelDRAW no texto/conteúdo"
+              >
+                <Move className="w-3.5 h-3.5" />
+                <span>{bodySelected ? 'Alças Ativas' : 'Alças Corel'}</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 const next = Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100);
@@ -684,6 +816,7 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
                 setImageSelected(false);
               }}
               onDone={() => setImageSelected(false)}
+              onUploadImage={onUploadImage}
             />
           )}
 
@@ -695,6 +828,17 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
             >
               <ImageIcon className="w-4 h-4 text-purple-400" />
               <span>🎯 Mover / Redimensionar Imagem</span>
+            </button>
+          )}
+
+          {!curImageSrc && handleInsertSampleImage && (
+            <button
+              onClick={handleInsertSampleImage}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-900/40 hover:bg-blue-900/70 text-blue-200 border border-blue-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+              title="Inserir um quadro azul demonstrativo centralizado (90% x 71% • X: 5% • Y: 24%) para testar o enquadramento"
+            >
+              <Square className="w-4 h-4 text-blue-400 fill-blue-500/30" />
+              <span>🟦 Inserir Quadro Azul</span>
             </button>
           )}
 

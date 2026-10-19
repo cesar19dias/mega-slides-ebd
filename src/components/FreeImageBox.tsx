@@ -8,19 +8,23 @@ import {
   Check,
   AlignCenter,
   Ratio,
-  Move
+  Move,
+  Maximize,
+  Image as ImageIcon
 } from 'lucide-react';
 
 export const DEFAULT_IMAGE_BOX: ImageBox = {
-  x: 25,
-  y: 18,
-  w: 50,
-  h: 64,
+  x: 5,
+  y: 24,
+  w: 90,
+  h: 71,
   rot: 0,
   fit: 'cover',
   layer: 'back',
   flipX: false,
 };
+
+export const GENERIC_BLUE_FRAME_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600"><rect width="800" height="600" rx="16" fill="%231e3a8a"/><rect x="12" y="12" width="776" height="576" rx="12" fill="%232563eb" stroke="%2360a5fa" stroke-width="6"/><circle cx="400" cy="240" r="70" fill="%233b82f6" opacity="0.8"/><path d="M360 260 L400 200 L440 260 Z" fill="%2393c5fd"/><text x="400" y="370" font-size="36" font-family="sans-serif" font-weight="900" fill="white" text-anchor="middle" letter-spacing="2">QUADRO AZUL</text><text x="400" y="415" font-size="22" font-family="sans-serif" font-weight="bold" fill="%2393c5fd" text-anchor="middle">Enquadramento Perfeito (90% x 71% • X: 5% • Y: 24%)</text></svg>';
 
 export interface FreeImageBoxProps {
   src: string;
@@ -30,6 +34,7 @@ export interface FreeImageBoxProps {
   stageRef: React.RefObject<HTMLDivElement | null>;
   onSelect: () => void;
   onCommit: (box: ImageBox) => void;
+  onUploadImage?: (file: File) => void;
 }
 
 type HandleType = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | 'rot' | 'move';
@@ -42,9 +47,11 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
   stageRef,
   onSelect,
   onCommit,
+  onUploadImage,
 }) => {
   const boxRef = useRef<HTMLDivElement>(null);
   const imgRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estado local durante o arraste para garantir fluidez a 60fps
   const [activeDrag, setActiveDrag] = useState<{
@@ -326,7 +333,28 @@ export const FreeImageBox: React.FC<FreeImageBoxProps> = ({
             onSelect();
           }
         }}
+        onDoubleClick={() => {
+          if (editable && onUploadImage) {
+            fileInputRef.current?.click();
+          }
+        }}
+        title={editable ? 'Clique para selecionar • Duplo-clique para trocar de foto' : undefined}
       >
+        {/* Input oculto para troca direta de arquivo */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file && onUploadImage) {
+              onUploadImage(file);
+              e.target.value = '';
+            }
+          }}
+          className="hidden"
+        />
+
         {/* Imagem propriamente dita com corte/ajuste */}
         <div className="w-full h-full relative overflow-hidden rounded-xl pointer-events-none">
           <img
@@ -520,6 +548,7 @@ export interface ImageBoxToolbarProps {
   onChange: (box: ImageBox) => void;
   onRemove: () => void;
   onDone: () => void;
+  onUploadImage?: (file: File) => void;
 }
 
 export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
@@ -528,6 +557,7 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
   onChange,
   onRemove,
   onDone,
+  onUploadImage,
 }) => {
   // Ajusta proporção original baseada nos pixels naturais da imagem
   const handleResetNaturalRatio = () => {
@@ -548,6 +578,10 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
     const nextX = Math.round(((100 - box.w) / 2) * 10) / 10;
     const nextY = Math.round(((100 - box.h) / 2) * 10) / 10;
     onChange({ ...box, x: nextX, y: nextY });
+  };
+
+  const handleFitSlide = () => {
+    onChange({ ...DEFAULT_IMAGE_BOX });
   };
 
   const handleRotate90 = () => {
@@ -572,6 +606,29 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
         <Move className="w-4 h-4 text-cyan-400" />
         <span>IMAGEM</span>
       </div>
+
+      {/* Botão Trocar Foto Direto na Barra de Ferramentas */}
+      {onUploadImage && (
+        <label
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] cursor-pointer shadow-md transition-all active:scale-95"
+          title="Escolher uma foto do seu computador ou celular para substituir esta imagem"
+        >
+          <ImageIcon className="w-3.5 h-3.5 text-purple-100" />
+          <span>Trocar Foto</span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                onUploadImage(file);
+                e.target.value = '';
+              }
+            }}
+            className="hidden"
+          />
+        </label>
+      )}
 
       {/* Posição X e Y */}
       <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-xl px-2 py-1">
@@ -660,6 +717,14 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
           title="Centralizar no palco 16:9"
         >
           <AlignCenter className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={handleFitSlide}
+          className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 hover:text-white border border-cyan-500/40 cursor-pointer transition-all"
+          title="Enquadrar perfeitamente no corpo do slide (Abaixo do título)"
+        >
+          <Maximize className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"

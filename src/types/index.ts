@@ -75,6 +75,15 @@ export interface ImageBox {
   flipX?: boolean;
 }
 
+export interface TextBox {
+  x: number; // Posição horizontal (% do palco 16:9)
+  y: number; // Posição vertical (% do palco 16:9)
+  w: number; // Largura (% do palco 16:9)
+  h?: number; // Altura opcional (% do palco 16:9)
+  rot: number; // Rotação em graus (0 a 360)
+  scale: number; // Escala proporcional da fonte (1.0 = 100%)
+}
+
 export interface EBDTopicPreparation {
   number: string; // "I", "II", "III"
   title: string;
@@ -166,6 +175,8 @@ export interface EBDLessonPreparation {
   slideImageFits?: Record<string | number, 'cover' | 'contain'>;
   slideImageBorders?: Record<string | number, 'white' | 'thin' | 'thick' | 'none'>;
   slideImageBoxes?: Record<string, ImageBox>;
+  slideTitleBoxes?: Record<string | number, TextBox>;
+  slideBodyBoxes?: Record<string | number, TextBox>;
   projectorSlideImages?: Record<string | number, string>;
   projectorFontSizeScale?: number;
   customBg?: string | null;

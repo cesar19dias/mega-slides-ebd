@@ -10,9 +10,10 @@ import {
   Crosshair,
   Eraser,
 } from 'lucide-react';
-import type { ImageBox, EBDLessonPreparation, ProjectorItem } from '../types';
+import type { ImageBox, TextBox, EBDLessonPreparation, ProjectorItem } from '../types';
 import { TextHighlightToolbar } from './TextHighlightToolbar';
 import { FreeImageBox } from './FreeImageBox';
+import { FreeTextBox } from './FreeTextBox';
 import { parseBiblicalTextSections } from '../services/biblicalTextParser';
 
 export interface ProjectorStageProps {
@@ -21,6 +22,22 @@ export interface ProjectorStageProps {
   customBg: string | null;
   imageSelected: boolean;
   setImageSelected: (val: boolean) => void;
+  curTitleBox: TextBox;
+  titleSelected: boolean;
+  setTitleSelected: (val: boolean) => void;
+  commitTitleBox: (box: TextBox) => void;
+  resetTitleBox?: () => void;
+  curBodyBox: TextBox;
+  bodySelected: boolean;
+  setBodySelected: (val: boolean) => void;
+  commitBodyBox: (box: TextBox) => void;
+  resetBodyBox?: () => void;
+  curCoverTitleBox: TextBox;
+  curSubBox: TextBox;
+  subSelected: boolean;
+  setSubSelected: (val: boolean) => void;
+  commitSubBox: (box: TextBox) => void;
+  resetSubBox?: () => void;
   handleSlideMouseUp: () => void;
 
   hlToolbar: { x: number; y: number; text: string } | null;
@@ -57,6 +74,7 @@ export interface ProjectorStageProps {
   curImageSrc?: string | null;
   curBox: ImageBox;
   commitBox: (b: ImageBox) => void;
+  onUploadImage?: (file: File) => void;
 
   slideBodyWidths: Record<string | number, number>;
   handleBodyResizeStart: (e: React.MouseEvent | React.TouchEvent, side: 'left' | 'right') => void;
@@ -112,6 +130,22 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   customBg,
   imageSelected,
   setImageSelected,
+  curTitleBox,
+  titleSelected,
+  setTitleSelected,
+  commitTitleBox,
+  resetTitleBox,
+  curBodyBox,
+  bodySelected,
+  setBodySelected,
+  commitBodyBox,
+  resetBodyBox,
+  curCoverTitleBox,
+  curSubBox,
+  subSelected,
+  setSubSelected,
+  commitSubBox,
+  resetSubBox,
   handleSlideMouseUp,
 
   hlToolbar,
@@ -148,17 +182,18 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   curImageSrc,
   curBox,
   commitBox,
+  onUploadImage,
 
   slideBodyWidths,
-  handleBodyResizeStart,
-  resetSlideBodyWidth,
+  handleBodyResizeStart: _handleBodyResizeStart,
+  resetSlideBodyWidth: _resetSlideBodyWidth,
 
   currentTitleScale,
   currentBodyScale,
-  titlePos,
-  bodyPos,
-  makeDragStyle,
-  handleElementDragStart,
+  titlePos: _titlePos,
+  bodyPos: _bodyPos,
+  makeDragStyle: _makeDragStyle,
+  handleElementDragStart: _handleElementDragStart,
 
   renderHL,
   bodyTextColor,
@@ -166,46 +201,6 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   getResponsiveBodyTextClass,
 }) => {
   if (!currentProjectorItem) return null;
-
-  // Função auxiliar para renderizar as alças de largura e badge do texto no modo "Mover"
-  const renderBodyResizeHandles = () => {
-    if (!isLayoutEditMode) return null;
-    const curW = slideBodyWidths[projectorIndex] ?? 100;
-    return (
-      <>
-        {/* Badge superior informando largura da caixa de texto */}
-        <div
-          className="absolute -top-6 left-1/2 -translate-x-1/2 text-[9px] font-black px-2.5 py-0.5 rounded-full z-50 pointer-events-none shadow-md flex items-center gap-1.5 whitespace-nowrap"
-          style={{ backgroundColor: '#06b6d4', color: '#0f172a' }}
-        >
-          <span>📄 Texto ({curW}%)</span>
-          <span className="opacity-75">• arraste ou puxe as laterais</span>
-        </div>
-
-        {/* Alça Esquerda para Redimensionar Largura */}
-        <div
-          onMouseDown={(e) => handleBodyResizeStart(e, 'left')}
-          onTouchStart={(e) => handleBodyResizeStart(e, 'left')}
-          onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
-          className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
-          title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
-        >
-          <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
-        </div>
-
-        {/* Alça Direita para Redimensionar Largura */}
-        <div
-          onMouseDown={(e) => handleBodyResizeStart(e, 'right')}
-          onTouchStart={(e) => handleBodyResizeStart(e, 'right')}
-          onDoubleClick={(e) => { e.stopPropagation(); resetSlideBodyWidth(); }}
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 w-4 h-12 bg-white border-2 border-cyan-500 rounded-full shadow-lg z-50 cursor-ew-resize hover:scale-125 transition-transform flex items-center justify-center group"
-          title="Arrastar para ajustar largura do texto • Duplo clique para 100%"
-        >
-          <div className="w-0.5 h-5 bg-cyan-600 rounded-full" />
-        </div>
-      </>
-    );
-  };
 
   return (
     <div
@@ -215,6 +210,25 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
       onPointerDown={(e) => {
         if (!(e.target as HTMLElement).closest('[data-image-box]')) {
           setImageSelected(false);
+        }
+        if (!(e.target as HTMLElement).closest('[data-free-textbox]')) {
+          setTitleSelected(false);
+          setBodySelected(false);
+          setSubSelected(false);
+        }
+      }}
+      onDragOver={(e) => {
+        if (onUploadImage) {
+          e.preventDefault();
+        }
+      }}
+      onDrop={(e) => {
+        if (onUploadImage) {
+          const file = e.dataTransfer.files?.[0];
+          if (file && file.type.startsWith('image/')) {
+            e.preventDefault();
+            onUploadImage(file);
+          }
         }
       }}
       onMouseUp={handleSlideMouseUp}
@@ -497,6 +511,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
           stageRef={projectorStageRef}
           onSelect={() => setImageSelected(true)}
           onCommit={commitBox}
+          onUploadImage={onUploadImage}
         />
       )}
 
@@ -507,48 +522,78 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
           const coverBadge = currentProjectorItem.badgeText || lesson.metadata.lessonNumber || 'LIÇÃO 10';
           return (
             <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none">
-              {/* ── CAPA: TÍTULO (ARRASTÁVEL) ── */}
-              <div
-                style={makeDragStyle(titlePos, 'title')}
-                onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                className="w-full shrink-0 relative pointer-events-auto select-text"
+              {/* ── CAPA: BADGE / LIÇÃO (LIVRE ESTILO COREL DRAW) ── */}
+              <FreeTextBox
+                box={curTitleBox}
+                selected={titleSelected && !isExporting}
+                editable={!isExporting}
+                stageRef={projectorStageRef}
+                onSelect={() => {
+                  setTitleSelected(true);
+                  setBodySelected(false);
+                  setImageSelected(false);
+                }}
+                onCommit={commitTitleBox}
+                onReset={resetTitleBox}
+                label="Capa / Lição"
+                accentColor="amber"
               >
-                {isLayoutEditMode && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                    style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                    👑 Título — arraste
-                  </div>
-                )}
-                <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-20 md:min-h-24 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
-                  <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
+                <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-auto px-2">
+                  <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
                     {coverBadge}
                   </span>
                 </div>
-              </div>
+              </FreeTextBox>
+              <div className="w-full shrink-0 h-16 md:h-20 pointer-events-none" />
 
-              {/* ── CAPA: CORPO (ARRASTÁVEL) ── */}
-              <div
-                style={makeDragStyle(bodyPos, 'body')}
-                onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                className="flex-1 w-full relative pointer-events-auto select-text"
+              {/* ── CAPA: TÍTULO DA LIÇÃO E SUBTÍTULO (LIVRE ESTILO COREL DRAW) ── */}
+              <FreeTextBox
+                box={curCoverTitleBox}
+                selected={bodySelected && !isExporting}
+                editable={!isExporting}
+                stageRef={projectorStageRef}
+                onSelect={() => {
+                  setBodySelected(true);
+                  setSubSelected(false);
+                  setTitleSelected(false);
+                  setImageSelected(false);
+                }}
+                onCommit={commitBodyBox}
+                onReset={resetBodyBox}
+                label="Título da Lição"
+                accentColor="cyan"
               >
-                {renderBodyResizeHandles()}
-                <div className="text-layer w-full relative z-30 flex flex-col items-center justify-center text-center px-6 py-4 mt-12 md:mt-16 space-y-4 my-auto pointer-events-auto select-text">
-                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                <div className="w-full flex flex-col items-center justify-center text-center px-2">
+                  <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-yellow-400 uppercase tracking-tight leading-tight w-full max-w-full font-sans drop-shadow-sm">
                     {renderHL(currentProjectorItem.title, '#facc15')}
                   </h1>
-                  {currentProjectorItem.subtitle && (
-                    <>
-                      <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-3 mx-auto" />
-                      <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 w-full max-w-full font-sans leading-relaxed" style={{ zoom: currentBodyScale } as React.CSSProperties}>
-                        {renderHL(currentProjectorItem.subtitle, '#e2e8f0')}
-                      </p>
-                    </>
-                  )}
                 </div>
-              </div>
+              </FreeTextBox>
+
+              {currentProjectorItem.subtitle && (
+                <FreeTextBox
+                  box={curSubBox}
+                  selected={subSelected && !isExporting}
+                  editable={!isExporting}
+                  stageRef={projectorStageRef}
+                  onSelect={() => {
+                    setSubSelected(true);
+                    setBodySelected(false);
+                    setTitleSelected(false);
+                    setImageSelected(false);
+                  }}
+                  onCommit={commitSubBox}
+                  onReset={resetSubBox}
+                  label="Subtítulo"
+                  accentColor="cyan"
+                >
+                  <div className="w-full flex flex-col items-center justify-center text-center px-2">
+                    <p className="text-base md:text-xl lg:text-2xl font-bold text-slate-200 w-full max-w-full font-sans leading-relaxed">
+                      {renderHL(currentProjectorItem.subtitle, '#e2e8f0')}
+                    </p>
+                  </div>
+                </FreeTextBox>
+              )}
 
               <div className="w-full shrink-0 h-8" />
             </div>
@@ -559,57 +604,67 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         if (currentProjectorItem.type === 'extra') {
           return (
             <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none">
-              {/* ── EXTRA: TÍTULO (ARRASTÁVEL) ── */}
-              <div
-                style={makeDragStyle(titlePos, 'title')}
-                onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-                className="w-full shrink-0 relative pointer-events-auto select-text"
+              {/* ── EXTRA: TÍTULO (LIVRE ESTILO COREL DRAW) ── */}
+              <FreeTextBox
+                box={curTitleBox}
+                selected={titleSelected && !isExporting}
+                editable={!isExporting}
+                stageRef={projectorStageRef}
+                onSelect={() => {
+                  setTitleSelected(true);
+                  setBodySelected(false);
+                  setImageSelected(false);
+                }}
+                onCommit={commitTitleBox}
+                onReset={resetTitleBox}
+                label="Título"
+                accentColor="amber"
               >
-                {isLayoutEditMode && (
-                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                    style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                    👑 Título — arraste
-                  </div>
-                )}
-                <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-14 h-auto py-2 mt-5 md:mt-6 pt-2 pl-[18%] pr-6">
+                <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-auto px-2">
                   {currentProjectorItem.title && (
-                    <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, zoom: currentTitleScale } as React.CSSProperties}>
+                    <span className="text-xl md:text-3xl lg:text-4xl font-bold text-white tracking-wider block text-center drop-shadow-sm uppercase" style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700 }}>
                       {renderHL(currentProjectorItem.title, '#ffffff')}
                     </span>
                   )}
                   {currentProjectorItem.reference && (
-                    <span className="text-base md:text-xl lg:text-2xl font-bold text-yellow-400 tracking-wider block text-center mt-1" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                    <span className="text-base md:text-xl lg:text-2xl font-bold text-yellow-400 tracking-wider block text-center mt-1">
                       {renderHL(currentProjectorItem.reference, '#facc15')}
                     </span>
                   )}
                 </div>
-              </div>
+              </FreeTextBox>
+              <div className="w-full shrink-0 h-14 md:h-16 pointer-events-none" />
 
-              {/* ── EXTRA: CORPO (ARRASTÁVEL) ── */}
-              <div
-                style={makeDragStyle(bodyPos, 'body')}
-                onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-                className="w-full flex-1 flex flex-col min-h-0 relative pointer-events-auto select-text"
+              {/* ── EXTRA: CORPO (LIVRE ESTILO COREL DRAW) ── */}
+              <FreeTextBox
+                box={curBodyBox}
+                selected={bodySelected && !isExporting}
+                editable={!isExporting}
+                stageRef={projectorStageRef}
+                onSelect={() => {
+                  setBodySelected(true);
+                  setTitleSelected(false);
+                  setImageSelected(false);
+                }}
+                onCommit={commitBodyBox}
+                onReset={resetBodyBox}
+                label="Texto"
+                accentColor="cyan"
               >
-                {renderBodyResizeHandles()}
-                <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0 pointer-events-auto select-text">
-                  <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-center items-center min-h-0 px-4 py-4 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar pointer-events-auto select-text">
-                    {currentProjectorItem.projetorText ? (
-                      <p className={`font-sans text-center w-full max-w-full break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
-                        {renderHL(currentProjectorItem.projetorText)}
+                <div className="w-full flex flex-col justify-center items-center px-4 py-2 space-y-3 text-center max-h-[460px] overflow-y-auto custom-scrollbar">
+                  {currentProjectorItem.projetorText ? (
+                    <p className={`font-sans text-center w-full max-w-full break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
+                      {renderHL(currentProjectorItem.projetorText)}
+                    </p>
+                  ) : (
+                    !currentProjectorItem.title && (
+                      <p className="text-2xl md:text-3xl font-extrabold text-slate-500 text-center italic">
+                        Slide em branco — edite o título e texto acima ✏️
                       </p>
-                    ) : (
-                      !currentProjectorItem.title && (
-                        <p className="text-2xl md:text-3xl font-extrabold text-slate-500 text-center italic">
-                          Slide em branco — edite o título e texto acima ✏️
-                        </p>
-                      )
-                    )}
-                  </div>
+                    )
+                  )}
                 </div>
-              </div>
+              </FreeTextBox>
 
               <div className="w-full shrink-0 h-8" />
             </div>
@@ -672,36 +727,48 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
 
         return (
           <div className="relative z-10 w-full h-full max-w-full px-3 md:px-6 mx-auto flex flex-col justify-between items-center my-auto py-2 font-gotham pointer-events-none">
-            {/* ── TÍTULO PRINCIPAL (ARRASTÁVEL) ── */}
-            <div
-              style={makeDragStyle(titlePos, 'title')}
-              onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-              onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'title') : undefined}
-              className="w-full shrink-0 relative pointer-events-auto select-text"
+            {/* ── TÍTULO PRINCIPAL (LIVRE ESTILO COREL DRAW) ── */}
+            <FreeTextBox
+              box={curTitleBox}
+              selected={titleSelected && !isExporting}
+              editable={!isExporting}
+              stageRef={projectorStageRef}
+              onSelect={() => {
+                setTitleSelected(true);
+                setBodySelected(false);
+                setImageSelected(false);
+              }}
+              onCommit={commitTitleBox}
+              onReset={resetTitleBox}
+              label={isSubtopic ? 'Subtópico' : 'Título'}
+              accentColor="amber"
             >
-              {isLayoutEditMode && (
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-black px-2 py-0.5 rounded-full z-50 pointer-events-none"
-                  style={{ backgroundColor: '#f59e0b', color: '#0f172a', whiteSpace: 'nowrap' }}>
-                  👑 Título — arraste
-                </div>
-              )}
-              <div className="w-full flex flex-col items-center justify-center font-gotham font-bold min-h-16 md:min-h-20 h-auto py-1 mt-1 md:mt-2 pt-1 pl-[18%] pr-6 my-auto">
-                <span className={`text-base md:text-2xl lg:text-3xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance', WebkitTextWrap: 'balance', zoom: currentTitleScale } as React.CSSProperties}>
+              <div className="w-full flex flex-col items-center justify-center font-gotham font-bold h-auto px-2">
+                <span className={`text-base md:text-2xl lg:text-3xl font-bold text-white tracking-wider block text-center drop-shadow-sm ${isSubtopic ? 'normal-case' : 'uppercase'}`} style={{ fontFamily: "'Gotham', 'Gotham Medium', sans-serif", fontWeight: 700, textWrap: 'balance' }}>
                   {renderHL(formattedTitle, '#ffffff')}
                 </span>
               </div>
-            </div>
+            </FreeTextBox>
+            <div className="w-full shrink-0 h-14 md:h-18 pointer-events-none" />
 
-            {/* ── CONTEÚDO / CORPO (ARRASTÁVEL) ── */}
-            <div
-              style={makeDragStyle(bodyPos, 'body')}
-              onMouseDown={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-              onTouchStart={isLayoutEditMode ? (e) => handleElementDragStart(e, 'body') : undefined}
-              className="w-full flex-1 flex flex-col min-h-0 relative pointer-events-auto select-text"
+            {/* ── CONTEÚDO / CORPO (LIVRE ESTILO COREL DRAW) ── */}
+            <FreeTextBox
+              box={curBodyBox}
+              selected={bodySelected && !isExporting}
+              editable={!isExporting}
+              stageRef={projectorStageRef}
+              onSelect={() => {
+                setBodySelected(true);
+                setTitleSelected(false);
+                setImageSelected(false);
+              }}
+              onCommit={commitBodyBox}
+              onReset={resetBodyBox}
+              label={currentProjectorItem.type === 'leitura' ? 'Leitura Bíblica' : 'Texto'}
+              accentColor="cyan"
             >
-              {renderBodyResizeHandles()}
-              <div className="w-full flex-1 flex flex-col justify-center items-center relative min-h-0 pointer-events-auto select-text">
-                <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-start items-center min-h-0 pointer-events-auto select-text">
+              <div className="w-full flex flex-col justify-center items-center relative min-h-0">
+                <div className="text-layer w-full relative z-30 flex-1 flex flex-col justify-start items-center min-h-0">
                   {currentProjectorItem.type === 'leitura' ? (() => {
                     const parsed = parseBiblicalTextSections(currentProjectorItem.projetorText || '');
                     const displayRef = currentProjectorItem.reference || parsed.reference;
@@ -863,7 +930,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                   )}
                 </div>
               </div>
-            </div>
+            </FreeTextBox>
 
             <div className="w-full shrink-0 h-8" />
           </div>

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { EBDLessonPreparation, EBDExtraSlide, ImageBox } from '../types';
-import { DEFAULT_IMAGE_BOX } from './FreeImageBox';
+import type { EBDLessonPreparation, EBDExtraSlide, ImageBox, TextBox } from '../types';
+import { DEFAULT_IMAGE_BOX, GENERIC_BLUE_FRAME_SVG } from './FreeImageBox';
+import { DEFAULT_TITLE_BOX, DEFAULT_BODY_BOX } from './FreeTextBox';
 import { FileText, FileDown, Edit3 } from 'lucide-react';
 import { callGeminiRaw } from '../services/geminiService';
 import { exportAllSlidesPNGZipFromStage, exportTeacherGuideCleanPDF, exportTeacherGuideHTML } from '../services/exportService';
@@ -605,9 +606,224 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [imageSelected, setImageSelected] = useState<boolean>(false);
   const currentSlideIdRef = useRef<string>(String(projectorIndex));
 
+  // Caixas delimitadoras livres de títulos estilo Corel Draw (x, y, w, rot, scale)
+  const [slideTitleBoxes, setSlideTitleBoxes] = useState<Record<string, TextBox>>(() => {
+    return (lessonData.slideTitleBoxes as Record<string, TextBox>) || {};
+  });
+  const [titleSelected, setTitleSelected] = useState<boolean>(false);
+
+  // Caixas delimitadoras livres de texto/corpo estilo Corel Draw (x, y, w, rot, scale)
+  const [slideBodyBoxes, setSlideBodyBoxes] = useState<Record<string, TextBox>>(() => {
+    return (lessonData.slideBodyBoxes as Record<string, TextBox>) || {};
+  });
+  const [bodySelected, setBodySelected] = useState<boolean>(false);
+  const [subSelected, setSubSelected] = useState<boolean>(false);
+
   useEffect(() => {
     setImageSelected(false);
+    setTitleSelected(false);
+    setBodySelected(false);
+    setSubSelected(false);
   }, [projectorIndex]);
+
+  const commitTitleBox = useCallback((b: TextBox) => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
+    setSlideTitleBoxes(prev => {
+      const next = { ...prev, [key]: b };
+      if (slideId) next[slideId] = b;
+      try {
+        localStorage.setItem('mega_ebd_slide_title_boxes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideTitleFontScales(prev => {
+      const next = { ...prev, [projectorIndex]: b.scale };
+      try {
+        localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const prevBoxes = l.slideTitleBoxes ?? {};
+      const nextBoxes = { ...prevBoxes, [key]: b };
+      if (slideId) nextBoxes[slideId] = b;
+      const nextScales = { ...(l.slideTitleFontScales ?? {}), [projectorIndex]: b.scale };
+      return {
+        ...l,
+        slideTitleBoxes: nextBoxes,
+        slideTitleFontScales: nextScales,
+      };
+    });
+  }, [projectorIndex, updateLesson]);
+
+  const resetTitleBox = useCallback(() => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
+    setSlideTitleBoxes(prev => {
+      const next = { ...prev };
+      delete next[key];
+      delete next[projectorIndex];
+      if (slideId) delete next[slideId];
+      try {
+        localStorage.setItem('mega_ebd_slide_title_boxes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideTitlePositions(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try {
+        localStorage.setItem('mega_ebd_title_positions', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideTitleFontScales(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try {
+        localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const nextBoxes = { ...(l.slideTitleBoxes ?? {}) };
+      delete nextBoxes[key];
+      if (slideId) delete nextBoxes[slideId];
+      const nextPos = { ...(l.slideTitlePositions ?? {}) };
+      delete nextPos[projectorIndex];
+      const nextScales = { ...(l.slideTitleFontScales ?? {}) };
+      delete nextScales[projectorIndex];
+      return {
+        ...l,
+        slideTitleBoxes: nextBoxes,
+        slideTitlePositions: nextPos,
+        slideTitleFontScales: nextScales,
+      };
+    });
+  }, [projectorIndex, updateLesson]);
+
+  const curTitleBox: TextBox = React.useMemo(() => {
+    const slideId = currentSlideIdRef.current;
+    const byId = slideId ? slideTitleBoxes[slideId] : undefined;
+    if (byId) return byId;
+
+    const byIdx = slideTitleBoxes[String(projectorIndex)] || slideTitleBoxes[projectorIndex];
+    if (byIdx) return byIdx;
+
+    const legacyScale = slideTitleFontScales[projectorIndex] ?? 1.0;
+    return { ...DEFAULT_TITLE_BOX, scale: legacyScale };
+  }, [slideTitleBoxes, projectorIndex, slideTitleFontScales]);
+
+  const commitBodyBox = useCallback((b: TextBox) => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
+    setSlideBodyBoxes(prev => {
+      const next = { ...prev, [key]: b };
+      if (slideId) next[slideId] = b;
+      try {
+        localStorage.setItem('mega_ebd_slide_body_boxes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideBodyFontScales(prev => {
+      const next = { ...prev, [projectorIndex]: b.scale };
+      try {
+        localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideBodyWidths(prev => {
+      const next = { ...prev, [projectorIndex]: b.w };
+      try {
+        localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const prevBoxes = l.slideBodyBoxes ?? {};
+      const nextBoxes = { ...prevBoxes, [key]: b };
+      if (slideId) nextBoxes[slideId] = b;
+      const nextScales = { ...(l.slideBodyFontScales ?? {}), [projectorIndex]: b.scale };
+      const nextWidths = { ...(l.slideBodyWidths ?? {}), [projectorIndex]: b.w };
+      return {
+        ...l,
+        slideBodyBoxes: nextBoxes,
+        slideBodyFontScales: nextScales,
+        slideBodyWidths: nextWidths,
+      };
+    });
+  }, [projectorIndex, updateLesson]);
+
+  const resetBodyBox = useCallback(() => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
+    setSlideBodyBoxes(prev => {
+      const next = { ...prev };
+      delete next[key];
+      delete next[projectorIndex];
+      if (slideId) delete next[slideId];
+      try {
+        localStorage.setItem('mega_ebd_slide_body_boxes', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideBodyPositions(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try {
+        localStorage.setItem('mega_ebd_body_positions', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideBodyFontScales(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try {
+        localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    setSlideBodyWidths(prev => {
+      const next = { ...prev };
+      delete next[projectorIndex];
+      try {
+        localStorage.setItem('mega_ebd_body_widths', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const nextBoxes = { ...(l.slideBodyBoxes ?? {}) };
+      delete nextBoxes[key];
+      if (slideId) delete nextBoxes[slideId];
+      const nextPos = { ...(l.slideBodyPositions ?? {}) };
+      delete nextPos[projectorIndex];
+      const nextScales = { ...(l.slideBodyFontScales ?? {}) };
+      delete nextScales[projectorIndex];
+      const nextWidths = { ...(l.slideBodyWidths ?? {}) };
+      delete nextWidths[projectorIndex];
+      return {
+        ...l,
+        slideBodyBoxes: nextBoxes,
+        slideBodyPositions: nextPos,
+        slideBodyFontScales: nextScales,
+        slideBodyWidths: nextWidths,
+      };
+    });
+  }, [projectorIndex, updateLesson]);
+
+  const curBodyBox: TextBox = React.useMemo(() => {
+    const slideId = currentSlideIdRef.current;
+    const byId = slideId ? slideBodyBoxes[slideId] : undefined;
+    if (byId) return byId;
+
+    const byIdx = slideBodyBoxes[String(projectorIndex)] || slideBodyBoxes[projectorIndex];
+    if (byIdx) return byIdx;
+
+    const legacyScale = currentBodyScale || 1.0;
+    const legacyWidth = slideBodyWidths[projectorIndex] ?? 90;
+    return { ...DEFAULT_BODY_BOX, w: legacyWidth, scale: legacyScale };
+  }, [slideBodyBoxes, projectorIndex, currentBodyScale, slideBodyWidths]);
 
   const commitBox = useCallback((b: ImageBox) => {
     const key = String(projectorIndex);
@@ -650,6 +866,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (lessonData.slideImageFits) setSlideImageFits(lessonData.slideImageFits);
     if (lessonData.slideImageBorders) setSlideImageBorders(lessonData.slideImageBorders);
     if (lessonData.slideImageBoxes) setSlideImageBoxes(lessonData.slideImageBoxes);
+    if (lessonData.slideTitleBoxes) setSlideTitleBoxes(lessonData.slideTitleBoxes as Record<string, TextBox>);
     if (lessonData.slideTextOverrides) setSlideTextOverrides(lessonData.slideTextOverrides);
     if (lessonData.projectorSlideImages) setProjectorSlideImages(lessonData.projectorSlideImages);
     if (lessonData.projectorFontSizeScale) setProjectorFontSizeScale(lessonData.projectorFontSizeScale);
@@ -802,7 +1019,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const titlePos = slideTitlePositions[projectorIndex] ?? { x: 0, y: 0 };
   const bodyPos  = slideBodyPositions[projectorIndex]  ?? { x: 0, y: 0 };
   const imageFit = slideImageFits[projectorIndex] ?? 'cover';
-  const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined;
+  const isTitleMoved = slideTitlePositions[projectorIndex] !== undefined || slideTitleBoxes[String(projectorIndex)] !== undefined || (currentSlideIdRef.current ? slideTitleBoxes[currentSlideIdRef.current] !== undefined : false);
   const isBodyMoved  = slideBodyPositions[projectorIndex]  !== undefined;
   const isImageMoved = slideImagePositions[projectorIndex] !== undefined || slideImageBoxes[String(projectorIndex)] !== undefined || (currentSlideIdRef.current ? slideImageBoxes[currentSlideIdRef.current] !== undefined : false);
 
@@ -1443,13 +1660,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Reset da posição de um elemento no slide atual
   const resetSlidePosition = useCallback((kind: 'title' | 'body' | 'image') => {
     if (kind === 'title') {
-      setSlideTitlePositions(prev => {
-        const next = { ...prev };
-        delete next[projectorIndex];
-        try { localStorage.setItem('mega_ebd_title_positions', JSON.stringify(next)); } catch {}
-        updateLesson(l => ({ ...l, slideTitlePositions: next }));
-        return next;
-      });
+      resetTitleBox();
     } else if (kind === 'body') {
       setSlideBodyPositions(prev => {
         const next = { ...prev };
@@ -1929,8 +2140,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const handleApplyCrop = async (croppedDataUrl: string) => {
     const opt = await optimizeImageBase64(croppedDataUrl, 1280, 0.85);
     if (cropTarget === 'slide') {
+      const key = String(projectorIndex);
+      const slideId = currentSlideIdRef.current;
       setProjectorSlideImages(prev => {
-        const next = { ...prev, [projectorIndex]: opt };
+        const next = { ...prev, [projectorIndex]: opt, [key]: opt };
+        if (slideId) next[slideId] = opt;
         try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
         updateLesson(l => ({ ...l, projectorSlideImages: next }));
         return next;
@@ -1944,16 +2158,17 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     setCropModalImage(null);
   };
 
-  const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleProcessImageFile = useCallback(async (file: File) => {
     const reader = new FileReader();
     reader.onload = async ev => {
       const raw = ev.target?.result as string;
       if (raw) {
         const d = await optimizeImageBase64(raw, 1280, 0.82);
+        const key = String(projectorIndex);
+        const slideId = currentSlideIdRef.current;
         setProjectorSlideImages(prev => {
-          const next = { ...prev, [projectorIndex]: d };
+          const next = { ...prev, [projectorIndex]: d, [key]: d };
+          if (slideId) next[slideId] = d;
           try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
           updateLesson(l => ({ ...l, projectorSlideImages: next }));
           return next;
@@ -1965,6 +2180,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       }
     };
     reader.readAsDataURL(file);
+  }, [projectorIndex, updateLesson]);
+
+  const handleSlideImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    handleProcessImageFile(file);
     e.target.value = '';
   };
 
@@ -1994,6 +2215,20 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
       return { ...l, slideImageBoxes: nextBoxes };
     });
   };
+
+  const handleInsertSampleImage = useCallback(() => {
+    const key = String(projectorIndex);
+    const slideId = currentSlideIdRef.current;
+    setProjectorSlideImages(prev => {
+      const next = { ...prev, [projectorIndex]: GENERIC_BLUE_FRAME_SVG, [key]: GENERIC_BLUE_FRAME_SVG };
+      if (slideId) next[slideId] = GENERIC_BLUE_FRAME_SVG;
+      try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+      updateLesson(l => ({ ...l, projectorSlideImages: next }));
+      return next;
+    });
+    commitBox(DEFAULT_IMAGE_BOX);
+    setImageSelected(true);
+  }, [projectorIndex, commitBox, updateLesson]);
 
   const handleCustomBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2496,6 +2731,49 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const currentSlideId = currentProjectorItem?.id || String(projectorIndex);
   currentSlideIdRef.current = currentSlideId;
 
+  // Capa: título e subtítulo viram caixas independentes (escala própria, sem herdar o zoom do corpo)
+  const curCoverTitleBox: TextBox = React.useMemo(() => {
+    return slideBodyBoxes[currentSlideId] || slideBodyBoxes[String(projectorIndex)]
+      || { ...DEFAULT_BODY_BOX, x: 10, y: 24, w: 80, scale: 1.0 };
+  }, [slideBodyBoxes, currentSlideId, projectorIndex]);
+
+  const curSubBox: TextBox = React.useMemo(() => {
+    return slideBodyBoxes[`${currentSlideId}:sub`] || slideBodyBoxes[`${projectorIndex}:sub`]
+      || { ...DEFAULT_BODY_BOX, x: 10, y: 52, w: 80, scale: 1.4 };
+  }, [slideBodyBoxes, currentSlideId, projectorIndex]);
+
+  const commitSubBox = useCallback((b: TextBox) => {
+    const kIdx = `${projectorIndex}:sub`;
+    const kId = `${currentSlideIdRef.current}:sub`;
+    setSlideBodyBoxes(prev => {
+      const next = { ...prev, [kIdx]: b, [kId]: b };
+      try { localStorage.setItem('mega_ebd_slide_body_boxes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    updateLesson(l => ({
+      ...l,
+      slideBodyBoxes: { ...(l.slideBodyBoxes ?? {}), [kIdx]: b, [kId]: b },
+    }));
+  }, [projectorIndex, updateLesson]);
+
+  const resetSubBox = useCallback(() => {
+    const kIdx = `${projectorIndex}:sub`;
+    const kId = `${currentSlideIdRef.current}:sub`;
+    setSlideBodyBoxes(prev => {
+      const next = { ...prev };
+      delete next[kIdx];
+      delete next[kId];
+      try { localStorage.setItem('mega_ebd_slide_body_boxes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+    updateLesson(l => {
+      const nb = { ...(l.slideBodyBoxes ?? {}) };
+      delete nb[kIdx];
+      delete nb[kId];
+      return { ...l, slideBodyBoxes: nb };
+    });
+  }, [projectorIndex, updateLesson]);
+
   // Aplica as escalas de título e texto deste slide a todos os slides da lição (iterando sobre todos os projectorItems)
   const applyCurrentScalesToAllSlides = useCallback(() => {
     const nextTitles: Record<string | number, number> = {};
@@ -2565,6 +2843,31 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, projectorItems.length, isCanvaCropping]);
+
+  // Colar imagem da área de transferência (Ctrl+V) direto no slide
+  useEffect(() => {
+    if (activeTab !== 'projetor') return;
+    const handlePaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            handleProcessImageFile(file);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [activeTab, handleProcessImageFile]);
 
   // Reseta o modo de recorte ao mudar de slide
   useEffect(() => {
@@ -2673,6 +2976,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
     projectorFontSizeScale,
     customBg,
     bodyTextColor,
+    slideTitleBoxes,
   }), [
     lesson,
     slideTitlePositions,
@@ -2693,6 +2997,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
     projectorFontSizeScale,
     customBg,
     bodyTextColor,
+    slideTitleBoxes,
   ]);
 
   const handleExportPowerPoint = () => {
@@ -2796,6 +3101,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               projectorIndex={projectorIndex}
               currentProjectorItem={currentProjectorItem}
               handleSlideImageUpload={handleSlideImageUpload}
+              handleInsertSampleImage={handleInsertSampleImage}
               isImageMenuOpen={isImageMenuOpen}
               setIsImageMenuOpen={setIsImageMenuOpen}
               setImageSelected={setImageSelected}
@@ -2826,6 +3132,10 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               setIsEditMode={setIsEditMode}
               isLayoutEditMode={isLayoutEditMode}
               setIsLayoutEditMode={setIsLayoutEditMode}
+              titleSelected={titleSelected}
+              setTitleSelected={setTitleSelected}
+              bodySelected={bodySelected}
+              setBodySelected={setBodySelected}
               showAlignmentGuides={showAlignmentGuides}
               toggleAlignmentGuides={toggleAlignmentGuides}
             />
@@ -2898,6 +3208,8 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             projectorStageRef={projectorStageRef}
             commitBox={commitBox}
             handleRemoveSlideImage={handleRemoveSlideImage}
+            handleInsertSampleImage={handleInsertSampleImage}
+            onUploadImage={handleProcessImageFile}
             isTitleMoved={isTitleMoved}
             isBodyMoved={isBodyMoved}
             isImageMoved={isImageMoved}
@@ -2918,6 +3230,10 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             slideImageOpacity={slideImageOpacity}
             changeSlideImageOpacity={changeSlideImageOpacity}
             applyCurrentScalesToAllSlides={applyCurrentScalesToAllSlides}
+            titleSelected={titleSelected}
+            setTitleSelected={setTitleSelected}
+            bodySelected={bodySelected}
+            setBodySelected={setBodySelected}
           />
 
           <ProjectorStage
@@ -2926,6 +3242,22 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             customBg={customBg}
             imageSelected={imageSelected}
             setImageSelected={setImageSelected}
+            curTitleBox={curTitleBox}
+            titleSelected={titleSelected}
+            setTitleSelected={setTitleSelected}
+            commitTitleBox={commitTitleBox}
+            resetTitleBox={resetTitleBox}
+            curBodyBox={curBodyBox}
+            bodySelected={bodySelected}
+            setBodySelected={setBodySelected}
+            commitBodyBox={commitBodyBox}
+            resetBodyBox={resetBodyBox}
+            curCoverTitleBox={curCoverTitleBox}
+            curSubBox={curSubBox}
+            subSelected={subSelected}
+            setSubSelected={setSubSelected}
+            commitSubBox={commitSubBox}
+            resetSubBox={resetSubBox}
             handleSlideMouseUp={handleSlideMouseUp}
             hlToolbar={hlToolbar}
             setHlToolbar={setHlToolbar}
@@ -2957,6 +3289,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             curImageSrc={curImageSrc}
             curBox={curBox}
             commitBox={commitBox}
+            onUploadImage={handleProcessImageFile}
             slideBodyWidths={slideBodyWidths}
             handleBodyResizeStart={handleBodyResizeStart}
             resetSlideBodyWidth={resetSlideBodyWidth}
