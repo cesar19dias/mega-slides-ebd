@@ -5,6 +5,8 @@ import {
   Move,
   Type,
   RotateCcw,
+  Plus,
+  Minus,
 } from 'lucide-react';
 
 export const DEFAULT_TITLE_BOX: TextBox = {
@@ -252,8 +254,10 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
       if (handle === 'sw' || handle === 'nw') dw = -deltaXPct;
 
       const nextW = Math.max(20, Math.min(100, Math.round((startBox.w + dw) * 10) / 10));
-      const scaleRatio = nextW / (startBox.w || 1);
-      const nextScale = Math.max(0.4, Math.min(3.5, Math.round((startBox.scale * scaleRatio) * 100) / 100));
+      
+      // Escala da fonte agora é baseada no deslocamento do arrasto (dw), permitindo crescer sem teto de 100% de largura
+      const scaleDelta = (dw / 100) * 1.2;
+      const nextScale = Math.max(0.4, Math.min(4.0, Math.round((startBox.scale + scaleDelta) * 100) / 100));
 
       let nextX = startBox.x;
       let nextY = startBox.y;
@@ -430,6 +434,41 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
             )}
           </button>
 
+          {/* Controles Diretos de Aumentar / Diminuir Fonte (A- / A+) */}
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 px-1 py-0.5 rounded-lg">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const nextScale = Math.max(0.4, Math.round((currentBox.scale - 0.1) * 10) / 10);
+                onCommit({ ...currentBox, scale: nextScale });
+              }}
+              className="px-1.5 py-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white font-black text-xs transition-colors cursor-pointer flex items-center gap-0.5"
+              title="Diminuir tamanho da fonte (A-)"
+            >
+              <Minus className="w-2.5 h-2.5" />
+              <span>A</span>
+            </button>
+
+            <span className={`text-[10px] font-mono font-black min-w-[28px] text-center ${isCyan ? 'text-cyan-300' : 'text-amber-400'}`}>
+              {Math.round(currentBox.scale * 100)}%
+            </span>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                const nextScale = Math.min(4.0, Math.round((currentBox.scale + 0.1) * 10) / 10);
+                onCommit({ ...currentBox, scale: nextScale });
+              }}
+              className="px-1.5 py-0.5 rounded hover:bg-slate-800 text-slate-300 hover:text-white font-black text-xs transition-colors cursor-pointer flex items-center gap-0.5"
+              title="Aumentar tamanho da fonte (A+)"
+            >
+              <span>A</span>
+              <Plus className="w-2.5 h-2.5" />
+            </button>
+          </div>
+
           {/* Botão de Redefinir */}
           {onReset && (
             <button
@@ -444,8 +483,8 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
           )}
 
           {/* Medidas da caixa em tempo real */}
-          <span className="text-[10px] text-slate-400 font-mono ml-1 hidden sm:inline">
-            {Math.round(currentBox.scale * 100)}% • {Math.round(currentBox.w)}% larg
+          <span className="text-[10px] text-slate-400 font-mono ml-0.5 hidden sm:inline">
+            {Math.round(currentBox.w)}% larg
           </span>
         </div>
       )}

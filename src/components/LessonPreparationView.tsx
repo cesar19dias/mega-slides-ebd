@@ -578,25 +578,25 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // Helper de classes responsivas para o corpo do texto de acordo com a densidade (tamanho do texto vs largura da caixa)
   const getResponsiveBodyTextClass = useCallback((text: string | undefined, isEnfase: boolean = false) => {
     if (!text) return '';
-    const curW = slideBodyWidths[projectorIndex] ?? 100;
-    const effectiveLen = text.length * (100 / curW);
+    const textLen = text.length;
     const colorClass = bodyTextColor === 'black' ? 'text-black font-black' : 'text-white font-extrabold';
 
     if (isEnfase) {
-      if (effectiveLen > 250) {
+      if (textLen > 280) {
         return `${bodyTextColor === 'black' ? 'italic text-black font-black text-sm md:text-base lg:text-lg' : 'italic text-yellow-100 font-extrabold text-sm md:text-base lg:text-lg'} leading-snug`;
       }
       return `${bodyTextColor === 'black' ? 'italic text-black font-black text-base md:text-xl lg:text-2xl' : 'italic text-yellow-100 font-extrabold text-base md:text-xl lg:text-2xl'} leading-normal`;
     }
 
-    if (effectiveLen > 320) {
+    // Classificação suave e previsível baseada no tamanho real do texto, deixando o zoom livre da caixa controlar a escala fina
+    if (textLen > 380) {
       return `${bodyTextColor === 'black' ? 'text-black font-black' : 'text-slate-100 font-extrabold'} text-sm md:text-base lg:text-lg leading-snug`;
     }
-    if (effectiveLen > 180) {
+    if (textLen > 220) {
       return `${bodyTextColor === 'black' ? 'text-black font-black' : 'text-slate-100 font-extrabold'} text-base md:text-lg lg:text-xl leading-normal`;
     }
     return `${colorClass} text-lg md:text-2xl lg:text-3xl leading-relaxed`;
-  }, [slideBodyWidths, projectorIndex, bodyTextColor]);
+  }, [bodyTextColor]);
 
   // Caixas delimitadoras livres de imagens estilo Corel Draw (x, y, w, h, rot, fit, layer, flipX)
   const [slideImageBoxes, setSlideImageBoxes] = useState<Record<string, ImageBox>>(() => {
