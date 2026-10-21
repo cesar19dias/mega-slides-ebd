@@ -25,7 +25,7 @@ export interface TextHighlightToolbarProps {
   x: number;
   y: number;
   selectedText?: string;
-  onApply: (color: string, style: 'fill' | 'outline' | 'text') => void;
+  onApply: (color: string, style: 'fill' | 'outline' | 'text', opacity?: number) => void;
   onRemove: () => void;
   onClose: () => void;
   onClearSlide?: () => void;
@@ -41,6 +41,14 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
   onClearSlide,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [fillOpacity, setFillOpacity] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('mega_ebd_hl_fill_opacity');
+      return saved ? parseInt(saved, 10) : 75;
+    } catch {
+      return 75;
+    }
+  });
 
   const handleCopy = async () => {
     if (selectedText) {
@@ -160,23 +168,78 @@ export const TextHighlightToolbar: React.FC<TextHighlightToolbarProps> = ({
       {/* Divisor */}
       <div className="w-full border-t border-slate-800" />
 
-      {/* ── LINHA 2: COR DO FUNDO / MARCADOR (20% MAIOR) ── */}
-      <div className="flex items-center gap-2">
-        <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest w-18 shrink-0 flex items-center gap-1">
-          <span>🖍</span>
-          <span>Fundo</span>
-        </span>
+      {/* ── LINHA 2: COR DO FUNDO / MARCADOR (COM CONTROLE DE TRANSPARÊNCIA) ── */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-black text-cyan-400 uppercase tracking-widest flex items-center gap-1">
+            <span>🖍</span>
+            <span>Fundo</span>
+          </span>
+
+          {/* Slider de Transparência / Opacidade */}
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700/80 px-2 py-0.5 rounded-lg">
+            <span className="text-[10px] font-bold text-slate-400">Opacidade:</span>
+            <input
+              type="range"
+              min="10"
+              max="100"
+              step="5"
+              value={fillOpacity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10);
+                setFillOpacity(val);
+                try { localStorage.setItem('mega_ebd_hl_fill_opacity', String(val)); } catch {}
+              }}
+              className="w-16 accent-cyan-400 h-1 bg-slate-800 rounded cursor-pointer"
+              title="Ajustar opacidade/transparência do fundo marcado"
+            />
+            <span className="text-[10px] font-mono font-black text-cyan-300 min-w-[28px] text-right">
+              {fillOpacity}%
+            </span>
+
+            {/* Presets rápidos de transparência */}
+            <div className="flex items-center gap-0.5 ml-1 border-l border-slate-700 pl-1">
+              {[50, 75, 100].map(pct => (
+                <button
+                  key={pct}
+                  type="button"
+                  onClick={() => {
+                    setFillOpacity(pct);
+                    try { localStorage.setItem('mega_ebd_hl_fill_opacity', String(pct)); } catch {}
+                  }}
+                  className={`px-1 py-0.2 text-[9px] font-bold rounded cursor-pointer transition-colors ${
+                    fillOpacity === pct ? 'bg-cyan-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <div className="flex items-center gap-1.5">
           {HIGHLIGHT_COLORS.map((c) => (
             <button
               key={`fill-${c.hex}`}
               type="button"
-              title={`Marcar fundo com ${c.name}`}
-              onClick={() => onApply(c.hex, 'fill')}
-              className="w-7 h-7 rounded-lg transition-transform hover:scale-120 active:scale-95 ring-2 ring-transparent hover:ring-white/80 shrink-0 border border-slate-700/80 shadow-md cursor-pointer"
-              style={{ background: c.hex }}
-            />
+              title={`Marcar fundo com ${c.name} (${fillOpacity}% opacidade)`}
+              onClick={() => onApply(c.hex, 'fill', fillOpacity)}
+              className="w-7 h-7 rounded-lg transition-transform hover:scale-120 active:scale-95 ring-2 ring-transparent hover:ring-white/80 shrink-0 border border-slate-700/80 shadow-md cursor-pointer relative overflow-hidden"
+              style={{
+                background: `linear-gradient(45deg, #1e293b 25%, transparent 25%), linear-gradient(-45deg, #1e293b 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #1e293b 75%), linear-gradient(-45deg, transparent 75%, #1e293b 75%)`,
+                backgroundSize: '8px 8px',
+                backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0px'
+              }}
+            >
+              <div
+                className="w-full h-full"
+                style={{
+                  backgroundColor: c.hex,
+                  opacity: fillOpacity / 100
+                }}
+              />
+            </button>
           ))}
         </div>
       </div>

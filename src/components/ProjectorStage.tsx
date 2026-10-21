@@ -42,7 +42,7 @@ export interface ProjectorStageProps {
 
   hlToolbar: { x: number; y: number; text: string } | null;
   setHlToolbar: (val: { x: number; y: number; text: string } | null) => void;
-  applyHighlight: (color: string, hlStyle?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted') => void;
+  applyHighlight: (color: string, hlStyle?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted', opacity?: number) => void;
   removeHighlight: () => void;
   hasSlideHighlights: boolean;
   clearCurrentSlideHighlights: () => void;

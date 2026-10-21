@@ -16,11 +16,29 @@ import { ProjectorStage } from './ProjectorStage';
 import { optimizeImageBase64 } from '../services/shareService';
 import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
 
-// ── Inline Text Highlight System ──────────────────────────────────
 interface TextHighlightEntry {
   text: string;
   color: string;
   style?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted'; // default 'fill' for backward compat
+  opacity?: number; // 0 to 100
+}
+
+function hexToRgba(hex: string, opacityPercent: number = 100): string {
+  if (!hex) return 'transparent';
+  if (hex.startsWith('rgba') || hex.startsWith('rgb')) return hex;
+  const cleanHex = hex.replace('#', '');
+  let r = 0, g = 0, b = 0;
+  if (cleanHex.length === 3) {
+    r = parseInt(cleanHex[0] + cleanHex[0], 16) || 0;
+    g = parseInt(cleanHex[1] + cleanHex[1], 16) || 0;
+    b = parseInt(cleanHex[2] + cleanHex[2], 16) || 0;
+  } else if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.slice(0, 2), 16) || 0;
+    g = parseInt(cleanHex.slice(2, 4), 16) || 0;
+    b = parseInt(cleanHex.slice(4, 6), 16) || 0;
+  }
+  const alpha = Math.max(0, Math.min(1, opacityPercent / 100));
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 type SlideHighlights = Record<number, TextHighlightEntry[]>;
 const HL_STORAGE_KEY = 'mega_ebd_text_highlights_v2';
@@ -72,7 +90,7 @@ function applyHighlightsToText(
   if (!entries || !entries.length) return <span style={{ color: forcedTextColor }}>{text}</span>;
 
   // Build sorted, non-overlapping intervals
-  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' | 'text' | 'underline' | 'dotted' }> = [];
+  const intervals: Array<{ s: number; e: number; color: string; style: 'fill' | 'outline' | 'text' | 'underline' | 'dotted'; opacity?: number }> = [];
   const lowerText = text.toLowerCase();
   for (const h of entries) {
     if (!h.text) continue;
@@ -99,7 +117,7 @@ function applyHighlightsToText(
       const idx = m.index + prefixOffset;
       const len = matchedText.length;
       const overlaps = intervals.some((iv) => idx < iv.e && idx + len > iv.s);
-      if (!overlaps) intervals.push({ s: idx, e: idx + len, color: h.color, style: h.style ?? 'fill' });
+      if (!overlaps) intervals.push({ s: idx, e: idx + len, color: h.color, style: h.style ?? 'fill', opacity: h.opacity });
       pattern.lastIndex = idx + 1;
     }
   }
@@ -178,7 +196,6 @@ function applyHighlightsToText(
         </mark>
       );
     } else {
-      // Contraste automático da letra no fundo marcado
       const isDark = (() => {
         const hex = iv.color.replace('#', '');
         if (hex.length === 3) {
@@ -195,13 +212,15 @@ function applyHighlightsToText(
         }
         return false;
       })();
+      const effectiveOpacity = (iv as any).opacity ?? 100;
+      const bgRgba = hexToRgba(iv.color, effectiveOpacity);
       const markTextColor = isDark ? '#ffffff' : '#000000';
 
       nodes.push(
         <mark
           key={`m${i}`}
           style={{
-            background: iv.color,
+            background: bgRgba,
             color: markTextColor,
             borderRadius: '6px',
             padding: '2px 6px',
@@ -2051,11 +2070,11 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return applyHighlightsToText(text, entries, forcedColor ?? (bodyTextColor === 'black' ? '#000000' : '#ffffff'));
   }, [slideHighlights, projectorIndex, bodyTextColor]);
 
-  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' | 'text' | 'underline' | 'dotted' = 'fill') => {
+  const applyHighlight = useCallback((color: string, hlStyle: 'fill' | 'outline' | 'text' | 'underline' | 'dotted' = 'fill', opacity: number = 100) => {
     if (!hlToolbar) return;
     const current = slideHighlights[projectorIndex] || [];
     const filtered = current.filter((h) => h.text !== hlToolbar.text);
-    saveHighlights({ ...slideHighlights, [projectorIndex]: [...filtered, { text: hlToolbar.text, color, style: hlStyle }] });
+    saveHighlights({ ...slideHighlights, [projectorIndex]: [...filtered, { text: hlToolbar.text, color, style: hlStyle, opacity }] });
     setHlToolbar(null);
     window.getSelection()?.removeAllRanges();
   }, [hlToolbar, slideHighlights, projectorIndex, saveHighlights]);
