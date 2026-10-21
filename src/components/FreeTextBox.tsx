@@ -469,6 +469,37 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
             </button>
           </div>
 
+          {/* Coordenadas X, Y e Largura no Slide */}
+          <div className="flex items-center gap-1 bg-slate-900 border border-slate-700/80 rounded-lg px-1.5 py-0.5 font-mono text-[10px]">
+            <span className="text-slate-400 font-bold">X:</span>
+            <input
+              type="number"
+              value={Math.round(currentBox.x)}
+              onChange={(e) => onCommit({ ...currentBox, x: Number(e.target.value) || 0 })}
+              className={`w-7 bg-transparent text-center font-bold outline-none ${isCyan ? 'text-cyan-300' : 'text-amber-400'}`}
+              title="Posição horizontal (X em % do slide)"
+            />
+            <span className="text-slate-600">|</span>
+            <span className="text-slate-400 font-bold">Y:</span>
+            <input
+              type="number"
+              value={Math.round(currentBox.y)}
+              onChange={(e) => onCommit({ ...currentBox, y: Number(e.target.value) || 0 })}
+              className={`w-7 bg-transparent text-center font-bold outline-none ${isCyan ? 'text-cyan-300' : 'text-amber-400'}`}
+              title="Posição vertical (Y em % do slide)"
+            />
+            <span className="text-slate-600">|</span>
+            <span className="text-slate-400 font-bold">L:</span>
+            <input
+              type="number"
+              value={Math.round(currentBox.w)}
+              onChange={(e) => onCommit({ ...currentBox, w: Math.max(10, Math.min(100, Number(e.target.value) || 10)) })}
+              className="w-7 bg-transparent text-center font-bold text-slate-200 outline-none"
+              title="Largura da caixa (% do slide)"
+            />
+            <span className="text-slate-400 font-bold">%</span>
+          </div>
+
           {/* Botão de Redefinir */}
           {onReset && (
             <button
@@ -481,11 +512,6 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
               <RotateCcw className="w-3 h-3" />
             </button>
           )}
-
-          {/* Medidas da caixa em tempo real */}
-          <span className="text-[10px] text-slate-400 font-mono ml-0.5 hidden sm:inline">
-            {Math.round(currentBox.w)}% larg
-          </span>
         </div>
       )}
 
