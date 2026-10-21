@@ -24,6 +24,13 @@ export function setStoredApiKey(key: string): void {
 // Cache para modelos suportados pela chave do usuário
 let cachedAvailableModels: string[] | null = null;
 
+// Modelos que NÃO geram texto (TTS, imagem, áudio, embeddings etc.) — nunca devem ser usados para gerar lições
+const NON_TEXT_MODEL_PATTERN = /(tts|image|imagen|audio|live|embed|veo|lyria|aqa|robotics|computer-use|learnlm|thinking-exp)/i;
+
+function isTextModel(model: string): boolean {
+  return !!model && !NON_TEXT_MODEL_PATTERN.test(model);
+}
+
 async function getAvailableModels(apiKey: string): Promise<string[]> {
   if (cachedAvailableModels && cachedAvailableModels.length > 0) {
     return cachedAvailableModels;
@@ -45,7 +52,8 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
       if (Array.isArray(data.models)) {
         const valid = data.models
           .filter((m: any) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
-          .map((m: any) => m.name.replace(/^models\//, ''));
+          .map((m: any) => m.name.replace(/^models\//, ''))
+          .filter(isTextModel);
         
         if (valid.length > 0) {
           cachedAvailableModels = valid;
@@ -59,6 +67,7 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
   }
 
   return [
+    'gemini-3.8-flash',
     'gemini-3.6-flash',
     'gemini-3.6-pro',
     'gemini-2.5-flash',
@@ -70,7 +79,7 @@ async function getAvailableModels(apiKey: string): Promise<string[]> {
 
 export async function callGeminiRaw(
   prompt: string, 
-  modelName: string = 'gemini-3.6-flash',
+  modelName: string = 'gemini-3.8-flash',
   isJsonResponse: boolean = true,
   temperature: number = 0.5
 ): Promise<string> {
@@ -86,12 +95,15 @@ export async function callGeminiRaw(
   const candidateModels = Array.from(new Set([
     modelName,
     'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-2.0-flash',
     'gemini-2.5-pro',
     ...activeModels.filter(m => m.includes('flash') || m.includes('pro')),
     'gemini-1.5-flash-latest'
-  ])).filter(Boolean);
+  ])).filter(isTextModel);
 
   let lastError: Error | null = null;
+  let quotaErrorCount = 0;
   const proxyBase = (import.meta.env.VITE_GEMINI_PROXY_URL as string) || '';
 
   for (const model of candidateModels) {
@@ -136,19 +148,27 @@ export async function callGeminiRaw(
         const message = errJson?.error?.message || `HTTP ${response.status}`;
         const status = response.status;
 
-        // Se for erro definitivo (chave inválida, cota esgotada, permissão), interrompe imediatamente sem testar 15 modelos repetidos
+        // Erro definitivo apenas para problemas de chave/permissão (afetam todos os modelos)
         const isFatalError = 
           (status === 400 && /API key/i.test(message)) ||
           status === 401 || 
           status === 403 || 
-          status === 429 || 
-          /API[ _]?key/i.test(message) ||
+          /API[ _]?key not valid/i.test(message);
+
+        if (isFatalError) {
+          throw new Error(`Erro definitivo na API Gemini (${status}): ${message}`);
+        }
+
+        // Cota/rate limit é POR MODELO no plano gratuito: tenta o próximo modelo
+        const isQuotaError =
+          status === 429 ||
           /quota/i.test(message) ||
           /resource has been exhausted/i.test(message) ||
           /rate limit/i.test(message);
 
-        if (isFatalError) {
-          throw new Error(`Erro definitivo na API Gemini (${status}): ${message}`);
+        if (isQuotaError) {
+          quotaErrorCount++;
+          throw new Error(`Cota esgotada no modelo ${model}: ${message}`);
         }
 
         throw new Error(`Modelo ${model}: ${message}`);
@@ -167,6 +187,10 @@ export async function callGeminiRaw(
       console.warn(`[Gemini REST Fallback] Falha no modelo ${model}:`, err.message);
       lastError = err;
     }
+  }
+
+  if (quotaErrorCount > 0 && quotaErrorCount === candidateModels.length) {
+    throw new Error('A cota gratuita da sua chave Gemini foi esgotada em todos os modelos disponíveis. Aguarde alguns minutos (ou até o reset diário) e tente novamente, ou ative o faturamento em https://ai.dev.');
   }
 
   throw new Error(`Nenhum modelo Gemini respondeu com sucesso. Detalhes do último erro: ${lastError?.message || 'Erro desconhecido'}`);

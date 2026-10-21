@@ -911,6 +911,12 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   // ── POSICIONAMENTO LIVRE DE ELEMENTOS NO SLIDE ──────────────────────────────
   const [isLayoutEditMode, setIsLayoutEditMode] = useState(false);
 
+  // ── TESTE DE PROPORÇÃO DE SLIDE (16:9 PADRÃO vs 4:3 TESTE) ─────────────────
+  const [testStageAspect, setTestStageAspect] = useState<'16:9' | '4:3'>('16:9');
+  const toggleTestStageAspect = useCallback(() => {
+    setTestStageAspect(prev => (prev === '16:9' ? '4:3' : '16:9'));
+  }, []);
+
   // ── LINHAS-GUIA DE ALINHAMENTO (HORIZONTAL E VERTICAL) ──────────────────────
   const [showAlignmentGuides, setShowAlignmentGuides] = useState<boolean>(() => {
     try {
@@ -3035,7 +3041,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
   return (
     <div className="preparation-view-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
       {/* Barra de Ferramentas da Lição */}
-      <div className="bg-slate-900/90 border border-slate-700/90 p-3.5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 backdrop-blur-md no-print">
+      <div className="bg-slate-900/90 border border-slate-700/90 p-3.5 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4 backdrop-blur-md no-print relative z-40">
         <div className="flex items-center gap-2.5 min-w-0">
           <span className="text-[11px] uppercase tracking-wider font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg shrink-0">
             {activeTab === 'projetor' ? 'Projetor' : 'Roteiro'}
@@ -3138,6 +3144,8 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               setBodySelected={setBodySelected}
               showAlignmentGuides={showAlignmentGuides}
               toggleAlignmentGuides={toggleAlignmentGuides}
+              testStageAspect={testStageAspect}
+              toggleTestStageAspect={toggleTestStageAspect}
             />
           )}
 
@@ -3239,6 +3247,7 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
           <ProjectorStage
             projectorStageRef={projectorStageRef}
             isLayoutEditMode={isLayoutEditMode}
+            stageAspect={testStageAspect}
             customBg={customBg}
             imageSelected={imageSelected}
             setImageSelected={setImageSelected}

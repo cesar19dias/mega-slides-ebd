@@ -70,7 +70,7 @@ export const ContentInput: React.FC<ContentInputProps> = ({
   // 3. OPÇÕES DE PREPARAÇÃO
   const [options, setOptions] = useState<PreparationOptions>({
     depth: 'detalhada',
-    selectedAiModel: 'gemini-3.6-flash',
+    selectedAiModel: 'gemini-3.8-flash',
     bibleVersion: 'ARC',
     includePentecostalApplication: true,
     hasContextualBridge: false,
@@ -476,7 +476,8 @@ export const ContentInput: React.FC<ContentInputProps> = ({
               onChange={(e) => setOptions({ ...options, selectedAiModel: e.target.value })}
               className="select-input"
             >
-              <option value="gemini-3.6-flash">Gemini 3.6 Flash (Mais Recente e Rápido)</option>
+              <option value="gemini-3.8-flash">Gemini 3.8 Flash (Recomendado - Mais Recente)</option>
+              <option value="gemini-3.6-flash">Gemini 3.6 Flash (Rápido)</option>
               <option value="gemini-3.6-pro">Gemini 3.6 Pro (Máxima Precisão Teológica)</option>
               <option value="gemini-2.5-flash">Gemini 2.5 Flash (Equilibrado)</option>
               <option value="gemini-2.0-flash">Gemini 2.0 Flash (Ultra Rápido)</option>

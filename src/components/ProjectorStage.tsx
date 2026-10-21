@@ -8,7 +8,6 @@ import {
   RotateCcw,
   Check,
   Crosshair,
-  Eraser,
 } from 'lucide-react';
 import type { ImageBox, TextBox, EBDLessonPreparation, ProjectorItem } from '../types';
 import { TextHighlightToolbar } from './TextHighlightToolbar';
@@ -19,6 +18,7 @@ import { parseBiblicalTextSections } from '../services/biblicalTextParser';
 export interface ProjectorStageProps {
   projectorStageRef: React.RefObject<HTMLDivElement | null>;
   isLayoutEditMode: boolean;
+  stageAspect?: '16:9' | '4:3';
   customBg: string | null;
   imageSelected: boolean;
   setImageSelected: (val: boolean) => void;
@@ -127,6 +127,7 @@ function parseRomanToNum(val: string): string {
 export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   projectorStageRef,
   isLayoutEditMode,
+  stageAspect = '16:9',
   customBg,
   imageSelected,
   setImageSelected,
@@ -205,7 +206,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   return (
     <div
       ref={projectorStageRef}
-      className={`slide-stage-wrapper ${isLayoutEditMode ? 'layout-mode' : ''} rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4`}
+      className={`slide-stage-wrapper ${stageAspect === '4:3' ? 'aspect-4-3' : ''} ${isLayoutEditMode ? 'layout-mode' : ''} rounded-3xl overflow-hidden shadow-2xl border border-slate-300 relative min-h-[520px] text-slate-900 flex flex-col justify-between p-6 pt-3 pb-4`}
       style={customBg ? { backgroundImage: `url(${customBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundColor: 'transparent' } : { backgroundColor: 'white' }}
       onPointerDown={(e) => {
         if (!(e.target as HTMLElement).closest('[data-image-box]')) {
@@ -247,17 +248,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
         />
       )}
 
-      {/* Botão Flutuante Rápido de Limpar Cores deste Slide no Palco */}
-      {!isExporting && hasSlideHighlights && (
-        <button
-          onClick={clearCurrentSlideHighlights}
-          className="absolute top-4 right-4 z-40 bg-rose-950/90 hover:bg-rose-900 text-rose-200 hover:text-white px-3 py-1.5 rounded-xl border border-rose-500/70 shadow-2xl backdrop-blur-md text-xs font-black transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer group"
-          title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
-        >
-          <Eraser className="w-3.5 h-3.5 text-rose-400 group-hover:text-rose-200" />
-          <span>🧹 Limpar Cores do Slide</span>
-        </button>
-      )}
+
 
       {/* Setas Laterais de Navegação no Próprio Slide (Modo Projetor) */}
       {!isExporting && (

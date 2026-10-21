@@ -459,6 +459,9 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
         style={{
           zoom: currentBox.scale,
           transformOrigin: 'center center',
+          isolation: 'isolate',
+          zIndex: 0,
+          ...(selected && editable && !isTextEditing ? { pointerEvents: 'none' as const } : {}),
         }}
       >
         {children}
@@ -468,7 +471,7 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
       {selected && editable && !isTextEditing && (
         <div
           className="absolute inset-0 cursor-grab active:cursor-grabbing pointer-events-auto"
-          style={{ touchAction: 'none' }}
+          style={{ touchAction: 'none', zIndex: 40 }}
           onPointerDown={(e) => handlePointerDown(e, 'move')}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

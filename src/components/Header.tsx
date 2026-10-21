@@ -1,5 +1,48 @@
 import React from 'react';
-import { BookOpen, Key, RefreshCw, UserCheck, Monitor, QrCode } from 'lucide-react';
+import { BookOpen, Key, RefreshCw, UserCheck, Monitor } from 'lucide-react';
+
+const AuthenticQrCodeIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+    {/* Top-Left Finder */}
+    <path d="M2 2h7v7H2V2zm1.8 1.8v3.4h3.4V3.8H3.8z" />
+    <rect x="4.4" y="4.4" width="2.2" height="2.2" />
+
+    {/* Top-Right Finder */}
+    <path d="M15 2h7v7h-7V2zm1.8 1.8v3.4h3.4V3.8h-3.4z" />
+    <rect x="17.4" y="4.4" width="2.2" height="2.2" />
+
+    {/* Bottom-Left Finder */}
+    <path d="M2 15h7v7H2v-7zm1.8 1.8v3.4h3.4v-3.4H3.8z" />
+    <rect x="4.4" y="17.4" width="2.2" height="2.2" />
+
+    {/* Timing patterns & Data matrix */}
+    <rect x="10.5" y="2" width="1.5" height="1.5" />
+    <rect x="10.5" y="5" width="1.5" height="1.5" />
+    <rect x="10.5" y="8" width="1.5" height="1.5" />
+    <rect x="2" y="10.5" width="1.5" height="1.5" />
+    <rect x="5" y="10.5" width="1.5" height="1.5" />
+    <rect x="8" y="10.5" width="1.5" height="1.5" />
+    
+    <rect x="10.5" y="10.5" width="2" height="2" />
+    <rect x="13.5" y="10.5" width="1.5" height="1.5" />
+    <rect x="16.5" y="10.5" width="2" height="1.5" />
+    <rect x="19.5" y="10.5" width="2.5" height="1.5" />
+
+    <rect x="10.5" y="13.5" width="1.5" height="1.5" />
+    <rect x="10.5" y="16.5" width="1.5" height="2" />
+    <rect x="10.5" y="19.5" width="2" height="2.5" />
+
+    <rect x="13.5" y="13.5" width="2.5" height="2.5" />
+    <rect x="17.5" y="13.5" width="1.5" height="1.5" />
+    <rect x="20" y="13.5" width="2" height="1.5" />
+    <rect x="14" y="17" width="2" height="2" />
+    <rect x="17" y="16.5" width="2" height="2.5" />
+    <rect x="20" y="16.5" width="2" height="2" />
+    <rect x="13.5" y="20" width="2.5" height="2" />
+    <rect x="17" y="20" width="2" height="2" />
+    <rect x="20" y="19.5" width="2" height="2.5" />
+  </svg>
+);
 
 interface HeaderProps {
   hasApiKey: boolean;
@@ -56,16 +99,16 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
-            {/* Símbolo QR Code Quadrado */}
+            {/* Símbolo QR Code Quadrado Autêntico */}
             <button
               onClick={() => {
                 if (onOpenQrCode) onOpenQrCode();
                 window.dispatchEvent(new CustomEvent('mega-ebd-open-qr'));
               }}
-              className="w-11 h-11 min-w-[44px] min-h-[44px] max-h-[44px] p-1 flex items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border border-purple-400/50 shadow-lg shadow-purple-500/25 transition-all cursor-pointer active:scale-90 hover:scale-105 shrink-0"
+              className="w-12 h-12 min-w-[48px] min-h-[48px] p-2 flex items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border-2 border-purple-300/60 shadow-xl shadow-purple-500/30 transition-all cursor-pointer active:scale-95 hover:scale-105 shrink-0"
               title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
             >
-              <QrCode className="w-7.5 h-7.5 text-white" />
+              <AuthenticQrCodeIcon className="w-8 h-8 text-white drop-shadow-sm" />
             </button>
           </div>
         )}

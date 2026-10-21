@@ -1,10 +1,5 @@
 import React from 'react';
 import {
-  Type,
-  ZoomIn,
-  ZoomOut,
-  Columns,
-  Crosshair,
   ImageIcon,
   Eraser,
   Edit3,
@@ -17,7 +12,6 @@ import {
   Trash2,
   LayoutTemplate,
   Crop,
-  Download,
   ImageDown,
   RefreshCw,
   Square,
@@ -71,6 +65,8 @@ export interface ProjectorHeaderActionsProps {
   setTitleSelected?: React.Dispatch<React.SetStateAction<boolean>>;
   bodySelected?: boolean;
   setBodySelected?: React.Dispatch<React.SetStateAction<boolean>>;
+  testStageAspect?: '16:9' | '4:3';
+  toggleTestStageAspect?: () => void;
 }
 
 export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
@@ -105,7 +101,6 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
   updateLesson,
   modelMenuRef,
 
-  onExportPowerPoint,
   onExportPngZip,
   isExporting,
 
@@ -113,17 +108,15 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
   setIsEditMode,
   isLayoutEditMode,
   setIsLayoutEditMode,
-  showAlignmentGuides,
-  toggleAlignmentGuides,
-  titleSelected,
   setTitleSelected,
-  bodySelected,
   setBodySelected,
+  testStageAspect = '16:9',
+  toggleTestStageAspect,
 }) => {
   const hasSlideImage = Boolean(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl);
 
   return (
-    <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2 rounded-2xl border border-slate-800">
+    <div className="flex flex-wrap items-center gap-2.5 bg-slate-950 p-2 rounded-2xl border border-slate-800 relative z-30">
       {/* 1 BOTÃO UNIFICADO: IMAGEM DO SLIDE */}
       <div className="relative inline-block" ref={imageMenuRef}>
         <div className="inline-flex items-center rounded-xl shadow-md border border-purple-400/50 bg-purple-700 overflow-hidden min-h-[42px]">
@@ -385,16 +378,6 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
         )}
       </div>
 
-      {/* Exportar PPTX com todos os slides */}
-      <button
-        onClick={onExportPowerPoint}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-sm font-extrabold cursor-pointer border border-emerald-400/40 shadow-md transition-all hover:scale-105 active:scale-95 min-h-[42px]"
-        title="Exportar apresentação completa (.pptx) com todos os slides, imagens e anotações do orador"
-      >
-        <Download className="w-4 h-4 text-white" />
-        <span>PowerPoint (.pptx)</span>
-      </button>
-
       {/* TODOS OS SLIDES - PNG/ZIP */}
       <button
         onClick={onExportPngZip}
@@ -445,57 +428,23 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
         <span>{isLayoutEditMode ? '✅ Concluir Mover' : '🎯 Mover'}</span>
       </button>
 
-      {/* BOTÃO DE REDIMENSIONAR TÍTULO ESTILO COREL DRAW */}
-      {setTitleSelected && (
+      {/* BOTÃO DE TESTE DE PROPORÇÃO (16:9 / 4:3) */}
+      {toggleTestStageAspect && (
         <button
-          onClick={() => {
-            setTitleSelected(prev => !prev);
-            if (setBodySelected) setBodySelected(false);
-          }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-            titleSelected
-              ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/50 shadow-amber-500/30'
-              : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+          type="button"
+          onClick={toggleTestStageAspect}
+          className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
+            testStageAspect === '4:3'
+              ? 'bg-cyan-500 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/50'
+              : 'bg-slate-800 hover:bg-slate-700 text-cyan-300 border-cyan-500/30'
           }`}
-          title="Ativar moldura com 8 alças e giro no TÍTULO (Estilo CorelDRAW)"
+          title="Alternar entre a proporção 16:9 (Widescreen padrão) e 4:3 (Tradicional de Igreja) neste slide para testar o visual"
         >
-          <Move className="w-4 h-4 text-current" />
-          <span>{titleSelected ? '👑 Título Ativo' : '👑 Título Corel'}</span>
+          <span className="text-sm">📐</span>
+          <span>{testStageAspect === '4:3' ? '4:3 (Ativo)' : 'Testar 4:3'}</span>
         </button>
       )}
 
-      {/* BOTÃO DE REDIMENSIONAR TEXTO / CORPO ESTILO COREL DRAW */}
-      {setBodySelected && (
-        <button
-          onClick={() => {
-            setBodySelected(prev => !prev);
-            if (setTitleSelected) setTitleSelected(false);
-          }}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-            bodySelected
-              ? 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-500/30'
-              : 'bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/40'
-          }`}
-          title="Ativar moldura com 8 alças e giro no TEXTO / CONTEÚDO (Estilo CorelDRAW)"
-        >
-          <Move className="w-4 h-4 text-current" />
-          <span>{bodySelected ? '📄 Texto Ativo' : '📄 Texto Corel'}</span>
-        </button>
-      )}
-
-      {/* BOTÃO DE LINHAS GUIA HORIZONTAL E VERTICAL */}
-      <button
-        onClick={toggleAlignmentGuides}
-        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black cursor-pointer transition-all shadow-md border min-h-[42px] ${
-          showAlignmentGuides
-            ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
-            : 'bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border-cyan-500/40'
-        }`}
-        title="Linhas-guia de alinhamento: exibe réguas e guias na horizontal e vertical para posicionar textos com perfeição"
-      >
-        <Crosshair className="w-4 h-4 text-current" />
-        <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
-      </button>
     </div>
   );
 };
@@ -567,24 +516,6 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   projectorItems,
   currentProjectorItem,
 
-  currentTitleScale,
-  defaultTitleScale,
-  isCurrentTitleCustom,
-  setSingleTitleScale,
-
-  currentBodyScale,
-  defaultBodyScale,
-  isCurrentBodyCustom,
-  setSingleBodyScale,
-
-  slideBodyWidths,
-  setSingleBodyWidth,
-  resetSlideBodyWidth,
-
-  toggleSideBySideLayout,
-  showAlignmentGuides,
-  toggleAlignmentGuides,
-
   curImageSrc,
   curBox,
   imageSelected,
@@ -595,18 +526,8 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   handleInsertSampleImage,
   onUploadImage,
 
-  isTitleMoved,
-  isBodyMoved,
-  isImageMoved,
-  isImageWidthCustom,
-  isImageHeightCustom,
-  isImageCropCustom,
   hasSlideHighlights,
   clearCurrentSlideHighlights,
-  resetSlidePosition,
-  resetSlideImageWidth,
-  resetSlideImageHeight,
-  resetSlideImageCrop,
 
   isEditMode,
   isExporting,
@@ -615,298 +536,56 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   toggleBodyTextColor,
   slideImageOpacity,
   changeSlideImageOpacity,
+  isCurrentTitleCustom,
+  isCurrentBodyCustom,
   applyCurrentScalesToAllSlides,
-  titleSelected,
-  setTitleSelected,
-  bodySelected,
-  setBodySelected,
 }) => {
   return (
     <>
-      {/* Barra de Ajustes Finos do Slide (Fontes, Larguras e Posicionamentos) */}
-      <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg">
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Fonte do Título */}
-          <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-amber-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TÍTULO deste slide">
-            <Type className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-xs font-black text-amber-300 uppercase tracking-wider">Título:</span>
-            {setTitleSelected && (
-              <button
-                onClick={() => {
-                  setTitleSelected(prev => !prev);
-                  if (setBodySelected) setBodySelected(false);
+      {/* Barra de Ferramentas de Imagem (apenas quando houver imagem no slide ou demonstrativo) */}
+      {(curImageSrc || handleInsertSampleImage) && (
+        <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg relative z-10 animate-in fade-in duration-200">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Controle e Barra de Ferramentas de Imagem Estilo Corel Draw */}
+            {curImageSrc && imageSelected && (
+              <ImageBoxToolbar
+                box={curBox}
+                src={curImageSrc}
+                stageRef={projectorStageRef}
+                onChange={commitBox}
+                onRemove={() => {
+                  handleRemoveSlideImage();
+                  setImageSelected(false);
                 }}
-                className={`text-xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 mr-1 ${
-                  titleSelected
-                    ? 'bg-amber-500 text-slate-950 border-amber-300 font-extrabold shadow-sm'
-                    : 'bg-amber-950/80 hover:bg-amber-900 text-amber-300 border-amber-500/40'
-                }`}
-                title="Ativar caixa e alças de redimensionamento estilo CorelDRAW no título"
+                onDone={() => setImageSelected(false)}
+                onUploadImage={onUploadImage}
+              />
+            )}
+
+            {curImageSrc && !imageSelected && (
+              <button
+                onClick={() => setImageSelected(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+                title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
               >
-                <Move className="w-3.5 h-3.5" />
-                <span>{titleSelected ? 'Alças Ativas' : 'Alças Corel'}</span>
+                <ImageIcon className="w-4 h-4 text-purple-400" />
+                <span>🎯 Mover / Redimensionar Imagem</span>
               </button>
             )}
-            <button
-              onClick={() => {
-                const next = Math.max(0.5, Math.round((currentTitleScale - 0.05) * 100) / 100);
-                setSingleTitleScale(projectorIndex, next);
-              }}
-              disabled={currentTitleScale <= 0.5}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Diminuir fonte do título (A-)"
-            >
-              <ZoomOut className="w-4 h-4 text-amber-400" />
-            </button>
-            <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentTitleCustom ? 'text-yellow-300 font-black' : 'text-amber-300'}`}>
-              {Math.round(currentTitleScale * 100)}%
-            </span>
-            <button
-              onClick={() => {
-                const next = Math.min(3.0, Math.round((currentTitleScale + 0.05) * 100) / 100);
-                setSingleTitleScale(projectorIndex, next);
-              }}
-              disabled={currentTitleScale >= 3.0}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Aumentar fonte do título (A+)"
-            >
-              <ZoomIn className="w-4 h-4 text-amber-400" />
-            </button>
-            {isCurrentTitleCustom && (
+
+            {!curImageSrc && handleInsertSampleImage && (
               <button
-                onClick={() => setSingleTitleScale(projectorIndex, null)}
-                className="text-xs font-black text-amber-400 hover:text-white px-2 py-1 rounded-lg bg-amber-950 border border-amber-500/40 transition-colors cursor-pointer"
-                title={`Restaurar tamanho padrão do título (${Math.round(defaultTitleScale * 100)}%)`}
+                onClick={handleInsertSampleImage}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-900/40 hover:bg-blue-900/70 text-blue-200 border border-blue-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+                title="Inserir um quadro azul demonstrativo centralizado (90% x 71% • X: 5% • Y: 24%) para testar o enquadramento"
               >
-                ↺ {Math.round(defaultTitleScale * 100)}%
+                <Square className="w-4 h-4 text-blue-400 fill-blue-500/30" />
+                <span>🟦 Inserir Quadro Azul</span>
               </button>
             )}
           </div>
-
-          {/* Fonte do Texto */}
-          <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-cyan-500/40 shadow-sm min-h-[40px]" title="Ajustar tamanho da fonte do TEXTO / CORPO deste slide">
-            <Type className="w-4 h-4 text-cyan-400 shrink-0" />
-            <span className="text-xs font-black text-cyan-300 uppercase tracking-wider">Texto:</span>
-            {setBodySelected && (
-              <button
-                onClick={() => {
-                  setBodySelected(prev => !prev);
-                  if (setTitleSelected) setTitleSelected(false);
-                }}
-                className={`text-xs font-black px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 mr-1 ${
-                  bodySelected
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-300 font-extrabold shadow-sm'
-                    : 'bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border-cyan-500/40'
-                }`}
-                title="Ativar caixa e alças de redimensionamento estilo CorelDRAW no texto/conteúdo"
-              >
-                <Move className="w-3.5 h-3.5" />
-                <span>{bodySelected ? 'Alças Ativas' : 'Alças Corel'}</span>
-              </button>
-            )}
-            <button
-              onClick={() => {
-                const next = Math.max(0.5, Math.round((currentBodyScale - 0.05) * 100) / 100);
-                setSingleBodyScale(projectorIndex, next);
-              }}
-              disabled={currentBodyScale <= 0.5}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Diminuir fonte do texto (A-)"
-            >
-              <ZoomOut className="w-4 h-4 text-cyan-400" />
-            </button>
-            <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${isCurrentBodyCustom ? 'text-cyan-200 font-black' : 'text-cyan-300'}`}>
-              {Math.round(currentBodyScale * 100)}%
-            </span>
-            <button
-              onClick={() => {
-                const next = Math.min(3.0, Math.round((currentBodyScale + 0.05) * 100) / 100);
-                setSingleBodyScale(projectorIndex, next);
-              }}
-              disabled={currentBodyScale >= 3.0}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Aumentar fonte do texto (A+)"
-            >
-              <ZoomIn className="w-4 h-4 text-cyan-400" />
-            </button>
-            {isCurrentBodyCustom && (
-              <button
-                onClick={() => setSingleBodyScale(projectorIndex, null)}
-                className="text-xs font-black text-cyan-400 hover:text-white px-2 py-1 rounded-lg bg-cyan-950 border border-cyan-500/40 transition-colors cursor-pointer"
-                title={`Restaurar tamanho padrão do texto (${Math.round(defaultBodyScale * 100)}%)`}
-              >
-                ↺ {Math.round(defaultBodyScale * 100)}%
-              </button>
-            )}
-          </div>
-
-          {/* Largura da Caixa de Texto */}
-          <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-xl border border-sky-500/40 shadow-sm min-h-[40px]" title="Ajustar largura da caixa de texto (permite colocar texto de um lado e imagem do outro)">
-            <Columns className="w-4 h-4 text-sky-400 shrink-0" />
-            <span className="text-xs font-black text-sky-300 uppercase tracking-wider">Largura:</span>
-            <button
-              onClick={() => {
-                const cur = slideBodyWidths[projectorIndex] ?? 100;
-                setSingleBodyWidth(projectorIndex, Math.max(30, cur - 10));
-              }}
-              disabled={(slideBodyWidths[projectorIndex] ?? 100) <= 30}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Diminuir largura do texto (-10%)"
-            >
-              <ZoomOut className="w-4 h-4 text-sky-400" />
-            </button>
-            <span className={`text-sm font-black px-1 min-w-[42px] text-center font-mono ${(slideBodyWidths[projectorIndex] ?? 100) < 100 ? 'text-sky-200 font-black' : 'text-sky-300'}`}>
-              {slideBodyWidths[projectorIndex] ?? 100}%
-            </span>
-            <button
-              onClick={() => {
-                const cur = slideBodyWidths[projectorIndex] ?? 100;
-                setSingleBodyWidth(projectorIndex, Math.min(100, cur + 10));
-              }}
-              disabled={(slideBodyWidths[projectorIndex] ?? 100) >= 100}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 disabled:opacity-30 font-black text-sm cursor-pointer transition-all active:scale-90"
-              title="Aumentar largura do texto (+10%)"
-            >
-              <ZoomIn className="w-4 h-4 text-sky-400" />
-            </button>
-            {(slideBodyWidths[projectorIndex] ?? 100) < 100 && (
-              <button
-                onClick={resetSlideBodyWidth}
-                className="text-xs font-black text-sky-400 hover:text-white px-2 py-1 rounded-lg bg-sky-950 border border-sky-500/40 transition-colors cursor-pointer"
-                title="Restaurar largura inteira (100%)"
-              >
-                ↺ 100%
-              </button>
-            )}
-          </div>
-
-          {/* Atalho Rápido: Lado a Lado (Texto de um lado, imagem do outro) */}
-          <button
-            onClick={toggleSideBySideLayout}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-sky-900/60 to-purple-900/60 hover:from-sky-800/80 hover:to-purple-800/80 text-sky-200 border border-sky-400/50 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-            title="Alternar layout inteligente: divide o slide com Texto de um lado e Imagem do outro"
-          >
-            <Columns className="w-4 h-4 text-sky-300" />
-            <span>🌓 Lado a Lado</span>
-          </button>
-
-          {/* Atalho Rápido: Linhas Guia H / V */}
-          <button
-            onClick={toggleAlignmentGuides}
-            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] border active:scale-95 ${
-              showAlignmentGuides
-                ? 'bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-300 ring-2 ring-cyan-400/50 shadow-cyan-600/30'
-                : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40'
-            }`}
-            title="Exibir réguas e linhas-guia na horizontal e vertical para posicionar e alinhar textos e títulos"
-          >
-            <Crosshair className="w-4 h-4 text-cyan-300" />
-            <span>{showAlignmentGuides ? '📐 Ocultar Guias' : '📐 Guias H/V'}</span>
-          </button>
-
-          {/* Controle e Barra de Ferramentas de Imagem Estilo Corel Draw */}
-          {curImageSrc && imageSelected && (
-            <ImageBoxToolbar
-              box={curBox}
-              src={curImageSrc}
-              stageRef={projectorStageRef}
-              onChange={commitBox}
-              onRemove={() => {
-                handleRemoveSlideImage();
-                setImageSelected(false);
-              }}
-              onDone={() => setImageSelected(false)}
-              onUploadImage={onUploadImage}
-            />
-          )}
-
-          {curImageSrc && !imageSelected && (
-            <button
-              onClick={() => setImageSelected(true)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-              title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
-            >
-              <ImageIcon className="w-4 h-4 text-purple-400" />
-              <span>🎯 Mover / Redimensionar Imagem</span>
-            </button>
-          )}
-
-          {!curImageSrc && handleInsertSampleImage && (
-            <button
-              onClick={handleInsertSampleImage}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-900/40 hover:bg-blue-900/70 text-blue-200 border border-blue-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-              title="Inserir um quadro azul demonstrativo centralizado (90% x 71% • X: 5% • Y: 24%) para testar o enquadramento"
-            >
-              <Square className="w-4 h-4 text-blue-400 fill-blue-500/30" />
-              <span>🟦 Inserir Quadro Azul</span>
-            </button>
-          )}
-
-          {/* Reset de Posições, Enquadramentos e Destaques */}
-          {(isTitleMoved || isBodyMoved || isImageMoved || isImageWidthCustom || isImageHeightCustom || isImageCropCustom || hasSlideHighlights) && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {hasSlideHighlights && (
-                <button
-                  onClick={clearCurrentSlideHighlights}
-                  className="text-xs font-black text-rose-200 hover:text-white px-3.5 py-1.5 rounded-xl bg-rose-950/90 border border-rose-500/70 hover:bg-rose-900 transition-all cursor-pointer min-h-[38px] active:scale-95 flex items-center gap-1.5 shadow-lg shadow-rose-950/50"
-                  title={`Limpar todas as cores e destaques exclusivamente deste slide (${projectorIndex + 1})`}
-                >
-                  <Eraser className="w-4 h-4 text-rose-400" />
-                  <span>🧹 Limpar Cores deste Slide</span>
-                </button>
-              )}
-              {isTitleMoved && (
-                <button
-                  onClick={() => resetSlidePosition('title')}
-                  className="text-xs font-black text-amber-300 hover:text-white px-3 py-1.5 rounded-xl bg-amber-950/80 border border-amber-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                  title="Restaurar posição original do título"
-                >
-                  ↺ Pos. Título
-                </button>
-              )}
-              {isBodyMoved && (
-                <button
-                  onClick={() => resetSlidePosition('body')}
-                  className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                  title="Restaurar posição original do texto"
-                >
-                  ↺ Pos. Texto
-                </button>
-              )}
-              {isImageMoved && (
-                <button
-                  onClick={() => resetSlidePosition('image')}
-                  className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                  title="Restaurar posição original da imagem"
-                >
-                  ↺ Pos. Img
-                </button>
-              )}
-              {(isImageWidthCustom || isImageHeightCustom) && (
-                <button
-                  onClick={() => {
-                    resetSlideImageWidth();
-                    resetSlideImageHeight();
-                  }}
-                  className="text-xs font-black text-purple-300 hover:text-white px-3 py-1.5 rounded-xl bg-purple-950/80 border border-purple-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                  title="Restaurar tamanho padrão do quadro da imagem"
-                >
-                  ↺ Quadro
-                </button>
-              )}
-              {isImageCropCustom && (
-                <button
-                  onClick={resetSlideImageCrop}
-                  className="text-xs font-black text-cyan-300 hover:text-white px-3 py-1.5 rounded-xl bg-cyan-950/80 border border-cyan-500/40 cursor-pointer min-h-[38px] active:scale-95"
-                  title="Restaurar enquadramento e corte original da imagem"
-                >
-                  ↺ Recorte
-                </button>
-              )}
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* ── BARRA DE MINIATURAS VISUAIS DOS SLIDES ── */}
       <div className="slides-navigation-bar flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 overflow-x-auto custom-scrollbar">
