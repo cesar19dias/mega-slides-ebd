@@ -10,7 +10,8 @@ import {
   Ratio,
   Move,
   Maximize,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Copy,
 } from 'lucide-react';
 
 export const DEFAULT_IMAGE_BOX: ImageBox = {
@@ -549,6 +550,8 @@ export interface ImageBoxToolbarProps {
   onRemove: () => void;
   onDone: () => void;
   onUploadImage?: (file: File) => void;
+  onCopy?: () => void;
+  onOpenReplicateModal?: () => void;
 }
 
 export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
@@ -558,6 +561,8 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
   onRemove,
   onDone,
   onUploadImage,
+  onCopy,
+  onOpenReplicateModal,
 }) => {
   // Ajusta proporção original baseada nos pixels naturais da imagem
   const handleResetNaturalRatio = () => {
@@ -606,6 +611,32 @@ export const ImageBoxToolbar: React.FC<ImageBoxToolbarProps> = ({
         <Move className="w-4 h-4 text-cyan-400" />
         <span>IMAGEM</span>
       </div>
+
+      {/* Botão Copiar Imagem */}
+      {onCopy && (
+        <button
+          type="button"
+          onClick={onCopy}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/80 font-bold text-[11px] cursor-pointer shadow-sm transition-all active:scale-95"
+          title="Copiar esta imagem e enquadramento para a memória (Ctrl+C)"
+        >
+          <Copy className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Copiar</span>
+        </button>
+      )}
+
+      {/* Botão Replicar em Slides Selecionados */}
+      {onOpenReplicateModal && (
+        <button
+          type="button"
+          onClick={onOpenReplicateModal}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black text-[11px] cursor-pointer shadow-md shadow-cyan-600/30 transition-all active:scale-95"
+          title="Escolher slides específicos para colar esta imagem (com a mesma posição e tamanho)"
+        >
+          <Copy className="w-3.5 h-3.5" />
+          <span>📑 Replicar nos Slides...</span>
+        </button>
+      )}
 
       {/* Botão Trocar Foto Direto na Barra de Ferramentas */}
       {onUploadImage && (

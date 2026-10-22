@@ -67,6 +67,10 @@ export interface ProjectorHeaderActionsProps {
   setBodySelected?: React.Dispatch<React.SetStateAction<boolean>>;
   testStageAspect?: '16:9' | '4:3';
   toggleTestStageAspect?: () => void;
+  onCopyImage?: () => void;
+  onOpenReplicateModal?: () => void;
+  hasCopiedImage?: boolean;
+  onPasteImage?: () => void;
 }
 
 export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
@@ -112,6 +116,10 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
   setBodySelected,
   testStageAspect = '16:9',
   toggleTestStageAspect,
+  onCopyImage,
+  onOpenReplicateModal,
+  hasCopiedImage,
+  onPasteImage,
 }) => {
   const hasSlideImage = Boolean(projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl);
 
@@ -140,7 +148,7 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
         </div>
 
         {isImageMenuOpen && hasSlideImage && (
-          <div className="absolute left-0 top-full mt-2 z-50 w-56 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
+          <div className="absolute left-0 top-full mt-2 z-50 w-60 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-2 text-sm space-y-1 backdrop-blur-xl animate-in fade-in duration-150">
             <label className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-purple-200 hover:bg-purple-950/60 font-bold transition-colors cursor-pointer">
               <ImageIcon className="w-4 h-4 text-purple-400" />
               <span>📷 Alterar Imagem</span>
@@ -163,8 +171,34 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
               className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-cyan-300 hover:bg-cyan-950/60 font-bold transition-colors cursor-pointer"
             >
               <Move className="w-4 h-4 text-cyan-400" />
-              <span>🎯 Redimensionar / Mover Imagem</span>
+              <span>🎯 Redimensionar / Mover</span>
             </button>
+
+            {onCopyImage && (
+              <button
+                onClick={() => {
+                  onCopyImage();
+                  setIsImageMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-cyan-300 hover:bg-cyan-950/60 font-bold transition-colors cursor-pointer"
+              >
+                <Copy className="w-4 h-4 text-cyan-400" />
+                <span>📋 Copiar Imagem</span>
+              </button>
+            )}
+
+            {onOpenReplicateModal && (
+              <button
+                onClick={() => {
+                  onOpenReplicateModal();
+                  setIsImageMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-amber-300 hover:bg-amber-950/60 font-bold transition-colors cursor-pointer"
+              >
+                <Copy className="w-4 h-4 text-amber-400" />
+                <span>📑 Replicar nos Slides...</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -190,6 +224,19 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
               </button>
             )}
 
+            {hasCopiedImage && onPasteImage && (
+              <button
+                onClick={() => {
+                  onPasteImage();
+                  setIsImageMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-left text-emerald-300 hover:bg-emerald-950/60 font-bold transition-colors cursor-pointer"
+              >
+                <Copy className="w-4 h-4 text-emerald-400" />
+                <span>📋 Colar Imagem Copiada</span>
+              </button>
+            )}
+
             <div className="border-t border-slate-800 my-1" />
 
             <button
@@ -205,6 +252,19 @@ export const ProjectorHeaderActions: React.FC<ProjectorHeaderActionsProps> = ({
           </div>
         )}
       </div>
+
+      {/* Botão Rápido de Colar Imagem Copiada */}
+      {hasCopiedImage && onPasteImage && (
+        <button
+          type="button"
+          onClick={onPasteImage}
+          className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400/60 text-xs md:text-sm font-black cursor-pointer transition-all shadow-md active:scale-95 min-h-[42px]"
+          title="Colar imagem copiada da memória neste slide com a mesma posição e tamanho (Ctrl+V)"
+        >
+          <Copy className="w-4 h-4" />
+          <span>📋 Colar Imagem</span>
+        </button>
+      )}
 
       {/* 🟦 Botão de Inserir Quadro Azul Centralizado (Teste Rápido) */}
       {handleInsertSampleImage && (
@@ -508,6 +568,10 @@ export interface ProjectorToolbarProps {
   setTitleSelected?: React.Dispatch<React.SetStateAction<boolean>>;
   bodySelected?: boolean;
   setBodySelected?: React.Dispatch<React.SetStateAction<boolean>>;
+  onCopyImage?: () => void;
+  onOpenReplicateModal?: () => void;
+  hasCopiedImage?: boolean;
+  onPasteImage?: () => void;
 }
 
 export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
@@ -539,11 +603,15 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   isCurrentTitleCustom,
   isCurrentBodyCustom,
   applyCurrentScalesToAllSlides,
+  onCopyImage,
+  onOpenReplicateModal,
+  hasCopiedImage,
+  onPasteImage,
 }) => {
   return (
     <>
-      {/* Barra de Ferramentas de Imagem (apenas quando houver imagem no slide ou demonstrativo) */}
-      {(curImageSrc || handleInsertSampleImage) && (
+      {/* Barra de Ferramentas de Imagem (quando houver imagem no slide ou imagem copiada na memória ou demonstrativo) */}
+      {(curImageSrc || handleInsertSampleImage || hasCopiedImage) && (
         <div className="bg-slate-900 p-2.5 rounded-2xl border border-slate-700/80 shadow-lg relative z-10 animate-in fade-in duration-200">
           <div className="flex items-center gap-2 flex-wrap">
             {/* Controle e Barra de Ferramentas de Imagem Estilo Corel Draw */}
@@ -559,21 +627,60 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
                 }}
                 onDone={() => setImageSelected(false)}
                 onUploadImage={onUploadImage}
+                onCopy={onCopyImage}
+                onOpenReplicateModal={onOpenReplicateModal}
               />
             )}
 
             {curImageSrc && !imageSelected && (
+              <>
+                <button
+                  onClick={() => setImageSelected(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+                  title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
+                >
+                  <ImageIcon className="w-4 h-4 text-purple-400" />
+                  <span>🎯 Mover / Redimensionar</span>
+                </button>
+
+                {onCopyImage && (
+                  <button
+                    onClick={onCopyImage}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700/80 text-xs md:text-sm font-bold cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
+                    title="Copiar imagem deste slide para colar em outros (Ctrl+C)"
+                  >
+                    <Copy className="w-4 h-4 text-cyan-400" />
+                    <span>Copiar</span>
+                  </button>
+                )}
+
+                {onOpenReplicateModal && (
+                  <button
+                    onClick={onOpenReplicateModal}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-xs md:text-sm font-black cursor-pointer transition-all shadow-md shadow-cyan-600/30 min-h-[40px] active:scale-95"
+                    title="Escolher exatamente quais slides desta lição receberão esta imagem"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>📑 Replicar nos Slides...</span>
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Botão de Colar Imagem Copiada */}
+            {hasCopiedImage && onPasteImage && (
               <button
-                onClick={() => setImageSelected(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-900/40 hover:bg-purple-900/70 text-purple-200 border border-purple-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"
-                title="Selecionar imagem para redimensionar, girar ou mover livremente no palco"
+                type="button"
+                onClick={onPasteImage}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 text-xs md:text-sm font-black cursor-pointer transition-all shadow-lg shadow-emerald-600/30 min-h-[40px] active:scale-95"
+                title="Colar a imagem copiada neste slide com as mesmas coordenadas e tamanho (Ctrl+V)"
               >
-                <ImageIcon className="w-4 h-4 text-purple-400" />
-                <span>🎯 Mover / Redimensionar Imagem</span>
+                <Copy className="w-4 h-4" />
+                <span>📋 Colar Imagem Aqui</span>
               </button>
             )}
 
-            {!curImageSrc && handleInsertSampleImage && (
+            {!curImageSrc && handleInsertSampleImage && !hasCopiedImage && (
               <button
                 onClick={handleInsertSampleImage}
                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-900/40 hover:bg-blue-900/70 text-blue-200 border border-blue-500/40 text-xs md:text-sm font-black cursor-pointer transition-all shadow-sm min-h-[40px] active:scale-95"

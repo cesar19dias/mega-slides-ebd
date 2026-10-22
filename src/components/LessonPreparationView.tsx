@@ -10,6 +10,7 @@ import { THEMES } from '../constants/themes';
 
 import { QrCodeModal } from './QrCodeModal';
 import { ImageCropModal } from './ImageCropModal';
+import { ReplicateImageModal } from './ReplicateImageModal';
 import { TeacherPreparationView } from './TeacherPreparationView';
 import { ProjectorHeaderActions, ProjectorToolbar } from './ProjectorToolbar';
 import { ProjectorStage } from './ProjectorStage';
@@ -622,6 +623,15 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
   const [imageSelected, setImageSelected] = useState<boolean>(false);
   const currentSlideIdRef = useRef<string>(String(projectorIndex));
+
+  // Estado de Imagem Copiada para Copiar e Colar entre slides
+  const [copiedImage, setCopiedImage] = useState<{
+    src: string;
+    box: ImageBox;
+    crop?: any;
+  } | null>(null);
+  const [isReplicateModalOpen, setIsReplicateModalOpen] = useState<boolean>(false);
+  const [imageToast, setImageToast] = useState<string | null>(null);
 
   // Caixas delimitadoras livres de títulos estilo Corel Draw (x, y, w, rot, scale)
   const [slideTitleBoxes, setSlideTitleBoxes] = useState<Record<string, TextBox>>(() => {
@@ -2942,25 +2952,183 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const curImageSrc = projectorSlideImages[currentSlideId] || projectorSlideImages[projectorIndex] || currentProjectorItem?.imageUrl;
   const curBox: ImageBox = slideImageBoxes[currentSlideId] ?? slideImageBoxes[String(projectorIndex)] ?? DEFAULT_IMAGE_BOX;
 
-  // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita e Escape para Sair do Recorte Canva)
+  // ── COPIAR, COLAR E REPLICAR IMAGEM ENTRE SLIDES ──
+  const handleCopyImage = useCallback(() => {
+    if (!curImageSrc) return;
+    const currentCrop = slideImageCrops[currentSlideIdRef.current] || slideImageCrops[projectorIndex];
+    setCopiedImage({
+      src: curImageSrc,
+      box: { ...curBox },
+      crop: currentCrop,
+    });
+    setImageToast('📋 Imagem copiada! Vá para qualquer slide e clique em "Colar Imagem" ou use Ctrl+V.');
+    setTimeout(() => setImageToast(null), 3500);
+  }, [curImageSrc, curBox, slideImageCrops, projectorIndex]);
+
+  const handlePasteImage = useCallback((targetIndex?: number) => {
+    if (!copiedImage) return;
+    const targetIdx = targetIndex ?? projectorIndex;
+    const targetItem = projectorItems[targetIdx];
+    const targetSlideId = targetItem?.id || String(targetIdx);
+    const key = String(targetIdx);
+
+    setProjectorSlideImages(prev => {
+      const next = { ...prev, [targetIdx]: copiedImage.src, [key]: copiedImage.src };
+      if (targetSlideId) next[targetSlideId] = copiedImage.src;
+      try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    setSlideImageBoxes(prev => {
+      const next = { ...prev, [key]: { ...copiedImage.box } };
+      if (targetSlideId) next[targetSlideId] = { ...copiedImage.box };
+      try { localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    if (copiedImage.crop) {
+      setSlideImageCrops(prev => {
+        const next = { ...prev, [targetIdx]: copiedImage.crop, [key]: copiedImage.crop };
+        if (targetSlideId) next[targetSlideId] = copiedImage.crop;
+        try { localStorage.setItem('mega_ebd_slide_image_crops', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+
+    updateLesson(l => {
+      const nextImages = { ...(l.projectorSlideImages ?? {}), [targetIdx]: copiedImage.src, [key]: copiedImage.src };
+      if (targetSlideId) nextImages[targetSlideId] = copiedImage.src;
+
+      const nextBoxes = { ...(l.slideImageBoxes ?? {}), [key]: { ...copiedImage.box } };
+      if (targetSlideId) nextBoxes[targetSlideId] = { ...copiedImage.box };
+
+      const nextCrops = copiedImage.crop ? { ...(l.slideImageCrops ?? {}), [targetIdx]: copiedImage.crop, [key]: copiedImage.crop } : l.slideImageCrops;
+      if (targetSlideId && copiedImage.crop && nextCrops) nextCrops[targetSlideId] = copiedImage.crop;
+
+      return {
+        ...l,
+        projectorSlideImages: nextImages,
+        slideImageBoxes: nextBoxes,
+        slideImageCrops: nextCrops,
+      };
+    });
+
+    setImageToast(`✅ Imagem colada com sucesso no Slide ${targetIdx + 1}!`);
+    setTimeout(() => setImageToast(null), 3000);
+  }, [copiedImage, projectorIndex, projectorItems, updateLesson]);
+
+  const handleReplicateImageToSlides = useCallback((targetIndices: number[]) => {
+    if (!curImageSrc || targetIndices.length === 0) return;
+    const boxToCopy = { ...curBox };
+    const currentCrop = slideImageCrops[currentSlideIdRef.current] || slideImageCrops[projectorIndex];
+    const srcToCopy = curImageSrc;
+
+    setProjectorSlideImages(prev => {
+      const next = { ...prev };
+      targetIndices.forEach(idx => {
+        const item = projectorItems[idx];
+        const slideId = item?.id || String(idx);
+        next[idx] = srcToCopy;
+        next[String(idx)] = srcToCopy;
+        if (slideId) next[slideId] = srcToCopy;
+      });
+      try { localStorage.setItem('mega_ebd_projector_slide_images', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    setSlideImageBoxes(prev => {
+      const next = { ...prev };
+      targetIndices.forEach(idx => {
+        const item = projectorItems[idx];
+        const slideId = item?.id || String(idx);
+        next[String(idx)] = { ...boxToCopy };
+        if (slideId) next[slideId] = { ...boxToCopy };
+      });
+      try { localStorage.setItem('mega_ebd_slide_image_boxes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+
+    if (currentCrop) {
+      setSlideImageCrops(prev => {
+        const next = { ...prev };
+        targetIndices.forEach(idx => {
+          const item = projectorItems[idx];
+          const slideId = item?.id || String(idx);
+          next[idx] = currentCrop;
+          next[String(idx)] = currentCrop;
+          if (slideId) next[slideId] = currentCrop;
+        });
+        try { localStorage.setItem('mega_ebd_slide_image_crops', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+
+    updateLesson(l => {
+      const nextImages = { ...(l.projectorSlideImages ?? {}) };
+      const nextBoxes = { ...(l.slideImageBoxes ?? {}) };
+      const nextCrops = { ...(l.slideImageCrops ?? {}) };
+
+      targetIndices.forEach(idx => {
+        const item = projectorItems[idx];
+        const slideId = item?.id || String(idx);
+        nextImages[idx] = srcToCopy;
+        nextImages[String(idx)] = srcToCopy;
+        if (slideId) nextImages[slideId] = srcToCopy;
+
+        nextBoxes[String(idx)] = { ...boxToCopy };
+        if (slideId) nextBoxes[slideId] = { ...boxToCopy };
+
+        if (currentCrop) {
+          nextCrops[idx] = currentCrop;
+          nextCrops[String(idx)] = currentCrop;
+          if (slideId) nextCrops[slideId] = currentCrop;
+        }
+      });
+
+      return {
+        ...l,
+        projectorSlideImages: nextImages,
+        slideImageBoxes: nextBoxes,
+        slideImageCrops: nextCrops,
+      };
+    });
+
+    setImageToast(`🎉 Imagem replicada com sucesso em ${targetIndices.length} slide${targetIndices.length === 1 ? '' : 's'}!`);
+    setTimeout(() => setImageToast(null), 3500);
+  }, [curImageSrc, curBox, slideImageCrops, projectorIndex, projectorItems, updateLesson]);
+
+  // Atalhos de Teclado no Modo Projetor (Seta Esquerda / Direita, Escape para Sair do Recorte e Ctrl+C para Copiar Imagem)
   useEffect(() => {
     if (activeTab !== 'projetor') return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
       if (isCanvaCropping && e.key === 'Escape') {
         setIsCanvaCropping(false);
         return;
       }
-      if (e.key === 'ArrowLeft') {
-        setProjectorIndex(prev => Math.max(0, prev - 1));
-      } else if (e.key === 'ArrowRight') {
-        setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1));
+
+      if (!isInput) {
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'C')) {
+          if (imageSelected && curImageSrc) {
+            e.preventDefault();
+            handleCopyImage();
+            return;
+          }
+        }
+        if (e.key === 'ArrowLeft') {
+          setProjectorIndex(prev => Math.max(0, prev - 1));
+        } else if (e.key === 'ArrowRight') {
+          setProjectorIndex(prev => Math.min(projectorItems.length - 1, prev + 1));
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, projectorItems.length, isCanvaCropping]);
+  }, [activeTab, projectorItems.length, isCanvaCropping, imageSelected, curImageSrc, handleCopyImage]);
 
-  // Colar imagem da área de transferência (Ctrl+V) direto no slide
+  // Colar imagem da área de transferência ou imagem copiada no app (Ctrl+V)
   useEffect(() => {
     if (activeTab !== 'projetor') return;
     const handlePaste = (e: ClipboardEvent) => {
@@ -2969,21 +3137,28 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
         return;
       }
       const items = e.clipboardData?.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].type.startsWith('image/')) {
-          const file = items[i].getAsFile();
-          if (file) {
-            e.preventDefault();
-            handleProcessImageFile(file);
-            break;
+      if (items && items.length > 0) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.startsWith('image/')) {
+            const file = items[i].getAsFile();
+            if (file) {
+              e.preventDefault();
+              handleProcessImageFile(file);
+              return;
+            }
           }
         }
+      }
+
+      // Se não colou arquivo novo do sistema operacional, mas temos imagem copiada no app:
+      if (copiedImage) {
+        e.preventDefault();
+        handlePasteImage();
       }
     };
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [activeTab, handleProcessImageFile]);
+  }, [activeTab, handleProcessImageFile, copiedImage, handlePasteImage]);
 
   // Reseta o modo de recorte ao mudar de slide
   useEffect(() => {
@@ -3256,6 +3431,10 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
               toggleAlignmentGuides={toggleAlignmentGuides}
               testStageAspect={testStageAspect}
               toggleTestStageAspect={toggleTestStageAspect}
+              onCopyImage={handleCopyImage}
+              onOpenReplicateModal={() => setIsReplicateModalOpen(true)}
+              hasCopiedImage={Boolean(copiedImage)}
+              onPasteImage={() => handlePasteImage()}
             />
           )}
 
@@ -3352,6 +3531,10 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             setTitleSelected={setTitleSelected}
             bodySelected={bodySelected}
             setBodySelected={setBodySelected}
+            onCopyImage={handleCopyImage}
+            onOpenReplicateModal={() => setIsReplicateModalOpen(true)}
+            hasCopiedImage={Boolean(copiedImage)}
+            onPasteImage={() => handlePasteImage()}
           />
 
           <ProjectorStage
@@ -3448,6 +3631,27 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
         title={cropTarget === 'bg' ? 'Recortar Fundo do Modelo' : `Recortar Imagem do Slide ${projectorIndex + 1}`}
         initialAspectRatio={cropTarget === 'bg' ? '16:9' : '16:9'}
       />
+
+      {/* Modal de Replicar Imagem em Slides Selecionados */}
+      {curImageSrc && (
+        <ReplicateImageModal
+          isOpen={isReplicateModalOpen}
+          onClose={() => setIsReplicateModalOpen(false)}
+          currentSlideIndex={projectorIndex}
+          projectorItems={projectorItems}
+          currentImageSrc={curImageSrc}
+          projectorSlideImages={projectorSlideImages}
+          onConfirmReplicate={handleReplicateImageToSlides}
+        />
+      )}
+
+      {/* Toast flutuante de feedback de imagem */}
+      {imageToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[110] bg-slate-900 border border-cyan-400 text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 select-none">
+          <span>✨</span>
+          <span>{imageToast}</span>
+        </div>
+      )}
     </div>
   );
 };
