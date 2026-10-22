@@ -18,11 +18,11 @@ export const DEFAULT_TITLE_BOX: TextBox = {
 };
 
 export const DEFAULT_BODY_BOX: TextBox = {
-  x: 5,
-  y: 20,
-  w: 90,
+  x: 2,
+  y: 24,
+  w: 96,
   rot: 0,
-  scale: 1.0,
+  scale: 1.46,
 };
 
 export interface FreeTextBoxProps {

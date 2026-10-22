@@ -839,8 +839,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const byIdx = slideBodyBoxes[String(projectorIndex)] || slideBodyBoxes[projectorIndex];
     if (byIdx) return byIdx;
 
-    const legacyScale = currentBodyScale || 1.0;
-    const legacyWidth = slideBodyWidths[projectorIndex] ?? 90;
+    const legacyScale = currentBodyScale || DEFAULT_BODY_BOX.scale;
+    const legacyWidth = slideBodyWidths[projectorIndex] ?? DEFAULT_BODY_BOX.w;
     return { ...DEFAULT_BODY_BOX, w: legacyWidth, scale: legacyScale };
   }, [slideBodyBoxes, projectorIndex, currentBodyScale, slideBodyWidths]);
 
