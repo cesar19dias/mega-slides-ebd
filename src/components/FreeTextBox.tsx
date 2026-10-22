@@ -374,7 +374,7 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
       style={{
         left: `${currentBox.x + currentBox.w / 2}%`,
         top: `${currentBox.y}%`,
-        width: 'max-content',
+        width: `${currentBox.w}%`,
         maxWidth: `${currentBox.w}%`,
         transform: `translateX(-50%) rotate(${currentBox.rot}deg)`,
         transformOrigin: 'center center',

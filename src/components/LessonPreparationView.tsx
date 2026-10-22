@@ -571,11 +571,9 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     return lessonData.slideBodyWidths || {};
   });
 
-  const curBodyWidth = slideBodyWidths[projectorIndex] ?? 100;
-
-  // Escala padrão proporcional à largura da caixa de texto (evita quebrar linhas e esconder texto quando a caixa encolhe)
-  const defaultBodyScale = curBodyWidth <= 55 ? 1.05 : curBodyWidth <= 75 ? 1.3 : curBodyWidth <= 85 ? 1.45 : 1.7;
-  const defaultTitleScale = curBodyWidth <= 65 ? 1.15 : 1.4;
+  // Escala padrão: sincronizada com a padronização oficial da caixa de texto
+  const defaultBodyScale = DEFAULT_BODY_BOX.scale;
+  const defaultTitleScale = DEFAULT_TITLE_BOX.scale;
 
   // Escalas efetivas da fonte do slide atual
   const currentSlideScale = slideFontScales[projectorIndex] !== undefined
@@ -839,10 +837,8 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const byIdx = slideBodyBoxes[String(projectorIndex)] || slideBodyBoxes[projectorIndex];
     if (byIdx) return byIdx;
 
-    const legacyScale = currentBodyScale || DEFAULT_BODY_BOX.scale;
-    const legacyWidth = slideBodyWidths[projectorIndex] ?? DEFAULT_BODY_BOX.w;
-    return { ...DEFAULT_BODY_BOX, w: legacyWidth, scale: legacyScale };
-  }, [slideBodyBoxes, projectorIndex, currentBodyScale, slideBodyWidths]);
+    return DEFAULT_BODY_BOX;
+  }, [slideBodyBoxes, projectorIndex]);
 
   // Aplicar as coordenadas do título atual (X, Y, W, scale) a todos os slides da lição
   const applyTitleBoxToAll = useCallback(() => {

@@ -193,8 +193,8 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   handleBodyResizeStart: _handleBodyResizeStart,
   resetSlideBodyWidth: _resetSlideBodyWidth,
 
-  currentTitleScale,
-  currentBodyScale,
+  currentTitleScale: _currentTitleScale,
+  currentBodyScale: _currentBodyScale,
   titlePos: _titlePos,
   bodyPos: _bodyPos,
   makeDragStyle: _makeDragStyle,
@@ -643,6 +643,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                 }}
                 onCommit={commitBodyBox}
                 onReset={resetBodyBox}
+                onApplyToAll={applyBodyBoxToAll}
                 label="Texto"
                 accentColor="cyan"
               >
@@ -778,12 +779,12 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                         className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text pointer-events-auto touch-pan-y"
                       >
                         {displayRef && (
-                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0">
                             {renderHL(displayRef, '#0052cc')}
                           </h3>
                         )}
 
-                        <div className="w-full space-y-4 text-left font-sans pr-1" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                        <div className="w-full space-y-4 text-left font-sans pr-1">
                           {parsed.sections.map((section, sIdx) => (
                             <div key={sIdx} className="w-full space-y-3">
                               {/* Risco Laranja de Separação entre Livros */}
@@ -831,13 +832,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                       </div>
                     );
                   })() : currentProjectorItem.type === 'conclusao' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                    <div className="w-full flex-1 flex flex-col justify-center items-center text-center py-4 my-auto mt-2">
                       <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                         "{renderHL(currentProjectorItem.projetorText)}"
                       </p>
                     </div>
                   ) : currentProjectorItem.type === 'verdades' ? (
-                    <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                    <div className="w-full flex-1 flex flex-col justify-center items-start py-4 my-auto mt-2">
                       {currentProjectorItem.bulletPoints?.map((point, idx) => (
                         <div key={idx} className="w-full">
                           <div className="flex items-start gap-3 py-2.5">
@@ -853,7 +854,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                     /* DEMAIS CARDS */
                     <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-2.5 py-2 my-auto mt-1 md:mt-2">
                       {currentProjectorItem.type === 'palavra_chave' ? (
-                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
                           <h2 className={`text-4xl md:text-6xl lg:text-7xl font-black tracking-wider font-sans text-center mb-3 drop-shadow-sm ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
                             {renderHL(currentProjectorItem.ideiaText || '')}
                           </h2>
@@ -863,24 +864,24 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                           </p>
                         </div>
                       ) : currentProjectorItem.type === 'topic_synopsis' ? (
-                        <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 m-auto ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                        <p className={`font-extrabold text-center font-sans break-words w-full max-w-full px-2 m-auto ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                           "{renderHL(currentProjectorItem.projetorText)}"
                         </p>
                       ) : currentProjectorItem.type === 'na_licao_anterior' ? (
-                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2">
                           <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
                         </div>
                       ) : currentProjectorItem.type === 'ponte_contextual' ? (
-                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2">
                           <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
                         </div>
                       ) : currentProjectorItem.type === 'subtopic_verses' ? (
                         <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                          <p className={`tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                          <p className={`tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(
                               (currentProjectorItem.projetorText || '')
                                 .split('\n')
@@ -891,12 +892,12 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                         </div>
                       ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
                         <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                          <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                          <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
                         </div>
                       ) : currentProjectorItem.type === 'subtopic' ? (
-                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2" style={{ zoom: currentBodyScale } as React.CSSProperties}>
+                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-start my-auto py-2">
                           <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
@@ -904,12 +905,12 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                       ) : (
                         <div className="w-full max-h-[460px] overflow-y-auto custom-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
                           {currentProjectorItem.ideiaText && (
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0" style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0">
                               {currentProjectorItem.ideiaText}
                             </h2>
                           )}
                           {currentProjectorItem.reference && (
-                            <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0`} style={{ zoom: currentTitleScale } as React.CSSProperties}>
+                            <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0`}>
                               {currentProjectorItem.reference}
                             </h3>
                           )}
@@ -917,7 +918,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                             <div className="w-4/5 max-w-2xl border-b border-slate-200/40 my-1 mx-auto shrink-0" />
                           )}
                           {currentProjectorItem.projetorText && (
-                            <p className={`font-sans text-center w-full max-w-full px-2 break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText, currentProjectorItem.type === 'enfase_palavra')}`} style={{ zoom: currentBodyScale, textWrap: 'pretty', wordBreak: 'break-word' } as React.CSSProperties}>
+                            <p className={`font-sans text-center w-full max-w-full px-2 break-words whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText, currentProjectorItem.type === 'enfase_palavra')}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                               {renderHL(currentProjectorItem.projetorText)}
                             </p>
                           )}
