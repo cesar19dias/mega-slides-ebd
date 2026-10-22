@@ -730,7 +730,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const byIdx = slideTitleBoxes[String(projectorIndex)] || slideTitleBoxes[projectorIndex];
     if (byIdx) return byIdx;
 
-    const legacyScale = slideTitleFontScales[projectorIndex] ?? 1.0;
+    const legacyScale = slideTitleFontScales[projectorIndex] ?? DEFAULT_TITLE_BOX.scale;
     return { ...DEFAULT_TITLE_BOX, scale: legacyScale };
   }, [slideTitleBoxes, projectorIndex, slideTitleFontScales]);
 
@@ -843,6 +843,101 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     const legacyWidth = slideBodyWidths[projectorIndex] ?? 90;
     return { ...DEFAULT_BODY_BOX, w: legacyWidth, scale: legacyScale };
   }, [slideBodyBoxes, projectorIndex, currentBodyScale, slideBodyWidths]);
+
+  // Aplicar as coordenadas do título atual (X, Y, W, scale) a todos os slides da lição
+  const applyTitleBoxToAll = useCallback(() => {
+    const boxToApply = curTitleBox;
+    setSlideTitleBoxes(prev => {
+      const nextBoxes: Record<string, TextBox> = { ...prev };
+      // Preenche os índices comuns de 0 a 40 para cobrir todos os slides da lição
+      for (let idx = 0; idx < 45; idx++) {
+        nextBoxes[String(idx)] = { ...boxToApply };
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_title_boxes', JSON.stringify(nextBoxes));
+      } catch {}
+      return nextBoxes;
+    });
+
+    setSlideTitleFontScales(prev => {
+      const nextScales: Record<number, number> = { ...prev };
+      for (let idx = 0; idx < 45; idx++) {
+        nextScales[idx] = boxToApply.scale;
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_title_font_scales', JSON.stringify(nextScales));
+      } catch {}
+      return nextScales;
+    });
+
+    updateLesson(l => {
+      const nextBoxes: Record<string, TextBox> = { ...(l.slideTitleBoxes ?? {}) };
+      const nextScales: Record<number, number> = { ...(l.slideTitleFontScales ?? {}) };
+      for (let idx = 0; idx < 45; idx++) {
+        nextBoxes[String(idx)] = { ...boxToApply };
+        nextScales[idx] = boxToApply.scale;
+      }
+      return {
+        ...l,
+        slideTitleBoxes: nextBoxes,
+        slideTitleFontScales: nextScales,
+      };
+    });
+  }, [curTitleBox, updateLesson]);
+
+  // Aplicar as coordenadas do corpo atual (X, Y, W, scale) a todos os slides da lição
+  const applyBodyBoxToAll = useCallback(() => {
+    const boxToApply = curBodyBox;
+    setSlideBodyBoxes(prev => {
+      const nextBoxes: Record<string, TextBox> = { ...prev };
+      for (let idx = 0; idx < 45; idx++) {
+        nextBoxes[String(idx)] = { ...boxToApply };
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_body_boxes', JSON.stringify(nextBoxes));
+      } catch {}
+      return nextBoxes;
+    });
+
+    setSlideBodyFontScales(prev => {
+      const nextScales: Record<number, number> = { ...prev };
+      for (let idx = 0; idx < 45; idx++) {
+        nextScales[idx] = boxToApply.scale;
+      }
+      try {
+        localStorage.setItem('mega_ebd_slide_body_font_scales', JSON.stringify(nextScales));
+      } catch {}
+      return nextScales;
+    });
+
+    setSlideBodyWidths(prev => {
+      const nextWidths: Record<number, number> = { ...prev };
+      for (let idx = 0; idx < 45; idx++) {
+        nextWidths[idx] = boxToApply.w;
+      }
+      try {
+        localStorage.setItem('mega_ebd_body_widths', JSON.stringify(nextWidths));
+      } catch {}
+      return nextWidths;
+    });
+
+    updateLesson(l => {
+      const nextBoxes: Record<string, TextBox> = { ...(l.slideBodyBoxes ?? {}) };
+      const nextScales: Record<number, number> = { ...(l.slideBodyFontScales ?? {}) };
+      const nextWidths: Record<number, number> = { ...(l.slideBodyWidths ?? {}) };
+      for (let idx = 0; idx < 45; idx++) {
+        nextBoxes[String(idx)] = { ...boxToApply };
+        nextScales[idx] = boxToApply.scale;
+        nextWidths[idx] = boxToApply.w;
+      }
+      return {
+        ...l,
+        slideBodyBoxes: nextBoxes,
+        slideBodyFontScales: nextScales,
+        slideBodyWidths: nextWidths,
+      };
+    });
+  }, [curBodyBox, updateLesson]);
 
   const commitBox = useCallback((b: ImageBox) => {
     const key = String(projectorIndex);
@@ -3275,11 +3370,13 @@ Retorne DIRETAMENTE apenas o texto da aplicação.`;
             setTitleSelected={setTitleSelected}
             commitTitleBox={commitTitleBox}
             resetTitleBox={resetTitleBox}
+            applyTitleBoxToAll={applyTitleBoxToAll}
             curBodyBox={curBodyBox}
             bodySelected={bodySelected}
             setBodySelected={setBodySelected}
             commitBodyBox={commitBodyBox}
             resetBodyBox={resetBodyBox}
+            applyBodyBoxToAll={applyBodyBoxToAll}
             curCoverTitleBox={curCoverTitleBox}
             curSubBox={curSubBox}
             subSelected={subSelected}

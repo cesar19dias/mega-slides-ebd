@@ -10,11 +10,11 @@ import {
 } from 'lucide-react';
 
 export const DEFAULT_TITLE_BOX: TextBox = {
-  x: 13,
-  y: 3,
-  w: 90,
+  x: 11,
+  y: 13,
+  w: 80,
   rot: 0,
-  scale: 1.0,
+  scale: 1.18,
 };
 
 export const DEFAULT_BODY_BOX: TextBox = {
@@ -33,6 +33,7 @@ export interface FreeTextBoxProps {
   onSelect: () => void;
   onCommit: (box: TextBox) => void;
   onReset?: () => void;
+  onApplyToAll?: () => void;
   children: React.ReactNode;
   label?: string;
   accentColor?: string;
@@ -48,6 +49,7 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
   onSelect,
   onCommit,
   onReset,
+  onApplyToAll,
   children,
   label = 'Título',
   accentColor = '#f59e0b', // Amber padrão do título ou cyan para corpo
@@ -500,6 +502,23 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
             <span className="text-slate-400 font-bold">%</span>
           </div>
 
+          {/* Botão Aplicar Coordenadas a Todos os Slides */}
+          {onApplyToAll && (
+            <button
+              type="button"
+              onClick={onApplyToAll}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold cursor-pointer transition-colors shadow-sm ${
+                isCyan
+                  ? 'bg-cyan-950/80 border border-cyan-500/60 text-cyan-200 hover:bg-cyan-900'
+                  : 'bg-amber-950/80 border border-amber-500/60 text-amber-200 hover:bg-amber-900'
+              }`}
+              title="Fixar estas coordenadas exatas (X, Y, Largura e Tamanho de Fonte) para todos os slides da lição"
+            >
+              <span>📌</span>
+              <span>Para Todos</span>
+            </button>
+          )}
+
           {/* Botão de Redefinir */}
           {onReset && (
             <button
@@ -507,7 +526,7 @@ export const FreeTextBox: React.FC<FreeTextBoxProps> = ({
               className={`p-1 rounded-lg text-slate-400 hover:bg-slate-800 cursor-pointer transition-colors ${
                 isCyan ? 'hover:text-cyan-300' : 'hover:text-amber-300'
               }`}
-              title="Redefinir posição, largura e tamanho original"
+              title="Redefinir posição, largura e tamanho padrão"
             >
               <RotateCcw className="w-3 h-3" />
             </button>

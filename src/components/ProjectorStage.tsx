@@ -27,11 +27,13 @@ export interface ProjectorStageProps {
   setTitleSelected: (val: boolean) => void;
   commitTitleBox: (box: TextBox) => void;
   resetTitleBox?: () => void;
+  applyTitleBoxToAll?: () => void;
   curBodyBox: TextBox;
   bodySelected: boolean;
   setBodySelected: (val: boolean) => void;
   commitBodyBox: (box: TextBox) => void;
   resetBodyBox?: () => void;
+  applyBodyBoxToAll?: () => void;
   curCoverTitleBox: TextBox;
   curSubBox: TextBox;
   subSelected: boolean;
@@ -136,11 +138,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
   setTitleSelected,
   commitTitleBox,
   resetTitleBox,
+  applyTitleBoxToAll,
   curBodyBox,
   bodySelected,
   setBodySelected,
   commitBodyBox,
   resetBodyBox,
+  applyBodyBoxToAll,
   curCoverTitleBox,
   curSubBox,
   subSelected,
@@ -731,6 +735,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
               }}
               onCommit={commitTitleBox}
               onReset={resetTitleBox}
+              onApplyToAll={applyTitleBoxToAll}
               label={isSubtopic ? 'Subtópico' : 'Título'}
               accentColor="amber"
             >
@@ -755,6 +760,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
               }}
               onCommit={commitBodyBox}
               onReset={resetBodyBox}
+              onApplyToAll={applyBodyBoxToAll}
               label={currentProjectorItem.type === 'leitura' ? 'Leitura Bíblica' : 'Texto'}
               accentColor="cyan"
             >
