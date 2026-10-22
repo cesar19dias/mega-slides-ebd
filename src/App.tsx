@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { ContentInput } from './components/ContentInput';
 import { LessonPreparationView } from './components/LessonPreparationView';
@@ -7,6 +7,14 @@ import type { EBDLessonPreparation, TranscriptionSource, PreparationOptions } fr
 import { runLessonPreparerEngine } from './services/ebdLessonPreparerEngine';
 import { setStoredApiKey, getStoredApiKey } from './services/geminiService';
 import { decodeLessonFromUrl, loadSharedLessonFromUrlAsync } from './services/shareService';
+import {
+  saveLessonToStorage,
+  loadLessonFromStorage,
+  clearLessonFromStorage,
+  requestPersistentStorage,
+  exportLessonToFile,
+  importLessonFromFile,
+} from './services/storageService';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 const LESSON_STORAGE_KEY = 'megaebd_lesson_data';
@@ -15,6 +23,7 @@ export function App() {
   const [apiKey, setApiKey] = useState<string>('');
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isSyncingSharedLesson, setIsSyncingSharedLesson] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return (
@@ -33,7 +42,7 @@ export function App() {
     const fromUrl = decodeLessonFromUrl();
     if (fromUrl) return fromUrl;
 
-    // 🔄 Fallback: carrega preparação salva no navegador
+    // 🔄 Fallback síncrono rápido enquanto IndexedDB carrega
     try {
       const saved = localStorage.getItem(LESSON_STORAGE_KEY);
       return saved ? JSON.parse(saved) : null;
@@ -42,15 +51,53 @@ export function App() {
     }
   });
 
-  // 💾 Salva automaticamente toda vez que lessonData mudar
+  // 🚀 Carregamento robusto e recuperação de imagens via IndexedDB ao iniciar
+  useEffect(() => {
+    // Solicita persistência incondicional no navegador
+    requestPersistentStorage();
+
+    // Carrega do IndexedDB (que não tem limitação de 5MB)
+    const loadFromDb = async () => {
+      try {
+        const stored = await loadLessonFromStorage();
+        if (stored) {
+          setLessonData((prev) => {
+            // Se já tem dados de URL, não sobrescreve
+            if (decodeLessonFromUrl()) return prev;
+            // Se o que veio do banco tem mais dados ou imagens, adota
+            return stored;
+          });
+        }
+      } catch (err) {
+        console.error('[App] Erro ao carregar lição do banco:', err);
+      }
+    };
+
+    loadFromDb();
+  }, []);
+
+  // 💾 Salva automaticamente toda vez que lessonData mudar (com debounce e IndexedDB)
+  const saveTimeoutRef = useRef<any>(null);
   useEffect(() => {
     if (lessonData) {
-      try {
-        localStorage.setItem(LESSON_STORAGE_KEY, JSON.stringify(lessonData));
-      } catch {
-        // Se localStorage estiver cheio, ignora silenciosamente
-      }
+      setSaveStatus('saving');
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+      saveTimeoutRef.current = setTimeout(async () => {
+        try {
+          await saveLessonToStorage(lessonData);
+          setSaveStatus('saved');
+        } catch {
+          setSaveStatus('idle');
+        }
+      }, 350);
+    } else {
+      setSaveStatus('idle');
     }
+
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
   }, [lessonData]);
 
   // Carrega lição da URL se a página for aberta via QR Code ou quando a URL mudar
@@ -131,25 +178,32 @@ export function App() {
     }
   };
 
-  const handleReset = () => {
+  const handleReset = async () => {
     setLessonData(null);
     setError(null);
-    // 🗑️ Limpa a preparação salva e todas as customizações no localStorage ao recomeçar
-    localStorage.removeItem(LESSON_STORAGE_KEY);
-    const keysToRemove: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && (k.startsWith('mega_ebd_') || k.startsWith('megaebd_'))) {
-        // Preserva a chave de API do Gemini do professor
-        if (k !== 'mega_slides_gemini_key' && k !== 'megaebd_gemini_api_key') {
-          keysToRemove.push(k);
-        }
-      }
+    setSaveStatus('idle');
+    await clearLessonFromStorage();
+  };
+
+  const handleExportLesson = () => {
+    if (lessonData) {
+      exportLessonToFile(lessonData);
     }
-    keysToRemove.push('slide_highlights_v2', 'presentation_slide_images', 'mega_ebd_text_highlights_v2');
-    keysToRemove.forEach(k => {
-      try { localStorage.removeItem(k); } catch {}
-    });
+  };
+
+  const handleImportLessonFile = async (file: File) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const imported = await importLessonFromFile(file);
+      setLessonData(imported);
+      await saveLessonToStorage(imported);
+      setSaveStatus('saved');
+    } catch (err: any) {
+      setError(err.message || 'Erro ao importar arquivo de aula.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -161,6 +215,9 @@ export function App() {
         onReset={handleReset}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        saveStatus={saveStatus}
+        onExportLesson={handleExportLesson}
+        onImportLesson={handleImportLessonFile}
       />
 
       <main>
@@ -185,6 +242,7 @@ export function App() {
             isLoading={isLoading}
             hasApiKey={Boolean(apiKey)}
             onOpenApiKeyModal={() => setIsApiKeyModalOpen(true)}
+            onImportLesson={handleImportLessonFile}
           />
         ) : (
           <LessonPreparationView

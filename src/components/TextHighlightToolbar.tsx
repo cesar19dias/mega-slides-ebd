@@ -18,6 +18,8 @@ export const HIGHLIGHT_COLORS: HighlightColor[] = [
   { name: 'Verde', hex: '#22c55e', textDark: true },
   { name: 'Ciano', hex: '#00e5ff', textDark: true },
   { name: 'Azul Celeste', hex: '#00a2ff', textDark: false },
+  { name: 'Azul Petróleo', hex: '#0d2b47', textDark: false },
+  { name: 'Azul Real', hex: '#0052cc', textDark: false },
   { name: 'Roxo', hex: '#a855f7', textDark: false },
 ];
 

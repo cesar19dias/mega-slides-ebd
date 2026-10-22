@@ -42,8 +42,8 @@ export interface ProjectorStageProps {
   resetSubBox?: () => void;
   handleSlideMouseUp: () => void;
 
-  hlToolbar: { x: number; y: number; text: string } | null;
-  setHlToolbar: (val: { x: number; y: number; text: string } | null) => void;
+  hlToolbar: { x: number; y: number; text: string; occurrenceIndex?: number } | null;
+  setHlToolbar: (val: { x: number; y: number; text: string; occurrenceIndex?: number } | null) => void;
   applyHighlight: (color: string, hlStyle?: 'fill' | 'outline' | 'text' | 'underline' | 'dotted', opacity?: number) => void;
   removeHighlight: () => void;
   hasSlideHighlights: boolean;
@@ -732,6 +732,7 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
               onSelect={() => {
                 setTitleSelected(true);
                 setBodySelected(false);
+                setSubSelected(false);
                 setImageSelected(false);
               }}
               onCommit={commitTitleBox}
@@ -748,6 +749,33 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
             </FreeTextBox>
             <div className="w-full shrink-0 h-14 md:h-18 pointer-events-none" />
 
+            {/* ── PALAVRA-CHAVE GRANDE (CAIXA LIVRE INDEPENDENTE) ── */}
+            {currentProjectorItem.type === 'palavra_chave' && currentProjectorItem.ideiaText && (
+              <FreeTextBox
+                box={curSubBox}
+                selected={subSelected && !isExporting}
+                editable={!isExporting}
+                stageRef={projectorStageRef}
+                onSelect={() => {
+                  setSubSelected(true);
+                  setBodySelected(false);
+                  setTitleSelected(false);
+                  setImageSelected(false);
+                }}
+                onCommit={commitSubBox}
+                onReset={resetSubBox}
+                label="Palavra-Chave"
+                accentColor="amber"
+              >
+                <div className="w-full flex flex-col items-center justify-center text-center px-2">
+                  <h2 className={`text-4xl md:text-6xl lg:text-7xl font-black tracking-wider font-sans text-center drop-shadow-sm ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
+                    {renderHL(currentProjectorItem.ideiaText || '')}
+                  </h2>
+                  <div className="w-48 h-1.5 bg-amber-400 rounded-full mt-2 mx-auto shadow-sm" />
+                </div>
+              </FreeTextBox>
+            )}
+
             {/* ── CONTEÚDO / CORPO (LIVRE ESTILO COREL DRAW) ── */}
             <FreeTextBox
               box={curBodyBox}
@@ -757,12 +785,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
               onSelect={() => {
                 setBodySelected(true);
                 setTitleSelected(false);
+                setSubSelected(false);
                 setImageSelected(false);
               }}
               onCommit={commitBodyBox}
               onReset={resetBodyBox}
               onApplyToAll={applyBodyBoxToAll}
-              label={currentProjectorItem.type === 'leitura' ? 'Leitura Bíblica' : 'Texto'}
+              label={currentProjectorItem.type === 'palavra_chave' ? 'Explicação' : currentProjectorItem.type === 'leitura' ? 'Leitura Bíblica' : 'Texto'}
               accentColor="cyan"
             >
               <div className="w-full flex flex-col justify-center items-center relative min-h-0">
@@ -779,8 +808,8 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                         className="w-full flex-1 flex flex-col justify-start items-center text-center space-y-3 py-2 min-h-0 h-[340px] md:h-[400px] lg:h-[440px] max-h-[440px] overflow-y-auto custom-scrollbar pr-2 select-text pointer-events-auto touch-pan-y"
                       >
                         {displayRef && (
-                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-2 w-full shrink-0">
-                            {renderHL(displayRef, '#0052cc')}
+                          <h3 className="text-2xl md:text-3xl lg:text-4xl font-black tracking-wide font-sans text-center mb-2 w-full shrink-0">
+                            {renderHL(displayRef, bodyTextColor === 'black' ? '#0052cc' : '#38bdf8')}
                           </h3>
                         )}
 
@@ -855,10 +884,6 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                     <div className="w-full flex-1 flex flex-col justify-center items-center text-center space-y-2.5 py-2 my-auto mt-1 md:mt-2">
                       {currentProjectorItem.type === 'palavra_chave' ? (
                         <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                          <h2 className={`text-4xl md:text-6xl lg:text-7xl font-black tracking-wider font-sans text-center mb-3 drop-shadow-sm ${bodyTextColor === 'black' ? 'text-black font-black' : 'text-white'}`}>
-                            {renderHL(currentProjectorItem.ideiaText || '')}
-                          </h2>
-                          <div className="w-48 h-1.5 bg-amber-400 rounded-full mb-6 mx-auto shadow-sm" />
                           <p className={`font-sans text-center w-full max-w-4xl px-2 break-words leading-relaxed font-bold md:font-extrabold ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
@@ -903,15 +928,15 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                           </p>
                         </div>
                       ) : (
-                        <div className="w-full max-h-[460px] overflow-y-auto custom-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto">
+                        <div className="w-full max-h-[460px] overflow-y-auto custom-scrollbar px-4 flex flex-col items-center justify-start py-2 space-y-2 my-auto select-text pointer-events-auto">
                           {currentProjectorItem.ideiaText && (
-                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 break-words shrink-0">
-                              {currentProjectorItem.ideiaText}
+                            <h2 className="text-xl md:text-3xl lg:text-4xl font-black tracking-wide font-sans text-center mb-1 break-words shrink-0">
+                              {renderHL(currentProjectorItem.ideiaText, bodyTextColor === 'black' ? '#0052cc' : '#38bdf8')}
                             </h2>
                           )}
                           {currentProjectorItem.reference && (
-                            <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black text-[#0052cc] tracking-wide font-sans text-center mb-1 w-full shrink-0`}>
-                              {currentProjectorItem.reference}
+                            <h3 className={`${(slideBodyWidths[projectorIndex] ?? 100) <= 65 ? 'text-lg md:text-xl lg:text-2xl' : 'text-xl md:text-2xl lg:text-3xl'} font-black tracking-wide font-sans text-center mb-1 w-full shrink-0`}>
+                              {renderHL(currentProjectorItem.reference, bodyTextColor === 'black' ? '#0052cc' : '#38bdf8')}
                             </h3>
                           )}
                           {(currentProjectorItem.ideiaText || currentProjectorItem.reference) && currentProjectorItem.projetorText && (

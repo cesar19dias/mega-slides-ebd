@@ -1,5 +1,5 @@
-import React from 'react';
-import { BookOpen, Key, RefreshCw, UserCheck, Monitor } from 'lucide-react';
+import React, { useRef } from 'react';
+import { BookOpen, Key, RefreshCw, UserCheck, Monitor, CheckCircle2, Download, FolderOpen, Loader2 } from 'lucide-react';
 
 const AuthenticQrCodeIcon: React.FC<{ className?: string }> = ({ className = 'w-8 h-8' }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -52,6 +52,9 @@ interface HeaderProps {
   onOpenQrCode?: () => void;
   activeTab?: 'professor' | 'projetor';
   onTabChange?: (tab: 'professor' | 'projetor') => void;
+  saveStatus?: 'idle' | 'saving' | 'saved';
+  onExportLesson?: () => void;
+  onImportLesson?: (file: File) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -62,9 +65,31 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQrCode,
   activeTab,
   onTabChange,
+  saveStatus,
+  onExportLesson,
+  onImportLesson,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onImportLesson) {
+      onImportLesson(file);
+    }
+    e.target.value = '';
+  };
+
   return (
     <header className="header-container font-['Gotham']">
+      {/* Input oculto para importação de aula */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept=".megaebd,.json"
+        className="hidden"
+      />
+
       <div className="header-content flex flex-wrap items-center justify-between gap-4">
         <div className="logo-brand flex items-center gap-3">
           <div className="logo-icon bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20 shrink-0">
@@ -85,17 +110,65 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Centro: Nova Lição EBD + Botão Quadrado de QR Code */}
+        {/* Centro: Status de Salvamento + Nova Lição + Ações Rápidas */}
         {hasLesson && (
-          <div className="header-center-actions flex items-center gap-3">
+          <div className="header-center-actions flex flex-wrap items-center gap-2.5">
+            {/* Indicador Visual de Persistência no Navegador */}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all ${
+                saveStatus === 'saving'
+                  ? 'bg-blue-950/80 border-blue-500/40 text-blue-300 animate-pulse'
+                  : 'bg-emerald-950/70 border-emerald-500/40 text-emerald-300'
+              }`}
+              title="Todas as fotos, textos e edições são salvas automaticamente no banco de dados do seu navegador (IndexedDB)"
+            >
+              {saveStatus === 'saving' ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />
+                  <span>Salvando no PC...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>💾 Salvo no PC</span>
+                </>
+              )}
+            </div>
+
+            {/* Botão Baixar Backup .megaebd */}
+            {onExportLesson && (
+              <button
+                type="button"
+                onClick={onExportLesson}
+                className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl border border-slate-600 hover:border-slate-400 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+                title="Baixar arquivo de backup da aula (.megaebd) para guardar no seu computador ou pendrive"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Backup .megaebd</span>
+              </button>
+            )}
+
+            {/* Botão Abrir Backup */}
+            {onImportLesson && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl border border-slate-600 hover:border-slate-400 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+                title="Abrir um arquivo salvo (.megaebd)"
+              >
+                <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Abrir Aula</span>
+              </button>
+            )}
+
             {onReset && (
               <button
                 onClick={onReset}
-                className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-4.5 py-2.5 rounded-xl border border-slate-600 hover:border-slate-400 font-extrabold text-sm transition-all shadow-md cursor-pointer active:scale-95 min-h-[42px]"
+                className="flex items-center gap-2 bg-slate-800/90 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl border border-slate-600 hover:border-slate-400 font-extrabold text-xs transition-all shadow-md cursor-pointer active:scale-95"
                 title="Iniciar uma nova lição EBD"
               >
-                <RefreshCw className="w-4 h-4 text-blue-400" />
-                <span>Nova Lição EBD</span>
+                <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+                <span>Nova Lição</span>
               </button>
             )}
 
@@ -105,10 +178,10 @@ export const Header: React.FC<HeaderProps> = ({
                 if (onOpenQrCode) onOpenQrCode();
                 window.dispatchEvent(new CustomEvent('mega-ebd-open-qr'));
               }}
-              className="w-12 h-12 min-w-[48px] min-h-[48px] p-2 flex items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border-2 border-purple-300/60 shadow-xl shadow-purple-500/30 transition-all cursor-pointer active:scale-95 hover:scale-105 shrink-0"
+              className="w-10 h-10 min-w-[40px] min-h-[40px] p-1.5 flex items-center justify-center rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-cyan-500 hover:from-purple-500 hover:to-cyan-400 text-white border-2 border-purple-300/60 shadow-xl shadow-purple-500/30 transition-all cursor-pointer active:scale-95 hover:scale-105 shrink-0"
               title="Abrir esta mesma aula no Celular via QR Code (sincronizada)"
             >
-              <AuthenticQrCodeIcon className="w-8 h-8 text-white drop-shadow-sm" />
+              <AuthenticQrCodeIcon className="w-6 h-6 text-white drop-shadow-sm" />
             </button>
           </div>
         )}

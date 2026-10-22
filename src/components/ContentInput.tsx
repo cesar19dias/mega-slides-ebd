@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2, Video, Loader2 } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Upload, FileText, Sparkles, BookOpen, FileCheck, Layers, Cpu, Plus, Trash2, CheckCircle2, AlertCircle, Link2, Video, Loader2, FolderOpen } from 'lucide-react';
 import type { TranscriptionSource, PreparationOptions, DepthControl } from '../types';
 import { extractTextFromFile } from '../services/documentService';
 import { fetchYouTubeTranscript } from '../services/youtubeService';
@@ -9,6 +9,7 @@ interface ContentInputProps {
   isLoading: boolean;
   hasApiKey: boolean;
   onOpenApiKeyModal: () => void;
+  onImportLesson?: (file: File) => void;
 }
 
 export const ContentInput: React.FC<ContentInputProps> = ({
@@ -16,7 +17,18 @@ export const ContentInput: React.FC<ContentInputProps> = ({
   isLoading,
   hasApiKey,
   onOpenApiKeyModal,
+  onImportLesson,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f && onImportLesson) {
+      onImportLesson(f);
+    }
+    e.target.value = '';
+  };
+
   // 1. REVISTA DA EBD (Texto ou PDF/DOCX)
   const [revistaInputType, setRevistaInputType] = useState<'text' | 'file'>('text');
   const [revistaTextContent, setRevistaTextContent] = useState('');
@@ -174,10 +186,19 @@ export const ContentInput: React.FC<ContentInputProps> = ({
 
   return (
     <form onSubmit={handleSubmit} className="input-card-container space-y-6 max-w-[1600px] w-full mx-auto font-['Montserrat']">
-      {/* Banner Informativo do Princípio Fundamental */}
-      <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900/80 border border-blue-500/30 p-4 rounded-2xl flex items-center justify-between gap-4">
+      {/* Input de arquivo para abrir aula (.megaebd) */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileImport}
+        accept=".megaebd,.json"
+        className="hidden"
+      />
+
+      {/* Banner Informativo do Princípio Fundamental + Botão Abrir Aula Salva */}
+      <div className="bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900/80 border border-blue-500/30 p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300 font-black text-lg">
+          <div className="w-10 h-10 rounded-xl bg-blue-600/30 border border-blue-400/40 flex items-center justify-center text-blue-300 font-black text-lg shrink-0">
             📖
           </div>
           <div>
@@ -187,8 +208,23 @@ export const ContentInput: React.FC<ContentInputProps> = ({
             </p>
           </div>
         </div>
-        <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-700/80 text-[11px] font-bold text-slate-300">
-          <span>Bíblia</span> ➔ <span>Revista</span> ➔ <span>Transcrições</span>
+
+        <div className="flex items-center gap-3">
+          {onImportLesson && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95 shrink-0"
+              title="Abrir arquivo de aula (.megaebd) salvo anteriormente com todos os slides e imagens"
+            >
+              <FolderOpen className="w-4 h-4 text-amber-400" />
+              <span>📂 Abrir Aula Salva (.megaebd)</span>
+            </button>
+          )}
+
+          <div className="hidden sm:flex items-center gap-2 bg-slate-950/60 px-3 py-1.5 rounded-xl border border-slate-700/80 text-[11px] font-bold text-slate-300">
+            <span>Bíblia</span> ➔ <span>Revista</span> ➔ <span>Transcrições</span>
+          </div>
         </div>
       </div>
 
