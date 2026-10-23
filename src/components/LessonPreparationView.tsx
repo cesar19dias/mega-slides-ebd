@@ -3251,10 +3251,11 @@ Título do Subtópico: "${targetTitle}" (dentro da lição "${lesson.metadata?.t
 
 REGRAS MANDATÓRIAS INEGOCIÁVEIS:
 1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR OU DO PARÁGRAFO DA REVISTA!
-2. O projetor é para os alunos lerem no slide. A sua resposta é a AULA DO PROFESSOR: produza uma explicação didática profunda, clara, envolvente e bíblica (2 a 3 parágrafos bem desenvolvidos).
-3. Desenvolva o contexto histórico, costumes da época bíblica, o significado teológico e espiritual dos versículos e como o professor deve guiar a classe.
-4. Escreva em texto corrido pedagógico e fluido, sem marcadores ou tópicos com bullets.
-5. Retorne DIRETAMENTE apenas o texto da explicação didática.`;
+2. O projetor é para os alunos lerem no slide. A sua resposta é a AULA DO PROFESSOR: produza uma explicação didática OBJETIVA, DIRETA e CLARA para respeitar a gestão do tempo de aula da EBD (1 parágrafo bem estruturado ou no máximo 2 curtos, entre 60 e 100 palavras).
+3. Padrão modelo a seguir: "Moisés apresenta três etapas da vida espiritual: ouvir, aprender e praticar. Ouvir (shema) é atender à Palavra com disposição para obedecer; aprender (lamad) é internalizar o ensino divino; e guardar (shamar) é colocá-lo em prática. Diferentemente da geração que falhou em obedecer, o cristão deve ser praticante da Palavra, e não apenas ouvinte (Tg 1.22-25)."
+4. Conecte o sentido espiritual, a raiz exegética/teológica essencial e a correlação bíblica sem prolixidade.
+5. Escreva em texto corrido pedagógico e fluido, sem marcadores ou tópicos com bullets.
+6. Retorne DIRETAMENTE apenas o texto da explicação didática.`;
       } else if (targetType === 'projetor') {
         prompt = `Você é um especialista em EBD. Reescreva o TEXTO DO SLIDE DO PROJETOR (Quadro Azul) para o subtópico: "${targetTitle}".
 O texto deve ser uma síntese clara, impactante e direta para ser projetada na tela para os alunos lerem durante a aula.

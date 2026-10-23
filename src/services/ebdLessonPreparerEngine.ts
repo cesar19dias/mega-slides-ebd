@@ -325,10 +325,10 @@ Na propriedade "introducao", preencha "ponteContextual": { "enabled": false }.
     : 'Almeida Revista e Corrigida (ARC)';
 
   const depthInstruction = {
-    resumida: 'NÍVEL RESUMIDO: Foque estritamente no essencial com sínteses claras e diretas (1 a 2 parágrafos concisos por subtópico, explicações diretas ao ponto sem rodeios).',
-    detalhada: 'NÍVEL DETALHADO (PADRÃO): Desenvolva bem as explicações com profundidade pedagógica equilibrada (2 a 3 parágrafos bem desenvolvidos por subtópico, com contexto histórico e desdobramentos práticos).',
-    aprofundada: 'NÍVEL APROFUNDADO: Máxima densidade teológica, exegética e histórica (3 a 5 parágrafos robustos por subtópico, esmiuçando detalhes culturais, conexões bíblicas amplas, implicações teológicas profundas e análise contextual minuciosa).'
-  }[options.depth] || 'Desenvolva explicações pedagógicas equilibradas (2 a 3 parágrafos por subtópico).';
+    resumida: 'NÍVEL RESUMIDO: Ultra-objetivo e direto ao ponto (1 parágrafo conciso de 40 a 70 palavras por subtópico, destacando o cerne bíblico e a lição imediata).',
+    detalhada: 'NÍVEL DETALHADO (PADRÃO — OBJETIVO PARA GESTÃO DO TEMPO DE AULA): Explicação didática límpida, direta e objetiva para não estourar o tempo de aula da EBD (1 parágrafo bem estruturado ou 2 parágrafos curtos, entre 60 e 100 palavras por subtópico). Deve sintetizar a verdade espiritual, a raiz exegética/teológica essencial e a conexão bíblica sem divagações prolixas.',
+    aprofundada: 'NÍVEL APROFUNDADO: Alta densidade teológica e exegética com rigorosa objetividade pedagógica (1 a 2 parágrafos sólidos de 90 a 140 palavras por subtópico, aprofundando o original e a história sem prolixidade que comprometa o tempo da EBD).'
+  }[options.depth] || 'Explicação didática objetiva e clara de 60 a 100 palavras por subtópico para gestão do tempo de aula da EBD.';
 
   const pentecostalInstruction = options.includePentecostalApplication
     ? 'ÊNFASE PENTECOSTAL ATIVADA: Destaque ativamente a atuação e o poder do Espírito Santo, a atualidade dos dons espirituais, a oração fervorosa, a consagração e o agir sobrenatural de Deus tanto na aplicação prática quanto nas explicações teológicas da lição.'
@@ -383,11 +383,14 @@ Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES
 
 2. CAMADA 2 — EXPLICAÇÃO DIDÁTICA DO PROFESSOR ("explicacao"):
    * Origem: TRANSCRIÇÕES 1 e 2 (Estudos e falas dos pastores/pregadores nas transcrições).
-   * Conteúdo: A AULA MINISTRADA PELO PROFESSOR. Um texto didático corrido, fluido, aprofundado e pedagógico em parágrafos bem desenvolvidos (respeite a PROFUNDIDADE DO CONTEÚDO escolhida pelo professor).
-   * O que deve conter:
-     - Extraia e integre TODAS as explicações, detalhes históricos, costumes bíblicos e comentários teológicos presentes nas transcrições.
-     - Explique os versículos, o pano de fundo histórico e as lições espirituais de forma rica e envolvente.
-     - Linguagem oral culta e didática de um professor lecionando (sem bullets, sem marcadores como 📌 ou 👉).
+   * Conteúdo: A AULA MINISTRADA PELO PROFESSOR.
+   * ⏱️ REGRA DE GESTÃO DO TEMPO DE AULA DA EBD (OBJETIVIDADE OBRIGATÓRIA):
+     - A aula dominical possui tempo escasso (45 a 60 minutos para toda a lição, cerca de 4 a 5 minutos por subtópico). Logo, a explicação do professor DEVE SER OBJETIVA, DIRETA, LÍMPIDA E PEDAGÓGICA (cerca de 60 a 100 palavras por subtópico — 1 parágrafo bem estruturado ou no máximo 2 parágrafos curtos).
+     - NÃO crie explicações prolixas, cansativas ou com parágrafos excessivamente longos que estourem o tempo da aula.
+     - Vá direto ao cerne: conecte a verdade espiritual, a raiz teológica/exegética (Hebraico/Grego quando aplicável) e a correlação bíblica com objetividade e clareza cristalina.
+   * 🌟 PADRÃO DE OURO A SEGUIR (EXEMPLO MODELO IDEAL DE ESTRUTURA E CONCISÃO DIDÁTICA):
+     "Moisés apresenta três etapas da vida espiritual: ouvir, aprender e praticar. Ouvir (shema) é atender à Palavra com disposição para obedecer; aprender (lamad) é internalizar o ensino divino; e guardar (shamar) é colocá-lo em prática. Diferentemente da geração que falhou em obedecer, o cristão deve ser praticante da Palavra, e não apenas ouvinte (Tg 1.22-25)."
+     Observe como o exemplo acima é profundo, claro, exegético, cita a correlação bíblica e cabe perfeitamente no tempo real da classe!
    * 🛑 REGRA ANTI-CÓPIA ABSOLUTA:
      - O campo "explicacao" NUNCA, SOB HIPÓTESE ALGUMA, DEVE SER IGUAL OU COPIADO DO "projetor" NEM DO PARÁGRAFO DA REVISTA!
      - Se o campo "explicacao" contiver o mesmo texto da revista/'projetor', o sistema falhará, pois o professor precisa de conteúdo explicativo NOVO extraído das transcrições, e não de uma cópia do slide!
@@ -395,11 +398,12 @@ Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES
 
 - CADA SUBTÓPICO DO MAPA DE ENSINO DEVE CONTER OBRIGATORIAMENTE OS SEGUINTES ELEMENTOS CHAVE:
   1. NÚMERO + TEXTO LITERAL DA REVISTA PARA O SLIDE ("projetor"): "1. " seguido do parágrafo original e exato (ipsis litteris) do subtópico da lição para os alunos lerem no quadro azul.
-  2. EXPLICAÇÃO DIDÁTICA LINEAR DO PROFESSOR ("explicacao"): Texto didático corrido e fluente em parágrafos (respeitando a profundidade configurada). NUNCA copie o projetor.
-  3. BASE BÍBLICA ("versiculos"):
-     * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico para a conduta do crente.
-     * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência e texto completo na versão bíblica escolhida (${bibleVersionLabel}).
-     * EXPLICAÇÃO BREVE DO VERSÍCULO ("explicacao"): Para CADA versículo de apoio inserido, forneça uma explicação BREVE e concisa (1 a 2 frases) explicando o sentido bíblico. ATENÇÃO: Esta explicação é destinada EXCLUSIVAMENTE ao ROTEIRO DO PROFESSOR (o slide do projetor exibirá apenas os versículos/referências).
+  2. EXPLICAÇÃO DIDÁTICA DO PROFESSOR ("explicacao"): Texto objetivo, límpido e pedagógico (60 a 100 palavras), no estilo do Padrão de Ouro. NUNCA copie o projetor.
+  3. BASE BÍBLICA ("versiculos") — MÍNIMO DE 2 A 3 VERSÍCULOS CORROBORATIVOS OBRIGATÓRIOS:
+     * 🛑 REGRA MANDATÓRIA DE QUANTIDADE: É EXPRESSAMENTE PROIBIDO colocar apenas 1 versículo! Cada subtópico DEVE conter OBRIGATORIAMENTE no mínimo 2 a 3 versículos corroborativos/de apoio ("versiculos": [ {...}, {...} ]).
+     * REGRA OBRIGATÓRIA DE DIÁLOGO PRÁTICO: Os versículos bíblicos DEVEM CONVERSAR DIRETAMENTE com o ensino do subtópico e com a APLICAÇÃO PRÁTICA ("aplicacao"), dando fundamento escriturístico sólido para a conduta do crente.
+     * VERSÍCULOS DIFERENTES DA LEITURA EM CLASSE: Selecione PREFERENCIALMENTE versículos de apoio DIFERENTES daqueles lidos na "Leitura Bíblica em Classe". Forneça referência completa e texto bíblico completo na versão escolhida (${bibleVersionLabel}).
+     * EXPLICAÇÃO BREVE DO VERSÍCULO ("explicacao"): Para CADA versículo de apoio inserido, forneça uma explicação BREVE e concisa (1 a 2 frases) explicando o sentido bíblico e como corrobora o ensino. ATENÇÃO: Esta explicação é destinada EXCLUSIVAMENTE ao ROTEIRO DO PROFESSOR (o slide do projetor exibirá apenas os versículos/referências).
   4. APLICAÇÃO PRÁTICA ("aplicacao"): Como essa verdade bíblica e os versículos de apoio se aplicam de forma concreta à vida espiritual e diária do aluno.
   5. 🔥 O QUE NÃO PODE SER DITO / CUIDADO DOUTRINÁRIO ("cuidadoDoutrinario"): Alerta teológico/pastoral identificando explicitamente equívocos que o professor NÃO DEVE cometer.
   6. 🏛️ VOCABULÁRIO EXEGÉTICO NO GREGO / HEBRAICO ("palavrasOriginais"): Sugira a explicação exegética no Grego ou Hebraico de palavras marcantes. Forneça "termo", "transliteracao", "idioma", "significado" e "explicacao".
@@ -492,9 +496,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "1",
           "title": "A conspiração judaica contra Paulo (vv.1,2)",
           "projetor": "1. Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo perante o tribunal de Félix.",
-          "explicacao": "No primeiro século, a elite sacerdotal do Sinédrio deslocou-se de Jerusalém a Cesareia para acusar Paulo diante do procurador romano Antônio Félix. A presença de Tértulo — um orador treinado no direito romano provincial — revela a estratégia da liderança religiosa de revestir a acusação com linguagem jurídica romana, enquadrando Paulo como agitador político e herege perigoso. Conforme enfatizado nas transcrições de apoio, os líderes religiosos estavam dispostos a bajular um governador pagão apenas para destruir o mensageiro da graça, demonstrando como a religiosidade corrompida se alia ao poder temporal para perseguir a verdade. O professor deve destacar que a oposição ao Evangelho frequentemente assume ares de legalidade e retórica refinada, mas a fidelidade de Deus sustenta Seus servos em qualquer tribunal terreno.",
+          "explicacao": "A elite sacerdotal do Sinédrio aliou-se ao poder romano em Cesareia, contratando o orador Tértulo para rotular Paulo como agitador político (loimós). Diante de perseguições disfarçadas de legalidade, a Igreja não recua: o mensageiro da verdade mantém serenidade e firmeza, confiando na soberania divina que prevalece sobre qualquer tribunal humano (1Pe 4.14; Mt 5.11-12).",
           "versiculos": [
-            { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois...", "explicacao": "Breve explicação bíblica de como este versículo fundamenta o subtópico..." }
+            { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois, porque sobre vós repousa o Espírito da glória e de Deus...", "explicacao": "Corrobora que a oposição por amor a Cristo não é derrota, mas sinal da presença do Espírito de Deus sobre a vida do crente." },
+            { "reference": "Mateus 5.11-12", "text": "Bem-aventurados sois vós, quando vos injuriarem e perseguirem e, mentindo, disserem todo o mal contra vós por minha causa. Exultai e alegrai-vos, porque é grande o vosso galardão nos céus...", "explicacao": "Confirma a instrução de Cristo de perseverar com alegria mesmo diante de acusações injustas e calúnias." }
           ],
           "aplicacao": "O crente diante de calúnias no trabalho deve manter serenidade, oração e testemunho irrepreensível.",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário: Não afirmar que toda oposição é perseguição por causa da fé.",
@@ -513,9 +518,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "2",
           "title": "Título do Subtópico 2 da Revista",
           "projetor": "2. [Parágrafo literal e integral da revista correspondente ao subtópico 2 para o slide do projetor]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. Explique detalhadamente o contexto histórico, os comentários e a teologia. NUNCA copie o texto do projetor.]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 1 parágrafo bem estruturado ou 2 parágrafos curtos de 60 a 100 palavras. Seja objetivo e didático para a gestão do tempo de aula da EBD, unindo contexto bíblico, o sentido exegético e a aplicação espiritual conforme o Padrão de Ouro. NUNCA copie o texto do projetor.]",
           "versiculos": [
-            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC...", "explicacao": "Breve explicação didática do versículo..." }
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1 na versão oficial...", "explicacao": "Breve nota bíblica de como este versículo corrobora o primeiro ponto da explicação..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2 na versão oficial...", "explicacao": "Breve nota bíblica de como este versículo fundamenta a aplicação prática..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário para a sala de aula...",
@@ -525,9 +531,10 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "3",
           "title": "Título do Subtópico 3 da Revista",
           "projetor": "3. [Parágrafo literal e integral da revista correspondente ao subtópico 3 para o slide do projetor]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. Explique detalhadamente o contexto histórico, os comentários e a teologia. NUNCA copie o texto do projetor.]",
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 1 parágrafo bem estruturado ou 2 curtos de 60 a 100 palavras. Didático, direto e límpido para não estourar o tempo da classe. NUNCA copie o texto do projetor.]",
           "versiculos": [
-            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo ARC...", "explicacao": "Breve explicação didática do versículo..." }
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1 na versão oficial...", "explicacao": "Explicação bíblica corroborativa 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2 na versão oficial...", "explicacao": "Explicação bíblica corroborativa 2..." }
           ],
           "aplicacao": "Aplicação prática para a vida cristã...",
           "cuidadoDoutrinario": "🔥 Cuidado Doutrinário...",
@@ -547,8 +554,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "1",
           "title": "Título do Subtópico 1 do Tópico II",
           "projetor": "1. [Parágrafo literal da revista para o subtópico 1 do Tópico II]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação do versículo..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação prática...",
           "cuidadoDoutrinario": "Cuidado doutrinário...",
           "imagePrompt": "Cinematic 16:9 prompt..."
@@ -557,8 +567,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "2",
           "title": "Título do Subtópico 2 do Tópico II",
           "projetor": "2. [Parágrafo literal da revista para o subtópico 2 do Tópico II]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -567,8 +580,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "3",
           "title": "Título do Subtópico 3 do Tópico II",
           "projetor": "3. [Parágrafo literal da revista para o subtópico 3 do Tópico II]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -587,8 +603,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "1",
           "title": "Título do Subtópico 1 do Tópico III",
           "projetor": "1. [Parágrafo literal da revista para o subtópico 1 do Tópico III]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -597,8 +616,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "2",
           "title": "Título do Subtópico 2 do Tópico III",
           "projetor": "2. [Parágrafo literal da revista para o subtópico 2 do Tópico III]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Cuidado...",
           "imagePrompt": "Prompt..."
@@ -607,8 +629,11 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
           "number": "3",
           "title": "Título do Subtópico 3 do Tópico III",
           "projetor": "3. [Parágrafo literal da revista para o subtópico 3 do Tópico III]",
-          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 2 a 3 parágrafos aprofundados extraídos das transcrições de apoio. NUNCA copie o texto do projetor.]",
-          "versiculos": [ { "reference": "Texto (ARC)", "text": "Versículo...", "explicacao": "Explicação..." } ],
+          "explicacao": "[EXPLICAÇÃO DIDÁTICA DO PROFESSOR: 60 a 100 palavras objetivas e diretas para o tempo de aula. NUNCA copie o texto do projetor.]",
+          "versiculos": [
+            { "reference": "Texto Bíblico 1 (ARC)", "text": "Versículo 1...", "explicacao": "Explicação do versículo 1..." },
+            { "reference": "Texto Bíblico 2 (ARC)", "text": "Versículo 2...", "explicacao": "Explicação do versículo 2..." }
+          ],
           "aplicacao": "Aplicação...",
           "cuidadoDoutrinario": "Alerta...",
           "imagePrompt": "Cinematic 16:9 prompt..."
@@ -636,8 +661,8 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     { "item": "Estrutura da revista preservada (Nível 1)", "status": true },
     { "item": "Transcrições cruzadas e âncora teológica (Níveis 2 e 3)", "status": true },
     { "item": "Absolutamente todas as referências e alusões das transcrições integradas na Explicação Linear", "status": true },
-    { "item": "Versículos de apoio conectados à aplicação prática (distintos da leitura)", "status": true },
-    { "item": "Explicação Didática Linear do Professor em parágrafos fluidos", "status": true },
+    { "item": "Mínimo de 2 a 3 Versículos de Apoio por Subtópico conectados à aplicação prática", "status": true },
+    { "item": "Explicação Didática do Professor objetiva e concisa (60 a 100 palavras por subtópico)", "status": true },
     { "item": "Prompts Visuais 16:9 ultra-elaborados e cinematográficos", "status": true },
     { "item": "O Que Não Pode Ser Dito / Cuidado Doutrinário incluído", "status": true },
     { "item": "Vocabulário original no Grego/Hebraico sugerido e explicado", "status": true }
@@ -692,14 +717,15 @@ ${balancedTranscriptionsText}
 
 REGRAS MANDATÓRIAS INEGOCIÁVEIS:
 1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR! O projetor é apenas o parágrafo resumido que fica na tela para os alunos.
-2. Para CADA subtópico, gere uma EXPLICAÇÃO DIDÁTICA DO PROFESSOR rica, aprofundada e envolvente (2 a 3 parágrafos fluentes) baseada nas TRANSCRIÇÕES fornecidas.
-3. Aborde o contexto histórico bíblico, a nuance teológica dos versículos e como o professor deve ministrar para a classe.
+2. Para CADA subtópico, gere uma EXPLICAÇÃO DIDÁTICA DO PROFESSOR OBJETIVA, LÍMPIDA e PEDAGÓGICA (1 parágrafo bem estruturado de 60 a 100 palavras) para respeitar o tempo de aula da EBD (45 a 60 min total).
+   Padrão modelo: "Moisés apresenta três etapas da vida espiritual: ouvir, aprender e praticar. Ouvir (shema) é atender à Palavra com disposição para obedecer; aprender (lamad) é internalizar o ensino divino; e guardar (shamar) é colocá-lo em prática. Diferentemente da geração que falhou em obedecer, o cristão deve ser praticante da Palavra, e não apenas ouvinte (Tg 1.22-25)."
+3. Integre a essência teológica das transcrições, a raiz no hebraico/grego se houver e a lição espiritual sem divagações prolixas.
 4. Responda em JSON puro neste formato exato:
 {
   "explicacoes": [
     {
       "index": 0,
-      "explicacao": "Texto rico e profundo da aula didática do professor..."
+      "explicacao": "Texto objetivo, didático e límpido da aula do professor..."
     }
   ]
 }
