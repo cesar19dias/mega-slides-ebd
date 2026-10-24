@@ -155,17 +155,11 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
   if (lesson.textAureo.reference) {
     addParagraph(`— ${lesson.textAureo.reference}`, 9, true, [37, 99, 235]);
   }
-  if (lesson.textAureo.imagePrompt) {
-    addParagraph(`Prompt Visual 16:9: ${lesson.textAureo.imagePrompt}`, 7.5, true, [14, 116, 144]);
-  }
 
   // 2. Verdade Prática
   if (lesson.verdadePratica?.text) {
     addSectionTitle('2. Verdade Prática');
     addParagraph(`"${lesson.verdadePratica.text}"`, 10, false, [30, 41, 59]);
-    if (lesson.verdadePratica.imagePrompt) {
-      addParagraph(`Prompt Visual 16:9: ${lesson.verdadePratica.imagePrompt}`, 7.5, true, [14, 116, 144]);
-    }
   }
 
   // 2.1 Palavra-Chave da Lição
@@ -173,9 +167,6 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
     addSectionTitle(`Palavra-Chave: ${lesson.palavraChave.palavra.toUpperCase()}`);
     if (lesson.palavraChave.explicacao) {
       addParagraph(lesson.palavraChave.explicacao, 9.5, false, [30, 41, 59]);
-    }
-    if (lesson.palavraChave.imagePrompt) {
-      addParagraph(`Prompt Visual 16:9: ${lesson.palavraChave.imagePrompt}`, 7.5, true, [14, 116, 144]);
     }
   }
 
@@ -199,9 +190,6 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
 
       if (topico.sinopse) {
         addParagraph(`Sinopse: ${topico.sinopse}`, 9.5, true, [30, 41, 59]);
-      }
-      if (topico.imagePrompt) {
-        addParagraph(`Prompt Visual 16:9: ${topico.imagePrompt}`, 7.5, true, [14, 116, 144]);
       }
 
       topico.subtopicos.forEach((sub) => {
@@ -230,29 +218,44 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
           : '');
 
         if (txtProjetor) {
-          checkPageBreak(10);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8.5);
+          const innerPaddingX = 5;
+          const innerPaddingY = 4.0;
+          const lineStep = 4.0;
+          const projLines: string[] = pdf.splitTextToSize(sanitize(`"${txtProjetor}"`), contentWidth - (innerPaddingX * 2));
+          const textBlockHeight = (projLines.length - 1) * lineStep + 2.8;
+          const boxHeight = textBlockHeight + (innerPaddingY * 2);
+
+          // Garante que o cabeçalho e a faixa amarela não quebrem separados
+          checkPageBreak(boxHeight + 12);
+
           pdf.setFont('helvetica', 'bold');
           pdf.setFontSize(8);
           pdf.setTextColor(30, 58, 138);
           pdf.text('TEXTO DA REVISTA / QUADRO:', margin, yPos);
-          yPos += 4;
+          yPos += 4.5;
 
-          pdf.setFont('helvetica', 'bold');
-          pdf.setFontSize(8.5);
-          const projLines = pdf.splitTextToSize(sanitize(`"${txtProjetor}"`), contentWidth - 8);
-          const projHeight = projLines.length * 3.8;
-          checkPageBreak(projHeight + 6);
-          // Yellow highlight background
+          const boxTop = yPos;
+
+          // Faixa amarela de destaque
           pdf.setFillColor(255, 240, 100);
-          pdf.roundedRect(margin, yPos - 3, contentWidth, projHeight + 5, 2, 2, 'F');
-          // Dark amber border
+          pdf.roundedRect(margin, boxTop, contentWidth, boxHeight, 2, 2, 'F');
+          // Borda âmbar
           pdf.setDrawColor(217, 119, 6);
           pdf.setLineWidth(0.6);
-          pdf.roundedRect(margin, yPos - 3, contentWidth, projHeight + 5, 2, 2, 'S');
-          // Text in dark color over yellow
+          pdf.roundedRect(margin, boxTop, contentWidth, boxHeight, 2, 2, 'S');
+
+          // Texto centralizado verticalmente com padding simétrico
           pdf.setTextColor(30, 41, 59);
-          pdf.text(projLines, margin + 4, yPos);
-          yPos += projHeight + 8;
+          pdf.setFont('helvetica', 'bold');
+          pdf.setFontSize(8.5);
+          const firstLineBaseline = boxTop + innerPaddingY + 2.1;
+          projLines.forEach((line, idx) => {
+            pdf.text(line, margin + innerPaddingX, firstLineBaseline + (idx * lineStep));
+          });
+
+          yPos = boxTop + boxHeight + 6;
         }
 
         // Camada 2 — Explicação Didática do Professor (Explicação Linear)
@@ -374,16 +377,7 @@ export function exportTeacherGuideCleanPDF(lesson: EBDLessonPreparation): void {
         }
 
 
-        // Prompt Visual 16:9 do Subtópico
-        if (sub.imagePrompt) {
-          checkPageBreak(8);
-          pdf.setFont('helvetica', 'italic');
-          pdf.setFontSize(7.5);
-          pdf.setTextColor(14, 116, 144);
-          const prLines = pdf.splitTextToSize(sanitize(`Prompt Visual 16:9: ${sub.imagePrompt}`), contentWidth - 8);
-          pdf.text(prLines, margin + 4, yPos);
-          yPos += prLines.length * 3.2 + 2;
-        }
+
 
         yPos += 4;
       });

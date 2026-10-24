@@ -17,6 +17,7 @@ import { ProjectorStage } from './ProjectorStage';
 import { optimizeImageBase64 } from '../services/shareService';
 import { saveSlideImagesToStorage } from '../services/storageService';
 import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
+import { fetchVerseTextIfMissing } from '../services/biblicalTextParser';
 
 interface TextHighlightEntry {
   text: string;
@@ -532,6 +533,62 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
   const [internalActiveTab] = useState<'professor' | 'projetor'>('projetor');
   const activeTab = activeTabProp ?? internalActiveTab;
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
+
+  // Garante que todos os versículos de apoio tenham o texto bíblico literal preenchido para exibição no slide
+  useEffect(() => {
+    let isCancelled = false;
+    const ensureVerseTexts = async () => {
+      if (!lesson.topicos || lesson.topicos.length === 0) return;
+      let hasMissing = false;
+
+      for (const t of lesson.topicos) {
+        for (const s of t.subtopicos || []) {
+          for (const v of s.versiculos || []) {
+            if (v.reference && (!v.text || !v.text.trim())) {
+              hasMissing = true;
+              break;
+            }
+          }
+          if (hasMissing) break;
+        }
+        if (hasMissing) break;
+      }
+
+      if (!hasMissing) return;
+
+      const updatedTopicos = await Promise.all(
+        lesson.topicos.map(async (topico) => {
+          const updatedSubs = await Promise.all(
+            (topico.subtopicos || []).map(async (sub) => {
+              if (!sub.versiculos || sub.versiculos.length === 0) return sub;
+              let subChanged = false;
+              const updatedVerses = await Promise.all(
+                sub.versiculos.map(async (v) => {
+                  if (v.reference && (!v.text || !v.text.trim())) {
+                    const fetchedText = await fetchVerseTextIfMissing(v.reference);
+                    if (fetchedText) {
+                      subChanged = true;
+                      return { ...v, text: fetchedText };
+                    }
+                  }
+                  return v;
+                })
+              );
+              return subChanged ? { ...sub, versiculos: updatedVerses } : sub;
+            })
+          );
+          return { ...topico, subtopicos: updatedSubs };
+        })
+      );
+
+      if (!isCancelled) {
+        updateLesson(prev => ({ ...prev, topicos: updatedTopicos }));
+      }
+    };
+
+    ensureVerseTexts();
+    return () => { isCancelled = true; };
+  }, [lesson.topicos, updateLesson]);
 
   // Estado da Visão do Projetor (Slide atual e escala da fonte)
   const [projectorIndex, setProjectorIndex] = useState(0);
@@ -2447,30 +2504,43 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
           });
         }
 
-        // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - APENAS OS VERSÍCULOS NO PROJETOR)
+        // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - REFERÊNCIA + TEXTO LITERAL DO VERSÍCULO)
         if (s.versiculos && s.versiculos.length > 0) {
-          const textoApenasVersiculos = s.versiculos
-            .map(v => v.reference ? `📖 ${v.reference.replace(/^[📖\s*-]+/, '').trim()}` : '')
+          const textoVersiculosFormatado = s.versiculos
+            .map(v => {
+              const ref = v.reference ? `📖 ${v.reference.replace(/^[📖\s*-]+/, '').trim()}` : '';
+              const cleanTxt = (v.text || '').replace(/^[“"']+|[”"']+$/g, '').trim();
+              if (ref && cleanTxt) {
+                return `${ref}\n\n"${cleanTxt}"`;
+              }
+              return ref || (cleanTxt ? `"${cleanTxt}"` : '');
+            })
             .filter(Boolean)
-            .join('\n');
-          if (textoApenasVersiculos) {
+            .join('\n\n');
+
+          if (textoVersiculosFormatado) {
             items.push({
               id: `subtopic_verses_${tIdx}_${sIdx}`,
               type: 'subtopic_verses',
               title: 'VAMOS LER A BÍBLIA',
               badgeText: 'VAMOS LER A BÍBLIA',
               ideiaText: '📖 VAMOS LER A BÍBLIA',
-              projetorText: textoApenasVersiculos,
+              projetorText: textoVersiculosFormatado,
               imagePrompt: s.imagePrompt,
               onUpdateText: (val: string) => {
-                const refs = val.split('\n').filter(Boolean);
                 const currentVerses = s.versiculos || [];
-                const newVerses = refs.map((r, i) => ({
-                  reference: r.replace(/^[📖\s*-]+/, '').trim(),
-                  text: currentVerses[i]?.text || '',
-                  explicacao: currentVerses[i]?.explicacao || ''
-                }));
-                updateSubtopicField(tIdx, sIdx, 'versiculos', newVerses);
+                if (currentVerses.length > 0) {
+                  const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
+                  const firstRef = lines.find(l => l.startsWith('📖'))?.replace(/^📖\s*/, '') || currentVerses[0].reference;
+                  const bodyLines = lines.filter(l => !l.startsWith('📖')).join(' ').replace(/^[“"']+|[”"']+$/g, '').trim();
+                  const updated = [...currentVerses];
+                  updated[0] = {
+                    ...updated[0],
+                    reference: firstRef || updated[0].reference,
+                    text: bodyLines || updated[0].text
+                  };
+                  updateSubtopicField(tIdx, sIdx, 'versiculos', updated);
+                }
               }
             });
           }

@@ -213,3 +213,25 @@ export function splitBiblicalVersesIntoSlides(rawText: string): BiblicalVerseSli
     verseText: bodyText
   }];
 }
+
+/**
+ * Busca o texto literal de um versículo bíblico caso ele não esteja preenchido,
+ * garantindo que o slide do projetor sempre exiba o texto para leitura da classe.
+ */
+export async function fetchVerseTextIfMissing(reference: string): Promise<string> {
+  try {
+    const cleanRef = reference
+      .replace(/^[📖\s*-]+/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/(\d+)\.(\d+)/g, '$1:$2');
+    if (!cleanRef) return '';
+
+    const res = await fetch(`https://bible-api.com/${encodeURIComponent(cleanRef)}?translation=almeida`);
+    if (!res.ok) return '';
+    const data = await res.json();
+    return (data.text || '').replace(/\s+/g, ' ').trim();
+  } catch {
+    return '';
+  }
+}
