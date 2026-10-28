@@ -948,15 +948,13 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                               return (
                                 <div
                                   key={bIdx}
-                                  className={`w-full max-w-4xl mx-auto flex flex-col items-center text-center ${
-                                    isSingle ? 'py-1' : 'py-2 px-3 md:px-5 rounded-2xl bg-slate-900/40 border border-amber-400/30 shadow-lg backdrop-blur-sm'
-                                  }`}
+                                  className="w-full max-w-4xl mx-auto flex flex-col items-center text-center py-2 px-1"
                                 >
-                                  {/* TAG / CABEÇALHO DA REFERÊNCIA EM DESTAQUE */}
+                                  {/* TAG / CABEÇALHO DA REFERÊNCIA EM VERMELHO COM LETRAS AMARELAS */}
                                   {b.ref && (
-                                    <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 border border-amber-400/60 shadow-sm mb-1.5 md:mb-2">
-                                      <span className="text-sm md:text-lg lg:text-xl font-black text-amber-300 tracking-wide font-sans">
-                                        📖 {renderHL(b.ref, '#fcd34d')}
+                                    <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-600 border-2 border-red-500 shadow-md mb-2">
+                                      <span className="text-base md:text-xl lg:text-2xl font-black text-yellow-300 tracking-wide font-sans drop-shadow-sm">
+                                        📖 {renderHL(b.ref, '#fde047')}
                                       </span>
                                     </div>
                                   )}
@@ -964,10 +962,12 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                                   {/* TEXTO DO VERSÍCULO — COLADINHO NA REFERÊNCIA */}
                                   {cleanVerse && (
                                     <p
-                                      className={`tracking-normal font-sans text-center font-bold md:font-extrabold break-words w-full px-1 drop-shadow-sm leading-snug md:leading-relaxed ${
+                                      className={`tracking-normal font-sans text-center font-bold md:font-extrabold break-words w-full px-2 leading-snug md:leading-relaxed ${
+                                        bodyTextColor === 'black' ? 'text-slate-900' : 'text-slate-900'
+                                      } ${
                                         isSingle
-                                          ? 'text-xl md:text-3xl lg:text-4xl text-white'
-                                          : 'text-base md:text-2xl lg:text-3xl text-slate-100'
+                                          ? 'text-xl md:text-3xl lg:text-4xl'
+                                          : 'text-base md:text-2xl lg:text-3xl'
                                       }`}
                                       style={{ textWrap: 'pretty', wordBreak: 'break-word' }}
                                     >
