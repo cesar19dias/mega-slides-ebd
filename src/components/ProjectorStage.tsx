@@ -942,32 +942,30 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                         const isSingle = blocks.length === 1;
 
                         return (
-                          <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-2 md:px-4 flex flex-col items-center justify-center my-auto py-1 space-y-4 md:space-y-5">
+                          <div className="max-h-[500px] overflow-y-auto custom-scrollbar w-full px-1 md:px-3 flex flex-col items-center justify-center my-auto py-1 space-y-4 md:space-y-6">
                             {blocks.map((b, bIdx) => {
                               const cleanVerse = b.text.replace(/^[“"']+|[”"']+$/g, '').trim();
                               return (
                                 <div
                                   key={bIdx}
-                                  className="w-full max-w-4xl mx-auto flex flex-col items-center text-center py-2 px-1"
+                                  className="w-full max-w-5xl mx-auto flex flex-col items-center text-center py-1 px-1"
                                 >
                                   {/* TAG / CABEÇALHO DA REFERÊNCIA EM VERMELHO COM LETRAS AMARELAS */}
                                   {b.ref && (
-                                    <div className="inline-flex items-center justify-center gap-2 px-4 py-1.5 rounded-full bg-red-600 border-2 border-red-500 shadow-md mb-2">
-                                      <span className="text-base md:text-xl lg:text-2xl font-black text-yellow-300 tracking-wide font-sans drop-shadow-sm">
+                                    <div className="inline-flex items-center justify-center gap-2 px-5 py-1.5 md:py-2 rounded-full bg-red-600 border-2 border-red-500 shadow-lg mb-2 md:mb-3">
+                                      <span className="text-base md:text-2xl lg:text-3xl font-black text-yellow-300 tracking-wider font-sans drop-shadow-sm">
                                         📖 {renderHL(b.ref, '#fde047')}
                                       </span>
                                     </div>
                                   )}
 
-                                  {/* TEXTO DO VERSÍCULO — COLADINHO NA REFERÊNCIA */}
+                                  {/* TEXTO DO VERSÍCULO — FONTE GIGANTE COM MÁXIMO DE IMPACTO VISUAL */}
                                   {cleanVerse && (
                                     <p
-                                      className={`tracking-normal font-sans text-center font-bold md:font-extrabold break-words w-full px-2 leading-snug md:leading-relaxed ${
-                                        bodyTextColor === 'black' ? 'text-slate-900' : 'text-slate-900'
-                                      } ${
+                                      className={`tracking-tight font-sans text-center font-black break-words w-full px-2 leading-snug md:leading-tight text-slate-900 ${
                                         isSingle
-                                          ? 'text-xl md:text-3xl lg:text-4xl'
-                                          : 'text-base md:text-2xl lg:text-3xl'
+                                          ? 'text-2xl md:text-4xl lg:text-5xl'
+                                          : 'text-xl md:text-3xl lg:text-4xl'
                                       }`}
                                       style={{ textWrap: 'pretty', wordBreak: 'break-word' }}
                                     >
