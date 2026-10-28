@@ -2511,7 +2511,7 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
               const ref = v.reference ? `📖 ${v.reference.replace(/^[📖\s*-]+/, '').trim()}` : '';
               const cleanTxt = (v.text || '').replace(/^[“"']+|[”"']+$/g, '').trim();
               if (ref && cleanTxt) {
-                return `${ref}\n\n"${cleanTxt}"`;
+                return `${ref}\n"${cleanTxt}"`;
               }
               return ref || (cleanTxt ? `"${cleanTxt}"` : '');
             })

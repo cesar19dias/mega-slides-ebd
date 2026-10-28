@@ -904,18 +904,82 @@ export const ProjectorStage: React.FC<ProjectorStageProps> = ({
                             {renderHL(currentProjectorItem.projetorText)}
                           </p>
                         </div>
-                      ) : currentProjectorItem.type === 'subtopic_verses' ? (
-                        <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
-                          <p className={`tracking-wider font-sans text-center drop-shadow-md whitespace-pre-line ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
-                            {renderHL(
-                              (currentProjectorItem.projetorText || '')
-                                .split('\n')
-                                .filter(line => !line.trim().startsWith('💡'))
-                                .join('\n')
-                            )}
-                          </p>
-                        </div>
-                      ) : currentProjectorItem.type === 'subtopic_aplicacao' ? (
+                      ) : currentProjectorItem.type === 'subtopic_verses' ? (() => {
+                        // Faz o parse das referências e textos de cada versículo do slide
+                        const rawText = (currentProjectorItem.projetorText || '')
+                          .split('\n')
+                          .filter(line => !line.trim().startsWith('💡'))
+                          .join('\n');
+
+                        // Extrai pares de referência e versículo
+                        const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+                        interface VerseBlock { ref: string; text: string }
+                        const blocks: VerseBlock[] = [];
+                        let curRef = '';
+                        let curLines: string[] = [];
+
+                        lines.forEach(line => {
+                          const isRef = /^📖|^[A-Z0-9À-ÿ\s\.\,\:\;\-–—]+(?:\(ARC\)|\(NVI\)|\(NAA\)|capítulo|versículo|\d+:\d+|\d+\.\d+)/i.test(line) && line.length < 90 && !line.startsWith('"') && !line.startsWith('“');
+                          if (isRef) {
+                            if (curRef || curLines.length > 0) {
+                              blocks.push({ ref: curRef, text: curLines.join(' ') });
+                              curLines = [];
+                            }
+                            curRef = line.replace(/^📖\s*/, '').trim();
+                          } else {
+                            curLines.push(line);
+                          }
+                        });
+                        if (curRef || curLines.length > 0) {
+                          blocks.push({ ref: curRef, text: curLines.join(' ') });
+                        }
+
+                        // Se não encontrou blocos estruturados, fallback para o bloco único
+                        if (blocks.length === 0) {
+                          blocks.push({ ref: '', text: rawText });
+                        }
+
+                        const isSingle = blocks.length === 1;
+
+                        return (
+                          <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-2 md:px-4 flex flex-col items-center justify-center my-auto py-1 space-y-4 md:space-y-5">
+                            {blocks.map((b, bIdx) => {
+                              const cleanVerse = b.text.replace(/^[“"']+|[”"']+$/g, '').trim();
+                              return (
+                                <div
+                                  key={bIdx}
+                                  className={`w-full max-w-4xl mx-auto flex flex-col items-center text-center ${
+                                    isSingle ? 'py-1' : 'py-2 px-3 md:px-5 rounded-2xl bg-slate-900/40 border border-amber-400/30 shadow-lg backdrop-blur-sm'
+                                  }`}
+                                >
+                                  {/* TAG / CABEÇALHO DA REFERÊNCIA EM DESTAQUE */}
+                                  {b.ref && (
+                                    <div className="inline-flex items-center justify-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/30 to-amber-500/20 border border-amber-400/60 shadow-sm mb-1.5 md:mb-2">
+                                      <span className="text-sm md:text-lg lg:text-xl font-black text-amber-300 tracking-wide font-sans">
+                                        📖 {renderHL(b.ref, '#fcd34d')}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  {/* TEXTO DO VERSÍCULO — COLADINHO NA REFERÊNCIA */}
+                                  {cleanVerse && (
+                                    <p
+                                      className={`tracking-normal font-sans text-center font-bold md:font-extrabold break-words w-full px-1 drop-shadow-sm leading-snug md:leading-relaxed ${
+                                        isSingle
+                                          ? 'text-xl md:text-3xl lg:text-4xl text-white'
+                                          : 'text-base md:text-2xl lg:text-3xl text-slate-100'
+                                      }`}
+                                      style={{ textWrap: 'pretty', wordBreak: 'break-word' }}
+                                    >
+                                      "{renderHL(cleanVerse)}"
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })() : currentProjectorItem.type === 'subtopic_aplicacao' ? (
                         <div className="max-h-[460px] overflow-y-auto custom-scrollbar w-full px-4 flex flex-col items-center justify-center my-auto py-2">
                           <p className={`font-sans text-center w-full max-w-full px-2 break-words ${getResponsiveBodyTextClass(currentProjectorItem.projetorText)}`} style={{ textWrap: 'pretty', wordBreak: 'break-word' }}>
                             {renderHL(currentProjectorItem.projetorText)}
