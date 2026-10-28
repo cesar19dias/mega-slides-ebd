@@ -3069,8 +3069,6 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
     if (normalizedSlide.length < 15) return null;
 
     if (normalizedRevista.includes(normalizedSlide)) return true;
-    const snippet = normalizedSlide.slice(0, Math.min(45, normalizedSlide.length));
-    if (snippet.length >= 20 && normalizedRevista.includes(snippet)) return true;
 
     return false;
   }, [lesson.revistaRawContent, currentProjectorItem]);

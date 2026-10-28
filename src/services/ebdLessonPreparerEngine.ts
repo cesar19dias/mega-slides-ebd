@@ -10,6 +10,7 @@ import { callGeminiRaw } from './geminiService';
 import { jsonrepair } from 'jsonrepair';
 import { fillMissingLessonPrompts } from './promptGeneratorService';
 import { getTheologicalKeywordExplanation } from '../constants/theologicalDictionary';
+import { applyRevistaLiteralText } from './revistaLiteralExtractor';
 
 export function isCopyOrEmptyExplanation(explicacao?: string, projetor?: string): boolean {
   if (!explicacao || explicacao.trim().length < 25) return true;
@@ -495,7 +496,7 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
         {
           "number": "1",
           "title": "A conspiração judaica contra Paulo (vv.1,2)",
-          "projetor": "1. Interesses religiosos e políticos uniram-se em uma trama orquestrada para silenciar o Evangelho de Cristo perante o tribunal de Félix.",
+          "projetor": "1. [Parágrafo literal, COMPLETO e integral da revista correspondente ao subtópico 1 — do início ao fim, com TODAS as frases e referências bíblicas, sem resumir nem cortar]",
           "explicacao": "A elite sacerdotal do Sinédrio aliou-se ao poder romano em Cesareia, contratando o orador Tértulo para rotular Paulo como agitador político (loimós). Diante de perseguições disfarçadas de legalidade, a Igreja não recua: o mensageiro da verdade mantém serenidade e firmeza, confiando na soberania divina que prevalece sobre qualquer tribunal humano (1Pe 4.14; Mt 5.11-12).",
           "versiculos": [
             { "reference": "1 Pedro 4.14", "text": "Se pelo nome de Cristo sois vituperados, bem-aventurados sois, porque sobre vós repousa o Espírito da glória e de Deus...", "explicacao": "Corrobora que a oposição por amor a Cristo não é derrota, mas sinal da presença do Espírito de Deus sobre a vida do crente." },
@@ -675,6 +676,15 @@ Responda EXCLUSIVAMENTE em formato JSON com esta estrutura exata:
     const rawResult = await callGeminiRaw(prompt, options.selectedAiModel || 'gemini-2.5-flash', true, 0.6);
     const parsedData: EBDLessonPreparation = repairAndParseTruncatedJSON(rawResult);
 
+    // 📖 TEXTO LITERAL DA REVISTA: a IA costuma resumir/cortar o parágrafo do subtópico.
+    // Substituímos o "projetor" pelo parágrafo completo extraído por código diretamente da revista.
+    try {
+      const literalCount = applyRevistaLiteralText(parsedData, revistaContent);
+      console.log(`[Motor Preparador] Texto literal da revista aplicado em ${literalCount} subtópico(s).`);
+    } catch (literalErr) {
+      console.warn('[Motor Preparador] Falha ao extrair texto literal da revista, mantendo texto da IA:', literalErr);
+    }
+
     // 🛡️ VALIDAÇÃO E AUTO-REPARO DE EXPLICAÇÕES DIDÁTICAS
     // Se a IA tiver copiado o texto do projetor para a explicação em algum subtópico,
     // garantimos a geração das explicações reais profundas a partir das transcrições!
@@ -709,14 +719,14 @@ ${problematicSubtopics.map((p, idx) => `
 --- SUBTÓPICO ${idx + 1} ---
 Tópico: ${p.topicTitle}
 Subtópico: ${p.subTitle}
-Texto do slide do projetor (resumo da revista): "${p.projetor}"
+Texto do slide do projetor (parágrafo da revista): "${p.projetor}"
 `).join('\n')}
 
 TRANSCRIÇÕES DE APOIO DOS PASTORES/ESTUDOS:
 ${balancedTranscriptionsText}
 
 REGRAS MANDATÓRIAS INEGOCIÁVEIS:
-1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR! O projetor é apenas o parágrafo resumido que fica na tela para os alunos.
+1. 🛑 NUNCA COPIE OU REPITA O TEXTO DO PROJETOR! O projetor é o parágrafo da revista que fica na tela para os alunos.
 2. Para CADA subtópico, gere uma EXPLICAÇÃO DIDÁTICA DO PROFESSOR OBJETIVA, LÍMPIDA e PEDAGÓGICA (1 parágrafo bem estruturado de 60 a 100 palavras) para respeitar o tempo de aula da EBD (45 a 60 min total).
    Padrão modelo: "Moisés apresenta três etapas da vida espiritual: ouvir, aprender e praticar. Ouvir (shema) é atender à Palavra com disposição para obedecer; aprender (lamad) é internalizar o ensino divino; e guardar (shamar) é colocá-lo em prática. Diferentemente da geração que falhou em obedecer, o cristão deve ser praticante da Palavra, e não apenas ouvinte (Tg 1.22-25)."
 3. Integre a essência teológica das transcrições, a raiz no hebraico/grego se houver e a lição espiritual sem divagações prolixas.
