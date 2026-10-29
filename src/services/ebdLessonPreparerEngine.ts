@@ -411,13 +411,13 @@ Eles possuem fontes, propósitos, tamanhos e linguagens COMPLETAMENTE DIFERENTES
   7. PROMPT VISUAL 16:9 ("imagePrompt"): Descrição cinematográfica hiperdetalhada 16:9 para Midjourney / DALL-E / Canva.
 
 --- 🖼️ REQUISITO MANDATÓRIO DE GERAÇÃO DE PROMPTS VISUAIS 16:9 ("imagePrompt") ---
-Você DEVE gerar obrigatoriamente um prompt visual cinematográfico hiperdetalhado em formato 16:9 ("imagePrompt") para:
+Você DEVE gerar obrigatoriamente um prompt visual cinematográfico hiperdetalhado em formato 16:9 ("imagePrompt") APENAS para os 7 itens principais da lição:
 1. TÍTULO DA LIÇÃO ("metadata.imagePrompt"): Cena ampla e cinematográfica em formato 16:9 capturando o tema principal da lição e o contexto histórico bíblico para o slide de capa (sem texto, iluminação nobre, fotorrealista).
 2. TEXTO ÁUREO ("textAureo.imagePrompt"): Ilustração bíblica 16:9 que capture com reverência e profundidade espiritual a cena descrita no Texto Áureo.
 3. VERDADE PRÁTICA ("verdadePratica.imagePrompt"): Representação visual/conceitual 16:9 da Verdade Prática aplicada à vida diária de fé do cristão.
 4. PALAVRA-CHAVE ("palavraChave.imagePrompt"): Composição simbólica, monumental e marcante em 16:9 expressando o conceito teológico central da Palavra-Chave.
 5. CADA UM DOS TÓPICOS ("topicos[].imagePrompt"): Prompt 16:9 cinematográfico e imersivo para o Tópico I, Tópico II e Tópico III.
-6. CADA UM DOS SUBTÓPICOS ("topicos[].subtopicos[].imagePrompt"): Cena detalhada 16:9 ilustrando com precisão histórica o subtópico específico.
+(IMPORTANTE: NÃO gere prompts visuais para os subtópicos; deixe "subtopicos[].imagePrompt" como string vazia "")
 
 - PALAVRA-CHAVE DA LIÇÃO COM ORIGEM NO HEBRAICO E NO GREGO ("palavraChave"):
   Identifique a PALAVRA-CHAVE oficial da lição informada na revista (ou a palavra teológica/conceitual mais central da lição, ex: "AUTORIA", "INSPIRAÇÃO", "FIDELIDADE").

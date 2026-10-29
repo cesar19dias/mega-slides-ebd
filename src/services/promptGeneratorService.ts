@@ -269,17 +269,12 @@ export function formatAllPromptsForExport(lesson: EBDLessonPreparation): string 
     out += `${l.palavraChave.imagePrompt}\n\n`;
   }
 
-  // 5. TÓPICOS E SUBTÓPICOS
+  // 5. TÓPICOS (APENAS OS 3 TÓPICOS PRINCIPAIS)
   l.topicos.forEach((topico) => {
     out += `------------------------------------------------------------------------\n`;
     out += `--- TÓPICO ${topico.number}: ${topico.title.toUpperCase()} ---\n`;
     out += `------------------------------------------------------------------------\n`;
     out += `Prompt do Tópico:\n${topico.imagePrompt}\n\n`;
-
-    topico.subtopicos.forEach((sub) => {
-      out += `• Subtópico ${sub.number}: ${sub.title}\n`;
-      out += `  Prompt 16:9:\n  ${sub.imagePrompt}\n\n`;
-    });
   });
 
   out += `========================================================================\n`;
