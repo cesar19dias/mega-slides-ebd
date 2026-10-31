@@ -600,6 +600,8 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
   toggleBodyTextColor,
   slideImageOpacity,
   changeSlideImageOpacity,
+  currentBodyScale,
+  setSingleBodyScale,
   isCurrentTitleCustom,
   isCurrentBodyCustom,
   applyCurrentScalesToAllSlides,
@@ -784,6 +786,36 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
                 </span>
               </div>
 
+              {/* Tamanho da Fonte do Texto no Slide (A- / A+) */}
+              <div className="flex items-center gap-1.5 bg-slate-950/90 px-2.5 py-1 rounded-xl border border-amber-500/50">
+                <span className="text-[10px] font-black text-amber-300 uppercase shrink-0">Tamanho Texto:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = Math.max(0.4, Math.round((currentBodyScale - 0.1) * 10) / 10);
+                    setSingleBodyScale(projectorIndex, next);
+                  }}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-white font-black text-xs border border-amber-500/40 cursor-pointer transition-colors"
+                  title="Diminuir tamanho da fonte do slide (A-)"
+                >
+                  A-
+                </button>
+                <span className="text-xs font-mono font-black min-w-[36px] text-center text-amber-200">
+                  {Math.round(currentBodyScale * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = Math.min(3.0, Math.round((currentBodyScale + 0.1) * 10) / 10);
+                    setSingleBodyScale(projectorIndex, next);
+                  }}
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-white font-black text-xs border border-amber-500/40 cursor-pointer transition-colors"
+                  title="Aumentar tamanho da fonte do slide (A+)"
+                >
+                  A+
+                </button>
+              </div>
+
               {(isCurrentTitleCustom || isCurrentBodyCustom) && (
                 <button
                   onClick={applyCurrentScalesToAllSlides}
@@ -836,15 +868,40 @@ export const ProjectorToolbar: React.FC<ProjectorToolbarProps> = ({
           {/* Texto Principal do Slide */}
           {currentProjectorItem.projetorText !== undefined && (
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-amber-300 uppercase block">Texto Principal do Slide (Projetor)</label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-[11px] font-bold text-amber-300 uppercase block">Texto Principal do Slide (Projetor)</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!currentProjectorItem.onUpdateText || !currentProjectorItem.projetorText) return;
+                    let clean = currentProjectorItem.projetorText;
+                    // Remove citações idênticas repetidas
+                    clean = clean.replace(/("[^"]{15,}")(?:\s*\1)+/g, '$1');
+                    clean = clean.replace(/(“[^”]{15,}”)(?:\s*\1)+/g, '$1');
+                    const lines = clean.split('\n');
+                    const deduped: string[] = [];
+                    for (const l of lines) {
+                      if (deduped.length > 0 && deduped[deduped.length - 1].trim() === l.trim() && l.trim().length > 10) {
+                        continue;
+                      }
+                      deduped.push(l);
+                    }
+                    currentProjectorItem.onUpdateText(deduped.join('\n').trim());
+                  }}
+                  className="text-[10px] font-bold text-cyan-300 hover:text-white px-2 py-0.5 rounded-lg bg-cyan-950/80 border border-cyan-500/40 hover:bg-cyan-900 transition-colors cursor-pointer flex items-center gap-1"
+                  title="Remover frases e citações repetidas deste texto"
+                >
+                  <span>🧹 Limpar Repetições</span>
+                </button>
+              </div>
               <textarea
-                rows={3}
+                rows={5}
                 value={currentProjectorItem.projetorText || ''}
                 onChange={(e) => {
                   if (currentProjectorItem.onUpdateText) currentProjectorItem.onUpdateText(e.target.value);
                 }}
                 placeholder="Digite ou cole o texto para exibir no projetor..."
-                className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl p-3 text-xs outline-none resize-y font-sans"
+                className="w-full bg-slate-950 border border-amber-500/50 focus:border-amber-400 text-white rounded-xl p-3 text-sm md:text-base leading-relaxed outline-none resize-y font-sans min-h-[120px]"
               />
             </div>
           )}

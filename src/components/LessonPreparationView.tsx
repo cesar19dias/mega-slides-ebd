@@ -2506,7 +2506,30 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
 
         // 2. SLIDE DE BASE BÍBLICA DE APOIO (VAMOS LER A BÍBLIA - REFERÊNCIA + TEXTO LITERAL DO VERSÍCULO)
         if (s.versiculos && s.versiculos.length > 0) {
-          const textoVersiculosFormatado = s.versiculos
+          // Saneamento automático de contaminação por versículos duplicados
+          const sanitizedVerses = s.versiculos.map((v, idx) => {
+            let cleanText = (v.text || '').trim();
+            // Remove repetições consecutivas idênticas de citações entre aspas
+            cleanText = cleanText.replace(/("[^"]{15,}")(?:\s*\1)+/g, '$1');
+            cleanText = cleanText.replace(/(“[^”]{15,}”)(?:\s*\1)+/g, '$1');
+
+            // Se for o primeiro versículo e ele foi contaminado com o texto de versículos posteriores (bug de replicação)
+            if (idx === 0 && s.versiculos && s.versiculos.length > 1) {
+              for (let i = 1; i < s.versiculos.length; i++) {
+                const otherRaw = (s.versiculos[i].text || '').replace(/^[“"']+|[”"']+$/g, '').trim();
+                if (otherRaw.length > 15) {
+                  const escaped = otherRaw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  cleanText = cleanText.replace(new RegExp(`[“"']?\\s*${escaped}\\s*[”"']?`, 'g'), ' ').trim();
+                }
+              }
+            }
+            return {
+              ...v,
+              text: cleanText
+            };
+          });
+
+          const textoVersiculosFormatado = sanitizedVerses
             .map(v => {
               const ref = v.reference ? `📖 ${v.reference.replace(/^[📖\s*-]+/, '').trim()}` : '';
               const cleanTxt = (v.text || '').replace(/^[“"']+|[”"']+$/g, '').trim();
@@ -2529,18 +2552,56 @@ export const LessonPreparationView: React.FC<LessonPreparationViewProps> = ({
               imagePrompt: s.imagePrompt,
               onUpdateText: (val: string) => {
                 const currentVerses = s.versiculos || [];
-                if (currentVerses.length > 0) {
-                  const lines = val.split('\n').map(l => l.trim()).filter(Boolean);
-                  const firstRef = lines.find(l => l.startsWith('📖'))?.replace(/^📖\s*/, '') || currentVerses[0].reference;
-                  const bodyLines = lines.filter(l => !l.startsWith('📖')).join(' ').replace(/^[“"']+|[”"']+$/g, '').trim();
-                  const updated = [...currentVerses];
-                  updated[0] = {
-                    ...updated[0],
-                    reference: firstRef || updated[0].reference,
-                    text: bodyLines || updated[0].text
-                  };
-                  updateSubtopicField(tIdx, sIdx, 'versiculos', updated);
+                if (!val.trim()) {
+                  updateSubtopicField(tIdx, sIdx, 'versiculos', [{ reference: currentVerses[0]?.reference || '', text: '' }]);
+                  return;
                 }
+
+                // Divide o texto em blocos estruturados de versículos por 📖 ou linhas de referência
+                const lines = val.split('\n');
+                interface ParsedBlock {
+                  ref: string;
+                  lines: string[];
+                }
+                const blocks: ParsedBlock[] = [];
+                let curBlock: ParsedBlock | null = null;
+
+                lines.forEach(line => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return;
+
+                  const isRef = /^📖/.test(trimmed) || (
+                    /^[A-Z0-9À-ÿ\s\.\,\:\;\-–—]+(?:\(ARC\)|\(NVI\)|\(NAA\)|capítulo|versículo|\d+:\d+|\d+\.\d+)/i.test(trimmed) &&
+                    trimmed.length < 90 &&
+                    !trimmed.startsWith('"') &&
+                    !trimmed.startsWith('“')
+                  );
+
+                  if (isRef) {
+                    if (curBlock) blocks.push(curBlock);
+                    curBlock = {
+                      ref: trimmed.replace(/^📖\s*/, '').trim(),
+                      lines: []
+                    };
+                  } else {
+                    if (!curBlock) {
+                      curBlock = {
+                        ref: currentVerses[0]?.reference || '',
+                        lines: []
+                      };
+                    }
+                    curBlock.lines.push(trimmed);
+                  }
+                });
+
+                if (curBlock) blocks.push(curBlock);
+
+                const updated = blocks.map((b, bIdx) => ({
+                  reference: b.ref || currentVerses[bIdx]?.reference || '',
+                  text: b.lines.join(' ').replace(/^[“"']+|[”"']+$/g, '').trim()
+                }));
+
+                updateSubtopicField(tIdx, sIdx, 'versiculos', updated.length > 0 ? updated : [{ reference: '', text: val.trim() }]);
               }
             });
           }
